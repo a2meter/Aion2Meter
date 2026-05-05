@@ -468,30 +468,40 @@ internal sealed class DpsCanvas : Control
                 : row.Name;
             string nameText = row.CombatPower > 0 ? $"{displayName}  {row.CombatPower:N0}" : displayName;
 
-            // Name (left) + contribution % next to name
+            // Name (left)
             var nameLayout = _ctx!.DWriteFactory.CreateTextLayout(nameText, _fontName!, numW * 0.6f, 16);
             dc.DrawTextLayout(new Vector2(textLeft, y + 5), nameLayout, nameBrush);
             float nameWidth = nameLayout.Metrics.WidthIncludingTrailingWhitespace;
             nameLayout.Dispose();
 
-            string contribText = $" {row.Percent * 100:0.#}%";
-            dc.DrawText(contribText, _fontSmall!, new Rect(textLeft + nameWidth, y + 6, 60, 14), _brushTextDim!,
+            // Right-aligned stats: Damage (white) | DPS (gold) | Percent (white)
+            string dmgText = FormatDamage(row.Damage);
+            string dpsText = $"{FormatDamage(row.DpsValue)}/s";
+            string pctText = $"{row.Percent * 100:0.#}%";
+            const float statGap = 10f;
+
+            // Measure each segment width
+            using var pctLayout = _ctx.DWriteFactory.CreateTextLayout(pctText, _fontNumber!, numW, 16);
+            float pctW = pctLayout.Metrics.Width;
+
+            using var dpsLayout = _ctx.DWriteFactory.CreateTextLayout(dpsText, _fontNumber!, numW, 16);
+            float dpsW = dpsLayout.Metrics.Width;
+
+            using var dmgLayout = _ctx.DWriteFactory.CreateTextLayout(dmgText, _fontNumber!, numW, 16);
+            float dmgW = dmgLayout.Metrics.Width;
+
+            // Position from right edge
+            float rightEdge = textLeft + numW;
+            float pctX = rightEdge - pctW;
+            float dpsX = pctX - statGap - dpsW;
+            float dmgX = dpsX - statGap - dmgW;
+
+            dc.DrawText(dmgText, _fontNumber!, new Rect(dmgX, y + 4, dmgW + 2, 16), _brushTextBright!,
                 DrawTextOptions.None, MeasuringMode.Natural);
-
-            // DPS — gold color, right-aligned
-            string dpsText = FormatDamage(row.DpsValue) + "/s";
-            var dpsLayout = _ctx.DWriteFactory.CreateTextLayout(dpsText, _fontNumber!, numW, 16);
-            dpsLayout.TextAlignment = TextAlignment.Trailing;
-            float dpsWidth = dpsLayout.Metrics.Width;
-            dc.DrawTextLayout(new Vector2(textLeft, y + 4), dpsLayout, _brushGold!);
-            dpsLayout.Dispose();
-
-            // Total damage — dim, left of DPS
-            string totalText = FormatDamage(row.Damage);
-            var totalLayout = _ctx.DWriteFactory.CreateTextLayout(totalText, _fontSmall!, numW - dpsWidth - 6, 16);
-            totalLayout.TextAlignment = TextAlignment.Trailing;
-            dc.DrawTextLayout(new Vector2(textLeft, y + 6), totalLayout, _brushTextDim!);
-            totalLayout.Dispose();
+            dc.DrawText(dpsText, _fontNumber!, new Rect(dpsX, y + 4, dpsW + 2, 16), _brushGold!,
+                DrawTextOptions.None, MeasuringMode.Natural);
+            dc.DrawText(pctText, _fontNumber!, new Rect(pctX, y + 4, pctW + 2, 16), _brushTextBright!,
+                DrawTextOptions.None, MeasuringMode.Natural);
 
             _rowHitAreas.Add((y, y + RowH, idx));
             y += RowH + RowGap;
