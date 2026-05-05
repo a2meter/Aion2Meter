@@ -49,6 +49,8 @@ internal sealed class AppSettings
         public string TextPrimary   { get; set; } = "#C8C8D0"; // main text
         public string TextSecondary { get; set; } = "#6E6E80"; // dim text
         public string Accent     { get; set; } = "#4DE8E0";  // accent/highlight
+        public string Elyos { get; set; } = "#007AFF";  // 천족 색상
+        public string Asmo  { get; set; } = "#FF3B30";  // 마족 색상
 
         // ── helpers (not serialized) ──
         [JsonIgnore] public System.Drawing.Color BgColor      => ParseHex(Background);
@@ -57,6 +59,8 @@ internal sealed class AppSettings
         [JsonIgnore] public System.Drawing.Color TextColor    => ParseHex(TextPrimary);
         [JsonIgnore] public System.Drawing.Color TextDimColor => ParseHex(TextSecondary);
         [JsonIgnore] public System.Drawing.Color AccentColor  => ParseHex(Accent);
+        [JsonIgnore] public System.Drawing.Color ElyosColor  => ParseHex(Elyos);
+        [JsonIgnore] public System.Drawing.Color AsmoColor   => ParseHex(Asmo);
 
         public static System.Drawing.Color ParseHex(string hex)
         {

@@ -249,6 +249,8 @@ internal sealed class DpsCanvas : Control
         if (_brushText != null)    _brushText.Color    = ColorToD2D(t.TextColor);
         if (_brushTextDim != null)  _brushTextDim.Color = ColorToD2D(t.TextDimColor);
         if (_brushAccent != null)   _brushAccent.Color  = ColorToD2D(t.AccentColor);
+        if (_brushNameElyos != null) _brushNameElyos.Color = ColorToD2D(t.ElyosColor);
+        if (_brushNameAsmo != null) _brushNameAsmo.Color = ColorToD2D(t.AsmoColor);
     }
 
     /// Rebuild fonts and theme colors from current AppSettings.
@@ -294,6 +296,8 @@ internal sealed class DpsCanvas : Control
         _brushHpFill?.Dispose();
         _brushHpBg?.Dispose();
         _brushAccent?.Dispose();
+        _brushNameElyos?.Dispose();
+        _brushNameAsmo?.Dispose();
         _brushGold?.Dispose();
         _brushTextDim?.Dispose();
         _brushTextBright?.Dispose();

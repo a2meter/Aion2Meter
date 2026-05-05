@@ -80,14 +80,19 @@ internal sealed class SettingsPanelForm : Form
         // ─── 0. UI Theme colors ─────────────────────────────────
         content.Controls.Add(SectionLabel("테마 색상", left, y));
         y += 22;
-        string[] themeLabels = { "배경", "헤더", "보더", "텍스트", "보조 텍스트", "강조" };
-        Func<string>[] themeGetters = { () => theme.Background, () => theme.Header, () => theme.Border, () => theme.TextPrimary, () => theme.TextSecondary, () => theme.Accent };
+
+        string[] themeLabels = { "배경", "헤더", "보더", "텍스트", "보조 텍스트", "강조", "천족", "마족" };
+        Func<string>[] themeGetters = { 
+            () => theme.Background, () => theme.Header, () => theme.Border, 
+            () => theme.TextPrimary, () => theme.TextSecondary, () => theme.Accent,
+            () => theme.Elyos, () => theme.Asmo };
         Action<string>[] themeSetters = {
             v => theme.Background = v, v => theme.Header = v, v => theme.Border = v,
-            v => theme.TextPrimary = v, v => theme.TextSecondary = v, v => theme.Accent = v };
+            v => theme.TextPrimary = v, v => theme.TextSecondary = v, v => theme.Accent = v,
+            v => theme.Elyos = v, v => theme.Asmo = v };
 
-        var themeSwatches = new ColorSwatch[6];
-        for (int i = 0; i < 6; i++)
+        var themeSwatches = new ColorSwatch[themeLabels.Length];
+        for (int i = 0; i < themeLabels.Length; i++)
         {
             int col = i % 3;
             int row = i / 3;
@@ -116,7 +121,7 @@ internal sealed class SettingsPanelForm : Form
                 AutoSize = true, Location = new Point(sx + 22, sy + 3), BackColor = Color.Transparent,
             });
         }
-        y += 70;
+        y += 105;
 
         // Theme export/import/reset buttons
         var btnExport = StyledButton("내보내기", left, y, 90);
@@ -130,8 +135,8 @@ internal sealed class SettingsPanelForm : Form
             {
                 SettingsChanged?.Invoke();
                 var t = settings.Theme;
-                string[] vals = { t.Background, t.Header, t.Border, t.TextPrimary, t.TextSecondary, t.Accent };
-                for (int i = 0; i < 6; i++)
+                string[] vals = { t.Background, t.Header, t.Border, t.TextPrimary, t.TextSecondary, t.Accent, t.Elyos, t.Asmo };
+                for (int i = 0; i < themeLabels.Length; i++)
                     try { themeSwatches[i].SwatchColor = ColorTranslator.FromHtml(vals[i]); } catch { }
             }
         };
@@ -148,10 +153,12 @@ internal sealed class SettingsPanelForm : Form
             t.TextPrimary = def.TextPrimary;
             t.TextSecondary = def.TextSecondary;
             t.Accent = def.Accent;
+            t.Elyos = def.Elyos;
+            t.Asmo = def.Asmo;
             settings.SaveDebounced();
             SettingsChanged?.Invoke();
-            string[] vals = { t.Background, t.Header, t.Border, t.TextPrimary, t.TextSecondary, t.Accent };
-            for (int i = 0; i < 6; i++)
+            string[] vals = { t.Background, t.Header, t.Border, t.TextPrimary, t.TextSecondary, t.Accent, t.Elyos, t.Asmo };
+            for (int i = 0; i < themeLabels.Length; i++)
                 try { themeSwatches[i].SwatchColor = ColorTranslator.FromHtml(vals[i]); } catch { }
         };
         content.Controls.Add(btnReset);
@@ -485,6 +492,8 @@ internal sealed class SettingsPanelForm : Form
             textPrimary = t.TextPrimary,
             textSecondary = t.TextSecondary,
             accent = t.Accent,
+            elyos = t.Elyos,
+            asmo = t.Asmo,
         };
         var json = System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         System.IO.File.WriteAllText(dlg.FileName, json);
@@ -510,6 +519,8 @@ internal sealed class SettingsPanelForm : Form
             if (root.TryGetProperty("textPrimary", out v))       t.TextPrimary   = v.GetString() ?? t.TextPrimary;
             if (root.TryGetProperty("textSecondary", out v))     t.TextSecondary = v.GetString() ?? t.TextSecondary;
             if (root.TryGetProperty("accent", out v))            t.Accent        = v.GetString() ?? t.Accent;
+            if (root.TryGetProperty("elyos", out v))            t.Elyos        = v.GetString() ?? t.Elyos;
+            if (root.TryGetProperty("asmo", out v))            t.Asmo        = v.GetString() ?? t.Asmo;
             settings.SaveDebounced();
             return true;
         }

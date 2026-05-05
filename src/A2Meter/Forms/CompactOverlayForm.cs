@@ -213,6 +213,10 @@ internal sealed class CompactOverlayForm : Form
         _brushTextDim!.Color = new D2DColor(dim.R / 255f, dim.G / 255f, dim.B / 255f, 0.7f);
         var acc = t.AccentColor;
         _brushAccent!.Color = new D2DColor(acc.R / 255f, acc.G / 255f, acc.B / 255f, 1f);
+        var elyos = t.ElyosColor;
+        _brushNameElyos!.Color = new D2DColor(elyos.R / 255f, elyos.G / 255f, elyos.B / 255f, 1f);
+        var asmo = t.AsmoColor;
+        _brushNameAsmo!.Color = new D2DColor(asmo.R / 255f, asmo.G / 255f, asmo.B / 255f, 1f);
     }
 
     private void RebuildFonts()
@@ -484,6 +488,8 @@ internal sealed class CompactOverlayForm : Form
         _fontNumber?.Dispose();
         _fontName?.Dispose();
         _brushAccent?.Dispose();
+        _brushNameElyos?.Dispose();
+        _brushNameAsmo?.Dispose();
         _brushHandle?.Dispose();
         _brushHpFill?.Dispose();
         _brushHpBg?.Dispose();
