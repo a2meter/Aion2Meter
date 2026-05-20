@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using A2Meter.Api;
 using A2Meter.Core;
 using A2Meter.Direct2D;
 using A2Meter.Dps.Protocol;
@@ -18,6 +20,7 @@ internal sealed class DpsPipeline : IDisposable
     private readonly BuffTracker _buffTracker = new();
     private readonly System.Threading.Timer _pushTimer;
     private readonly CombatHistory _history = new();
+    private readonly WebUploader _uploader = new();
 
     private const int PushIntervalMs = 100;
     /// Idle window after which an active session ends (matches original: 3s).
@@ -28,8 +31,8 @@ internal sealed class DpsPipeline : IDisposable
     private DateTime   _lastHitUtc      = DateTime.MinValue;
     private long       _peakDpsThisSess;
     private bool       _sessionActive;
-    private bool       _combatRecordSaved;   // duplicate-save guard (matches A2Power)
-    private DateTime   _combatRecordSavedAt; // for 60-second debounce (matches A2Power)
+    private bool       _combatRecordSaved;   // duplicate-save guard
+    private string?    _sessionId;           // UUID assigned at combat start, used for dedup
     private bool       _viewingHistory;
     private bool       _selfDetectedOnce;
     private int        _selfEntityId;        // tracks self entityId for zone-change detection
@@ -138,6 +141,7 @@ internal sealed class DpsPipeline : IDisposable
         _buffTracker.Reset();
         _countdownExpired = false;
         _combatRecordSaved = false;
+        _sessionId = null;
         _inDungeon = false;
         _dungeonId = null;
         _currentTargetId = 0;
@@ -340,16 +344,10 @@ internal sealed class DpsPipeline : IDisposable
         if (!_sessionActive && hitMob.IsBoss && (hitMob.DeathConfirmed || hitMob.CurrentHp <= 0))
             return;
 
-        // ── Combat start (A2Power 60-second debounce) ──
+        // ── Combat start ──
         if (!_sessionActive)
         {
-            if (_combatRecordSaved && (DateTime.UtcNow - _combatRecordSavedAt).TotalSeconds >= 60.0)
-            {
-                ResetCombatStats();
-                _currentTargetId = e.TargetId;
-                if (hitMob.IsBoss)
-                    RequestMissingActorLookups();
-            }
+            _sessionId = Guid.NewGuid().ToString();
             _combatRecordSaved = false;
             _party.PurgeNonParty();
             _buffTracker.Reset();
@@ -476,19 +474,31 @@ internal sealed class DpsPipeline : IDisposable
             && (prim == null || !prim.IsBoss || prim.CurrentHp <= 0
                 || _removedEntities.Contains(_currentTargetId) || IsDummy(prim.Name));
         bool bossReset = _sessionActive && prim is { IsBoss: true, MaxHp: > 0 }
-            && prim.CurrentHp >= prim.MaxHp && prim.TotalDamageReceived > 0;
+            && prim.CurrentHp >= prim.MaxHp
+            && prim.HpAtLastSample > 0 && prim.HpAtLastSample < prim.MaxHp;
 
         if (bossKilled || idleStop || bossReset)
         {
-            if (prim != null) prim.DeathConfirmed = true;
+            if (prim != null && !bossReset) prim.DeathConfirmed = true;
             _lastSummary = BuildSummary(snap);
-            SaveRecord(snap);
-            _meter.Stop();
-            _sessionActive = false;
 
-            _lastRows = MapForCanvas(snap.Players, snap.ElapsedSeconds);
-            _lastTotal = snap.TotalPartyDamage;
-            _lastTimer = FormatTimer(snap.ElapsedSeconds);
+            if (bossReset)
+            {
+                // Wipe — discard the short record, reset for next attempt.
+                _lastRows = MapForCanvas(snap.Players, snap.ElapsedSeconds);
+                _lastTotal = snap.TotalPartyDamage;
+                _lastTimer = FormatTimer(snap.ElapsedSeconds);
+                ResetCombatStats();
+            }
+            else
+            {
+                SaveRecord(snap);
+                _lastRows = MapForCanvas(snap.Players, snap.ElapsedSeconds);
+                _lastTotal = snap.TotalPartyDamage;
+                _lastTimer = FormatTimer(snap.ElapsedSeconds);
+                _meter.Stop();
+                _sessionActive = false;
+            }
         }
 
         // After session ends, keep displaying the last frame instead of empty.
@@ -529,9 +539,11 @@ internal sealed class DpsPipeline : IDisposable
     private void SaveRecord(DpsSnapshot snap)
     {
         if (snap.TotalPartyDamage <= 0) return;
+        // Skip transient records (e.g. entity removal on zone entry before real fight).
+        // Don't set _combatRecordSaved so the real kill record can still save later.
+        if (snap.ElapsedSeconds < 2.0) return;
         if (_combatRecordSaved) return;
         _combatRecordSaved = true;
-        _combatRecordSavedAt = DateTime.UtcNow;
 
         // Enrich snapshot players with CP/Score, skill levels, and server info before saving.
         foreach (var p in snap.Players)
@@ -542,7 +554,7 @@ internal sealed class DpsPipeline : IDisposable
             int cp = p.CombatPower;
             int score = p.CombatScore;
 
-            foreach (var pm in _party.Members.Values)
+            foreach (var pm in _party.SnapshotMembers())
             {
                 if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
                 {
@@ -578,19 +590,36 @@ internal sealed class DpsPipeline : IDisposable
                 p.Name = $"{p.Name}[{sname}]";
         }
 
-        _history.Save(new CombatRecord
+        // Mark the self player as the uploader so the server can build a stable
+        // upload_key ("playerName:timestamp") instead of falling back to "unknown".
+        int selfEntityId = _party.SelfEntityId ?? -1;
+        foreach (var p in snap.Players)
+            p.IsUploader = p.EntityId == selfEntityId;
+
+        var record = new CombatRecord
         {
             Timestamp   = DateTime.Now,
+            SessionId   = _sessionId,
             BossName    = _currentTarget?.Name,
             DurationSec = snap.ElapsedSeconds,
             TotalDamage = snap.TotalPartyDamage,
-            AverageDps  = snap.ElapsedSeconds > 0 ? (long)(snap.TotalPartyDamage / snap.ElapsedSeconds) : 0,
+            // Average DPS = mean of party members' individual DPS (not total damage / time).
+            AverageDps  = snap.Players.Count > 0 ? (long)snap.Players.Average(p => p.Dps) : 0,
             PeakDps     = _peakDpsThisSess,
             Snapshot    = snap,
             Timeline    = _timeline.Count > 0 ? new List<TimelineEntry>(_timeline) : null,
             HitLog      = _hitLog.Count > 0 ? new List<HitLogEntry>(_hitLog) : null,
             DungeonId   = IsDummy(_currentTarget?.Name) ? null : _dungeonId,
-        });
+        };
+
+        if (!_history.Save(record))
+            return; // duplicate of previous record — skip upload too
+
+        if (AppSettings.Instance.WebUploadEnabled)
+        {
+            _uploader.BaseUrl = AppSettings.Instance.WebUploadUrl;
+            _uploader.UploadAsync(record);
+        }
     }
 
     /// Matches A2Power ResetCombatStats(): clear damage but keep actor identities.
@@ -603,6 +632,7 @@ internal sealed class DpsPipeline : IDisposable
         _currentTargetId = 0;
         _sessionActive = false;
         _combatRecordSaved = false;
+        _sessionId = null;
         _peakDpsThisSess = 0;
         _peakByActor.Clear();
         _lastSummary = null;
@@ -652,7 +682,7 @@ internal sealed class DpsPipeline : IDisposable
     /// Trigger API fetch for party members not yet enriched (A2Power RequestMissingActorLookups).
     private void RequestMissingActorLookups()
     {
-        foreach (var pm in _party.Members.Values)
+        foreach (var pm in _party.SnapshotMembers())
         {
             if (!string.IsNullOrEmpty(pm.Nickname) && pm.ServerId > 0)
                 Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, pm.ServerId);
@@ -711,7 +741,8 @@ internal sealed class DpsPipeline : IDisposable
             string sname = p.ServerName;
             string cleanName = StripServerSuffix(p.Name);
             // PartyTracker is keyed by CharacterId, not EntityId — look up by nickname.
-            foreach (var pm in _party.Members.Values)
+            // Snapshot Values to avoid InvalidOperationException from concurrent Upsert.
+            foreach (var pm in _party.SnapshotMembers())
             {
                 if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
                 {
@@ -754,7 +785,8 @@ internal sealed class DpsPipeline : IDisposable
                 DpsValue:    p.Dps,
                 CritRate:    p.CritRate,
                 HealTotal:   p.HealTotal,
-                AccentColor: JobAccent(p.JobCode),
+                AccentColor: JobBarAccent(p.JobCode),
+                IconColor:   JobAccent(p.JobCode),
                 Skills:      skills,
                 CombatPower: cp,
                 CombatScore: score,
@@ -767,12 +799,50 @@ internal sealed class DpsPipeline : IDisposable
                 Buffs:       buffs.Count > 0 ? buffs : null));
         }
 
+        // ── Merge rows with identical display name (same player, different entity IDs) ──
+        if (rows.Count > 1)
+        {
+            var deduped = new List<DpsCanvas.PlayerRow>(rows.Count);
+            var nameIdx = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var row in rows)
+            {
+                if (nameIdx.TryGetValue(row.Name, out int idx))
+                {
+                    var prev = deduped[idx];
+                    bool pickNew = row.Damage > prev.Damage;
+                    long dmg = prev.Damage + row.Damage;
+                    deduped[idx] = prev with
+                    {
+                        Damage      = dmg,
+                        Percent     = prev.Percent + row.Percent,
+                        DpsValue    = elapsedSec > 0 ? (long)(dmg / elapsedSec) : prev.DpsValue + row.DpsValue,
+                        AvgDps      = elapsedSec > 0 ? (long)(dmg / elapsedSec) : prev.AvgDps + row.AvgDps,
+                        PeakDps     = Math.Max(prev.PeakDps, row.PeakDps),
+                        HealTotal   = prev.HealTotal + row.HealTotal,
+                        DotDamage   = prev.DotDamage + row.DotDamage,
+                        CritRate    = pickNew ? row.CritRate : prev.CritRate,
+                        CombatPower = Math.Max(prev.CombatPower, row.CombatPower),
+                        CombatScore = Math.Max(prev.CombatScore, row.CombatScore),
+                        Skills      = pickNew ? (row.Skills ?? prev.Skills) : (prev.Skills ?? row.Skills),
+                        Buffs       = pickNew ? (row.Buffs ?? prev.Buffs) : (prev.Buffs ?? row.Buffs),
+                        SkillLevels = pickNew ? (row.SkillLevels ?? prev.SkillLevels) : (prev.SkillLevels ?? row.SkillLevels),
+                    };
+                }
+                else
+                {
+                    nameIdx[row.Name] = deduped.Count;
+                    deduped.Add(row);
+                }
+            }
+            rows = deduped;
+        }
+
         // Append detected party members who have no combat data yet as placeholder rows.
         // existingNames uses clean nicknames (without [서버명]) to avoid mismatch.
         var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in rows) existingNames.Add(StripServerSuffix(r.Name));
 
-        foreach (var pm in _party.Members.Values)
+        foreach (var pm in _party.SnapshotMembers())
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
             string cleanNick = StripServerSuffix(pm.Nickname);
@@ -803,7 +873,8 @@ internal sealed class DpsPipeline : IDisposable
                 DpsValue:    0,
                 CritRate:    0,
                 HealTotal:   0,
-                AccentColor: JobAccent(pm.JobCode),
+                AccentColor: JobBarAccent(pm.JobCode),
+                IconColor:   JobAccent(pm.JobCode),
                 CombatPower: pmCp,
                 CombatScore: pmScore,
                 ServerId:    pmSid,
@@ -851,9 +922,20 @@ internal sealed class DpsPipeline : IDisposable
         return UiAccents[ui];
     }
 
+    /// Bar fill color — reads user-configured hex from settings.
+    private static D2DColor JobBarAccent(int gameCode)
+    {
+        string jobName = JobMapping.GameToJobName(gameCode);
+        if (string.IsNullOrEmpty(jobName)) return new D2DColor(0.70f, 0.70f, 0.70f, 1f);
+        string hex = Core.AppSettings.Instance.JobBarColors.GetHex(jobName);
+        var c = Core.AppSettings.ThemeColors.ParseHex(hex);
+        return new D2DColor(c.R / 255f, c.G / 255f, c.B / 255f, 1f);
+    }
+
     public void Dispose()
     {
         _pushTimer.Dispose();
         _source?.Dispose();
+        _uploader.Dispose();
     }
 }

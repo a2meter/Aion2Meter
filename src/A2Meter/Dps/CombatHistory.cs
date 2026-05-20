@@ -10,6 +10,8 @@ namespace A2Meter.Dps;
 internal sealed class CombatRecord
 {
     public DateTime Timestamp { get; set; }
+    /// UUID assigned at combat start — used to dedup saves within the same session.
+    public string? SessionId { get; set; }
     public string? BossName { get; set; }
     public double DurationSec { get; set; }
     public long TotalDamage { get; set; }
@@ -41,8 +43,44 @@ internal sealed class CombatHistory
         LoadAll();
     }
 
-    public void Save(CombatRecord record)
+    /// Returns true if saved, false if skipped as a near-duplicate of the previous record.
+    public bool Save(CombatRecord record)
     {
+        // Dedup by SessionId: if a record with the same session already exists,
+        // overwrite it in-place instead of creating a duplicate entry.
+        if (!string.IsNullOrEmpty(record.SessionId))
+        {
+            int idx = _records.FindIndex(r => r.SessionId == record.SessionId);
+            if (idx >= 0)
+            {
+                var old = _records[idx];
+                _records[idx] = record;
+                // Delete the old file (timestamp may differ).
+                try
+                {
+                    string oldFile = Path.Combine(HistoryDir, $"{old.Timestamp:yyyyMMdd-HHmmss}.json");
+                    if (File.Exists(oldFile)) File.Delete(oldFile);
+                }
+                catch { }
+                // Write updated record.
+                try
+                {
+                    Directory.CreateDirectory(HistoryDir);
+                    string fileName = $"{record.Timestamp:yyyyMMdd-HHmmss}.json";
+                    File.WriteAllText(Path.Combine(HistoryDir, fileName),
+                        JsonSerializer.Serialize(record, JsonOpts));
+                }
+                catch { }
+                return true;
+            }
+        }
+
+        // Skip near-duplicate saves: same boss as the most recent record AND any
+        // player has matching accumulated damage with the same-named player there.
+        // This catches duplicate saves from different SessionIds for the same fight.
+        if (_records.Count > 0 && IsDuplicateOfPrevious(_records[0], record))
+            return false;
+
         _records.Insert(0, record);
         TrimOld();
         try
@@ -53,6 +91,27 @@ internal sealed class CombatHistory
             File.WriteAllText(path, JsonSerializer.Serialize(record, JsonOpts));
         }
         catch { /* best effort */ }
+        return true;
+    }
+
+    private static bool IsDuplicateOfPrevious(CombatRecord prev, CombatRecord curr)
+    {
+        if (prev.BossName != curr.BossName) return false;
+        var prevPlayers = prev.Snapshot?.Players;
+        var currPlayers = curr.Snapshot?.Players;
+        if (prevPlayers is null || prevPlayers.Count == 0) return false;
+        if (currPlayers is null || currPlayers.Count == 0) return false;
+
+        foreach (var c in currPlayers)
+        {
+            if (c.TotalDamage <= 0) continue;
+            foreach (var p in prevPlayers)
+            {
+                if (p.Name == c.Name && p.TotalDamage == c.TotalDamage)
+                    return true;
+            }
+        }
+        return false;
     }
 
     private void LoadAll()
