@@ -31,6 +31,7 @@ internal sealed class DpsCanvas : Control
         double         CritRate,   // 0..1
         long           HealTotal,
         D2DColor       AccentColor,
+        D2DColor       IconColor,
         IReadOnlyList<SkillBar>? Skills = null,
         int            CombatPower = 0,
         int            CombatScore = 0,

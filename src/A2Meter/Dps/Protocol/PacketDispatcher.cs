@@ -59,6 +59,8 @@ internal sealed class PacketDispatcher
         // (entityId, buffId, type, durationMs, timestamp, casterId)
     public event Action<int, string, int, int, int, int>? CharacterLookup;
         // (entityId, nickname, serverId, jobCode, level, combatPower)
+    public event Action<int, List<EquipmentItem>>? CharacterEquipment;
+        // (entityId, items)
 
     public PacketDispatcher(SkillDatabase skillDb, Action<string>? logSink = null)
     {
@@ -736,7 +738,132 @@ internal sealed class PacketDispatcher
 
         string nick = AppendServerName(name, serverId);
         CharacterLookup?.Invoke(entityId, nick, serverId, jobCode, level, combatPower);
+
+        // Equipment scan: pattern [LE32 itemId (100M-900M)][9x 0x00][byte level 1-50]
+        if (CharacterEquipment != null && length > 50)
+        {
+            var items = ScanEquipment(data, offset, length);
+            if (items.Count > 0)
+                CharacterEquipment.Invoke(entityId, items);
+        }
+
         return true;
+    }
+
+    private static List<EquipmentItem> ScanEquipment(byte[] data, int offset, int length)
+    {
+        int pktEnd = offset + length;
+
+        // Pass 1: locate all item positions.
+        var positions = new List<int>();
+        int scanEnd = pktEnd - 13;
+        for (int i = offset; i < scanEnd; i++)
+        {
+            uint val = (uint)(data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24));
+            if (val < 100_000_000u || val > 900_000_000u) continue;
+
+            bool allZero = true;
+            for (int j = i + 4; j < i + 13; j++)
+            {
+                if (data[j] != 0) { allZero = false; break; }
+            }
+            if (!allZero) continue;
+
+            int enchLevel = data[i + 13];
+            if (enchLevel < 1 || enchLevel > 50) continue;
+
+            positions.Add(i);
+            i += 13;
+        }
+
+        // Pass 2: for each item, determine block extent and parse sub-stats.
+        var items = new List<EquipmentItem>();
+        for (int idx = 0; idx < positions.Count; idx++)
+        {
+            int pos = positions[idx];
+            int blockEnd = idx + 1 < positions.Count ? positions[idx + 1] : pktEnd;
+
+            uint itemId = (uint)(data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16) | (data[pos + 3] << 24));
+            int enchLevel = data[pos + 13];
+
+            var item = new EquipmentItem { ItemId = itemId, EnchantLevel = enchLevel };
+
+            // Sub-stats: search for the stat count byte followed by valid stat entries.
+            // Format: [count(1-12)] then count × [statId(LE16) value(LE16) 00 00]
+            TryParseSubStats(data, pos + 14, blockEnd, item);
+
+            items.Add(item);
+        }
+        return items;
+    }
+
+    private static void TryParseSubStats(byte[] data, int from, int to, EquipmentItem item)
+    {
+        // Scan for subStat block: a count byte (1-12) followed by count valid entries.
+        // Each entry: [statId LE16 (1-1000)] [value LE16 (1-30000)] [00 00]
+        // Heuristic: look for pattern with at least 3 consecutive valid entries.
+        for (int p = from; p < to - 6; p++)
+        {
+            int count = data[p];
+            if (count < 1 || count > 12) continue;
+
+            int needed = count * 6;
+            if (p + 1 + needed > to) continue;
+
+            // Validate all entries.
+            bool valid = true;
+            int q = p + 1;
+            for (int e = 0; e < count; e++)
+            {
+                int statId = data[q] | (data[q + 1] << 8);
+                int value  = data[q + 2] | (data[q + 3] << 8);
+                int pad1   = data[q + 4];
+                int pad2   = data[q + 5];
+
+                if (statId < 1 || statId > 1000 || value < 1 || value > 30000 || pad1 != 0 || pad2 != 0)
+                { valid = false; break; }
+
+                q += 6;
+            }
+            if (!valid || count < 3) continue;
+
+            // Found valid subStat block.
+            var stats = new List<EquipmentStat>(count + 2);
+            q = p + 1;
+            for (int e = 0; e < count; e++)
+            {
+                int statId = data[q] | (data[q + 1] << 8);
+                int value  = data[q + 2] | (data[q + 3] << 8);
+                stats.Add(new EquipmentStat { StatId = statId, Value = value });
+                q += 6;
+            }
+
+            // Check for bonus stat: [00 00 00 01] [statId LE16] [value LE16]
+            if (q + 8 <= to && data[q] == 0 && data[q + 1] == 0 && data[q + 2] == 0 && data[q + 3] == 1)
+            {
+                q += 4;
+                int bonusId  = data[q] | (data[q + 1] << 8);
+                int bonusVal = data[q + 2] | (data[q + 3] << 8);
+                if (bonusId >= 1 && bonusId <= 1000 && bonusVal >= 1 && bonusVal <= 30000)
+                    stats.Add(new EquipmentStat { StatId = bonusId, Value = bonusVal });
+            }
+
+            item.SubStats = stats;
+
+            // Gem slot count: find pattern [count(1-8)] 04 BC 7A 1E in the block.
+            for (int g = from; g < p - 4; g++)
+            {
+                if (data[g] >= 1 && data[g] <= 8
+                    && data[g + 1] == 0x04 && data[g + 2] == 0xBC
+                    && data[g + 3] == 0x7A && data[g + 4] == 0x1E)
+                {
+                    item.GemSlotCount = data[g];
+                    break;
+                }
+            }
+
+            return; // only one subStat block per item
+        }
     }
 
     // ─── byte-level helpers ─────────────────────────────────────────────

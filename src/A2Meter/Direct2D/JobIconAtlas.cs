@@ -10,23 +10,40 @@ using WicPixelFormat = Vortice.WIC.PixelFormat;
 
 namespace A2Meter.Direct2D;
 
-/// Loads the eight job-icon PNGs from WebAssets/assets/<Korean name>-<hash>.png
-/// into ID2D1Bitmap1 instances keyed by Korean job name.
+/// Loads the eight job-icon PNGs into ID2D1Bitmap1 keyed by Korean job name.
+/// Icons are cached under %APPDATA%/A2Meter/job_icons/ (downloaded from CDN).
+/// Falls back to bundled Assets/Icons if present.
 internal sealed class JobIconAtlas : IDisposable
 {
     private readonly Dictionary<string, ID2D1Bitmap1> _bitmaps = new();
     private readonly IWICImagingFactory _wic;
 
+    private static readonly string CacheDir =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "A2Meter", "job_icons");
+
     public JobIconAtlas(ID2D1DeviceContext dc)
     {
         _wic = new IWICImagingFactory();
-        var assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons");
-        if (!Directory.Exists(assetsDir)) return;
 
-        foreach (var path in Directory.EnumerateFiles(assetsDir, "*.png"))
+        // Primary: cached icons from CDN.
+        if (Directory.Exists(CacheDir))
+            LoadFromDir(dc, CacheDir);
+
+        // Fallback: bundled assets (for offline / first-run before download).
+        if (_bitmaps.Count == 0)
         {
-            // Filenames are already the bare Korean job name (검성.png ...).
+            var assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons");
+            if (Directory.Exists(assetsDir))
+                LoadFromDir(dc, assetsDir);
+        }
+    }
+
+    private void LoadFromDir(ID2D1DeviceContext dc, string dir)
+    {
+        foreach (var path in Directory.EnumerateFiles(dir, "*.png"))
+        {
             var key = Path.GetFileNameWithoutExtension(path);
+            if (_bitmaps.ContainsKey(key)) continue;
             try
             {
                 var bmp = LoadBitmap(dc, path);

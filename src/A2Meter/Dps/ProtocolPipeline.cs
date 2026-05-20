@@ -32,6 +32,9 @@ internal sealed class ProtocolPipeline : IDisposable
     /// Replayed into the PartyMember when UserInfo arrives (order-independent).
     private readonly ConcurrentDictionary<int, int> _combatPowers = new();
 
+    /// entityId → serverId buffered from CharacterLookup packets.
+    private readonly ConcurrentDictionary<int, int> _serverIds = new();
+
     /// petEntityId → ownerEntityId. Populated by Summon events so that
     /// summon damage is attributed to the summoning player.
     private readonly ConcurrentDictionary<int, int> _summons = new();
@@ -99,8 +102,9 @@ internal sealed class ProtocolPipeline : IDisposable
         }
 
         // Always wire C# dispatcher for packet types the native engine may miss.
-        _dispatcher.CharacterLookup += OnCharacterLookup;
-        _dispatcher.CombatPower     += OnCombatPower;
+        _dispatcher.CharacterLookup    += OnCharacterLookup;
+        _dispatcher.CharacterEquipment += OnCharacterEquipment;
+        _dispatcher.CombatPower        += OnCombatPower;
 
         _party.PartyList    += OnPartyRoster;
         _party.PartyUpdate  += OnPartyRoster;
@@ -374,6 +378,7 @@ internal sealed class ProtocolPipeline : IDisposable
     private void OnCharacterLookup(int entityId, string nickname, int serverId, int jobCode, int level, int combatPower)
     {
         _identities[entityId] = (nickname, jobCode);
+        _serverIds[entityId] = serverId;
         TriggerPartyMemberSeen(new PartyMember
         {
             CharacterId = (uint)entityId,
@@ -385,6 +390,13 @@ internal sealed class ProtocolPipeline : IDisposable
             CombatPower = combatPower,
             IsLookup    = true,
         });
+    }
+
+    private void OnCharacterEquipment(int entityId, List<EquipmentItem> items)
+    {
+        string? nick = _identities.TryGetValue(entityId, out var id) ? id.Name : null;
+        int serverId = _serverIds.GetValueOrDefault(entityId, 0);
+        Api.EquipmentCache.Instance.Store(entityId, nick, serverId, items);
     }
 }
 

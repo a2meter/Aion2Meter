@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>a2pktview</AssemblyName>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpPcap" Version="6.3.1" />
+    <PackageReference Include="PacketDotNet" Version="1.4.8" />
+  </ItemGroup>
+
+  <!-- Share protocol code with A2Meter without UI dependencies. -->
+  <ItemGroup>
+    <Compile Include="..\A2Meter\Dps\Protocol\ProtocolUtils.cs"       Link="Protocol\ProtocolUtils.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\Lz4Decoder.cs"          Link="Protocol\Lz4Decoder.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\TcpReassembler.cs"      Link="Protocol\TcpReassembler.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\StreamProcessor.cs"     Link="Protocol\StreamProcessor.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\SkillDatabase.cs"       Link="Protocol\SkillDatabase.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\PacketDispatcher.cs"    Link="Protocol\PacketDispatcher.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\PartyStreamParser.cs"   Link="Protocol\PartyStreamParser.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\ServerMap.cs"           Link="Protocol\ServerMap.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\FlowKey.cs"             Link="Protocol\FlowKey.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\StatMapping.cs"        Link="Protocol\StatMapping.cs" />
+    <Compile Include="..\A2Meter\Dps\JobMapping.cs"                   Link="Dps\JobMapping.cs" />
+    <Compile Include="..\A2Meter\Dps\Models.cs"                       Link="Dps\Models.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\A2Meter\Data\game_db.json" Link="Data\game_db.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

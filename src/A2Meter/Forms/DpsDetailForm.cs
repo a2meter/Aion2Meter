@@ -67,7 +67,9 @@ internal sealed class DpsDetailForm : Form
         DoubleBuffered = true;
 
         // ── title bar ──
-        _titleBar = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = _t.HeaderColor };
+        int lineH = TextRenderer.MeasureText("Ag가", new Font(_fn, _fs)).Height;
+        int hdrH = (int)(lineH * 2.25);
+        _titleBar = new Panel { Dock = DockStyle.Top, Height = hdrH, BackColor = _t.HeaderColor };
         _titleBar.Paint += (_, e) =>
         {
             using var pen = new Pen(_t.BorderColor);
@@ -76,12 +78,12 @@ internal sealed class DpsDetailForm : Form
         _lblName = new Label
         {
             Text = "", Font = new Font(_fn, _fs + 0.5f, FontStyle.Bold),
-            ForeColor = _t.TextColor, AutoSize = true, Location = new Point(10, 9), BackColor = Color.Transparent,
+            ForeColor = _t.TextColor, AutoSize = true, Location = new Point(10, (hdrH - lineH) / 2), BackColor = Color.Transparent,
         };
         _lblJob = new Label
         {
             Text = "", Font = new Font(_fn, _fs),
-            ForeColor = _t.TextDimColor, AutoSize = true, Location = new Point(200, 11), BackColor = Color.Transparent,
+            ForeColor = _t.TextDimColor, AutoSize = true, Location = new Point(200, (hdrH - lineH) / 2 + 2), BackColor = Color.Transparent,
         };
         var btnClose = new HeaderCloseButton();
         _titleBar.Controls.Add(_lblName);
@@ -94,15 +96,17 @@ internal sealed class DpsDetailForm : Form
         _lblJob.MouseDown += (_, e) => Drag(e);
 
         // ── info / stats badges ──
+        int badgeH = (int)(lineH * 2.1);
+        int badgePad = Math.Max(2, (badgeH - lineH) / 3);
         _infoPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top, Height = 34, BackColor = _t.BgColor,
-            Padding = new Padding(8, 6, 8, 4), WrapContents = false,
+            Dock = DockStyle.Top, Height = badgeH, BackColor = _t.BgColor,
+            Padding = new Padding(8, badgePad, 8, badgePad), WrapContents = false,
         };
         _statsPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top, Height = 34, BackColor = _t.BgColor,
-            Padding = new Padding(8, 2, 8, 6), WrapContents = false,
+            Dock = DockStyle.Top, Height = badgeH, BackColor = _t.BgColor,
+            Padding = new Padding(8, badgePad, 8, badgePad), WrapContents = false,
         };
 
         // ── skill list (top) ──
@@ -110,7 +114,7 @@ internal sealed class DpsDetailForm : Form
         {
             Dock = DockStyle.Fill,
             Font = new Font(_fn, _fs),
-            RowHeight = (int)(20 + _fs),
+            RowHeight = (int)(lineH * 1.6),
             Columns = new[]
             {
                 ("스킬",   145f, HorizontalAlignment.Left),

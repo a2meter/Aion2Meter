@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using A2Meter.Core;
@@ -13,6 +14,8 @@ using Vortice.Direct3D11;
 using Vortice.DirectWrite;
 using Vortice.DXGI;
 using Vortice.Mathematics;
+using Vortice.WIC;
+using WicPixelFormat = Vortice.WIC.PixelFormat;
 using D2D = Vortice.Direct2D1;
 using D3D11 = Vortice.Direct3D11;
 using DW = Vortice.DirectWrite;
@@ -47,6 +50,7 @@ internal sealed class OverlayRenderer : IDisposable
     private ID2D1Bitmap1? _targetBitmap;
     private D2DFontProvider? _fonts;
     private JobIconAtlas? _icons;
+    private ID2D1Bitmap1? _brandIcon;
     private int _texW, _texH;
 
     // ── D2D brushes ──
@@ -180,6 +184,7 @@ internal sealed class OverlayRenderer : IDisposable
         RebuildFonts();
 
         _icons = new JobIconAtlas(_dc);
+        _brandIcon = LoadBrandIcon(_dc);
 
         BuildIconGeometries();
     }
@@ -370,6 +375,7 @@ internal sealed class OverlayRenderer : IDisposable
         _geoEyeTop?.Dispose();
         _geoUnlockShackle?.Dispose();
         _geoLockShackle?.Dispose();
+        _brandIcon?.Dispose();
         _icons?.Dispose();
         _fontTotalC?.Dispose();
         _fontCpScoreC?.Dispose();
@@ -441,7 +447,7 @@ internal sealed class OverlayRenderer : IDisposable
 
         using var surface = _rtTexture.QueryInterface<IDXGISurface>();
         var bmpProps = new BitmapProperties1(
-            new PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
+            new Vortice.DCommon.PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
             96f, 96f,
             BitmapOptions.Target | BitmapOptions.CannotDraw);
         _targetBitmap = _dc!.CreateBitmapFromDxgiSurface(surface, bmpProps);
@@ -536,6 +542,33 @@ internal sealed class OverlayRenderer : IDisposable
     private IDWriteTextFormat FTotal   => (CompactMode ? _fontTotalC : _fontTotal)!;
 
     // ══════════════════════════════════════════════════════════════════════
+    // Private — Brand icon
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static ID2D1Bitmap1? LoadBrandIcon(ID2D1DeviceContext dc)
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (exePath == null) return null;
+            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+            if (icon == null) return null;
+            using var bmp = icon.ToBitmap();
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            ms.Position = 0;
+            using var wic = new IWICImagingFactory();
+            using var stream = wic.CreateStream(ms);
+            using var decoder = wic.CreateDecoderFromStream(stream, DecodeOptions.CacheOnLoad);
+            using var frame = decoder.GetFrame(0);
+            using var conv = wic.CreateFormatConverter();
+            conv.Initialize(frame, WicPixelFormat.Format32bppPBGRA,
+                            BitmapDitherType.None, null, 0.0, BitmapPaletteType.Custom);
+            return dc.CreateBitmapFromWicBitmap(conv, null);
+        }
+        catch { return null; }
+    }
+
     // Private — Icon geometry (cached, created once)
     // ══════════════════════════════════════════════════════════════════════
 
@@ -623,13 +656,26 @@ internal sealed class OverlayRenderer : IDisposable
         _brushToolbarBg!.Color = new D2DColor(hdr.R / 255f, hdr.G / 255f, hdr.B / 255f, 0.85f * bgOpacity);
         dc.FillRectangle(new Rect(0, y, width, ToolbarHeight), _brushToolbarBg);
 
-        // Brand text (left, vertically centered)
-        string brand = $"A2Meter v{AutoUpdater.CurrentVersion.ToString(3)}";
+        // Brand icon + version text (left, vertically centered)
+        float brandW = 0f;
+        float iconDrawSize = ToolbarHeight * 0.6f;
+        if (_brandIcon != null)
+        {
+            float iconY = y + (ToolbarHeight - iconDrawSize) / 2f;
+            float scale = iconDrawSize / _brandIcon.Size.Width;
+            var save = dc.Transform;
+            dc.Transform = Matrix3x2.CreateScale(scale) * Matrix3x2.CreateTranslation(PadX, iconY);
+            dc.DrawBitmap(_brandIcon, 1f, D2D.InterpolationMode.Linear);
+            dc.Transform = save;
+            brandW += iconDrawSize + 4f;
+        }
+        string brand = $"v{AutoUpdater.CurrentVersion.ToString(3)}";
         var brandLayout = _dwFactory!.CreateTextLayout(brand, _fontSmall!, 400f, ToolbarHeight);
         brandLayout.ParagraphAlignment = ParagraphAlignment.Center;
-        float brandW = brandLayout.Metrics.WidthIncludingTrailingWhitespace;
-        dc.DrawTextLayout(new Vector2(PadX, y), brandLayout, _brushText!);
+        float textW = brandLayout.Metrics.WidthIncludingTrailingWhitespace;
+        dc.DrawTextLayout(new Vector2(PadX + brandW, y), brandLayout, _brushTextDim!);
         brandLayout.Dispose();
+        brandW += textW;
 
         // Tab buttons (right of brand)
         float tabX = PadX + brandW + 8f;
@@ -1036,11 +1082,11 @@ internal sealed class OverlayRenderer : IDisposable
             var icon = _icons?.Get(row.JobIconKey);
             if (icon != null)
             {
-                DrawTintedIcon(dc, icon, iconX, iconY, row.AccentColor);
+                DrawTintedIcon(dc, icon, iconX, iconY, row.IconColor);
             }
             else
             {
-                _brushAccent!.Color = row.AccentColor;
+                _brushAccent!.Color = row.IconColor;
                 dc.FillEllipse(new Ellipse(new Vector2(iconX + IconSize / 2, iconY + IconSize / 2),
                                            IconSize / 2 - 2, IconSize / 2 - 2), _brushAccent);
             }

@@ -69,6 +69,10 @@ internal sealed class AppSettings
     public int FontScale { get; set; } = 100;
     public int RowHeight { get; set; } = 90;
 
+    // ── snap-to-edge ──
+    public bool SnapEnabled { get; set; } = true;
+    public int SnapDistance { get; set; } = 8;  // 1..8 px
+
     // ── shortcuts ──
     public ShortcutSettings Shortcuts { get; set; } = new();
 
@@ -79,6 +83,49 @@ internal sealed class AppSettings
     // ── toggle display ──
     public bool ShowCombatPower { get; set; } = true;
     public bool ShowCombatScore { get; set; } = true;
+
+    // ── 직업별 DPS 바 색상 (hex) — null이면 기본값 사용 ──
+    public JobBarColorSettings JobBarColors { get; set; } = new();
+
+    internal sealed class JobBarColorSettings
+    {
+        public string 검성  { get; set; } = "#86DDF3";
+        public string 궁성  { get; set; } = "#62B18F";
+        public string 마도성 { get; set; } = "#B78CF2";
+        public string 살성  { get; set; } = "#A4E79B";
+        public string 수호성 { get; set; } = "#7DA0F9";
+        public string 정령성 { get; set; } = "#CF6BD0";
+        public string 치유성 { get; set; } = "#E7CF7D";
+        public string 호법성 { get; set; } = "#E4A55B";
+
+        public string GetHex(string jobName) => jobName switch
+        {
+            "검성"  => 검성,
+            "궁성"  => 궁성,
+            "마도성" => 마도성,
+            "살성"  => 살성,
+            "수호성" => 수호성,
+            "정령성" => 정령성,
+            "치유성" => 치유성,
+            "호법성" => 호법성,
+            _       => "#B3B3B3",
+        };
+
+        public void SetHex(string jobName, string hex)
+        {
+            switch (jobName)
+            {
+                case "검성":  검성 = hex; break;
+                case "궁성":  궁성 = hex; break;
+                case "마도성": 마도성 = hex; break;
+                case "살성":  살성 = hex; break;
+                case "수호성": 수호성 = hex; break;
+                case "정령성": 정령성 = hex; break;
+                case "치유성": 치유성 = hex; break;
+                case "호법성": 호법성 = hex; break;
+            }
+        }
+    }
 
     // ── DPS bar layout: 3 configurable slots ──
     public BarSlotConfig BarSlot1 { get; set; } = new() { Content = "damage", FontSize = 8f, Color = "#DADADE" };
@@ -98,6 +145,27 @@ internal sealed class AppSettings
     public int SettingsPanelY { get; set; } = -1;
     public int SettingsPanelWidth { get; set; } = 400;
     public int SettingsPanelHeight { get; set; } = 420;
+
+    // ── 진단 / 크래시 리포트 ──
+    private bool _crashReportingEnabled = true;
+    public bool CrashReportingEnabled
+    {
+        get => _crashReportingEnabled;
+        set
+        {
+            if (_crashReportingEnabled == value) return;
+            _crashReportingEnabled = value;
+            if (value && string.IsNullOrEmpty(CrashReportingActivatedAt))
+                CrashReportingActivatedAt = DateTime.UtcNow.ToString("o");
+        }
+    }
+    /// ISO-8601 UTC timestamp recorded the first time the user opts in. Crashes
+    /// older than this are never sent — protects against bulk-uploading old logs.
+    public string? CrashReportingActivatedAt { get; set; }
+
+    // ── Web upload ──
+    public bool   WebUploadEnabled { get; set; } = true;
+    public string WebUploadUrl     { get; set; } = "https://api.aion2meter.com";
 
     // ── per-machine state stored in a sibling file ──
     [JsonIgnore]

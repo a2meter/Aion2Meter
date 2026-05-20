@@ -41,7 +41,9 @@ internal sealed class CombatHistoryForm : Form
         }
         else StartPosition = FormStartPosition.CenterScreen;
 
-        _headerPanel = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = _t.HeaderColor };
+        int lineH = TextRenderer.MeasureText("Ag가", new Font(_s.FontName, _s.FontSize)).Height;
+        int hdrH = (int)(lineH * 2.25);
+        _headerPanel = new Panel { Dock = DockStyle.Top, Height = hdrH, BackColor = _t.HeaderColor };
         _headerPanel.Paint += (_, e) =>
         {
             using var pen = new Pen(_t.BorderColor);
@@ -53,7 +55,7 @@ internal sealed class CombatHistoryForm : Form
             Text = "전투 기록",
             ForeColor = _t.TextColor,
             Font = new Font(_s.FontName, _s.FontSize + 0.5f, FontStyle.Bold),
-            AutoSize = true, Location = new Point(10, 9), BackColor = Color.Transparent,
+            AutoSize = true, Location = new Point(10, (hdrH - lineH) / 2), BackColor = Color.Transparent,
         };
         _headerPanel.Controls.Add(lblTitle);
 
@@ -68,7 +70,7 @@ internal sealed class CombatHistoryForm : Form
         {
             Dock = DockStyle.Fill,
             Font = new Font(_s.FontName, _s.FontSize),
-            RowHeight = (int)(24 + _s.FontSize),
+            RowHeight = (int)(lineH * 1.6),
             Columns = new[]
             {
                 ("시간", 130f, HorizontalAlignment.Left),

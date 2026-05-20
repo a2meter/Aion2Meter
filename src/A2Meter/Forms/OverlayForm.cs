@@ -98,8 +98,9 @@ internal sealed class OverlayForm : Form
     {
         Text = "A2Meter";
         FormBorderStyle = FormBorderStyle.None;
-        ShowInTaskbar = false;
+        ShowInTaskbar = true;
         TopMost = true;
+        try { var exe = Environment.ProcessPath; if (exe != null) Icon = System.Drawing.Icon.ExtractAssociatedIcon(exe); } catch { }
         StartPosition = FormStartPosition.Manual;
         MinimumSize = new Size(100, 100);
 
@@ -119,7 +120,6 @@ internal sealed class OverlayForm : Form
         {
             var cp = base.CreateParams;
             cp.ExStyle |= Win32Native.WS_EX_LAYERED
-                        | Win32Native.WS_EX_TOOLWINDOW
                         | Win32Native.WS_EX_NOACTIVATE
                         | Win32Native.WS_EX_TOPMOST;
             return cp;
@@ -194,9 +194,8 @@ internal sealed class OverlayForm : Form
     private List<OverlayRenderer.PartyRow> BuildPartyRows()
     {
         var list = new List<OverlayRenderer.PartyRow>();
-        PartyMember[] snapshot;
-        try { snapshot = _party.Members.Values.ToArray(); }
-        catch { return list; }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        PartyMember[] snapshot = _party.SnapshotMembers();
         foreach (var pm in snapshot)
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
@@ -216,8 +215,11 @@ internal sealed class OverlayForm : Form
                 if (score == 0 && api.CombatScore > 0) score = api.CombatScore;
             }
 
+            string displayName = !string.IsNullOrEmpty(sname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{sname}]" : pm.Nickname;
+            if (!seen.Add(displayName)) continue;
+
             list.Add(new OverlayRenderer.PartyRow(
-                Name: !string.IsNullOrEmpty(sname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{sname}]" : pm.Nickname,
+                Name: displayName,
                 JobIconKey: Dps.JobMapping.GameToJobName(pm.JobCode),
                 CombatPower: cp,
                 CombatScore: score,
@@ -308,6 +310,10 @@ internal sealed class OverlayForm : Form
             _renderer?.ApplySettings();
             RequestRender();
         };
+        form.FormClosed += (_, _) =>
+        {
+            Hotkeys?.RegisterFromSettings(AppSettings.Instance.Shortcuts);
+        };
     }
 
     private void OnOpacitySlider(int value)
@@ -394,8 +400,40 @@ internal sealed class OverlayForm : Form
     public void TriggerRestart()
     {
         var exe = Environment.ProcessPath;
-        if (!string.IsNullOrEmpty(exe))
+        // Validate before spawning: the user may have moved/deleted the binary
+        // (typical case: ran from Downloads, then cleaned the folder) — in that
+        // case Process.Start throws Win32Exception (2) "file not found" and the
+        // app would die without restart. Notify and stay alive instead.
+        if (string.IsNullOrEmpty(exe) || !System.IO.File.Exists(exe))
+        {
+            try
+            {
+                MessageBox.Show(
+                    $"A2Meter 실행 파일을 찾을 수 없어 재시작할 수 없습니다.\n경로: {exe ?? "(unknown)"}",
+                    "A2Meter",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch { }
+            return;
+        }
+        try
+        {
             System.Diagnostics.Process.Start(exe);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                MessageBox.Show(
+                    $"A2Meter 재시작에 실패했습니다: {ex.Message}",
+                    "A2Meter",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch { }
+            return;
+        }
         Environment.Exit(0);
     }
 
@@ -430,6 +468,8 @@ internal sealed class OverlayForm : Form
 
     protected override void WndProc(ref Message m)
     {
+        if (IsDisposed || !IsHandleCreated) return;
+
         if (m.Msg == HotkeyManager.WM_HOTKEY)
         {
             Hotkeys?.ProcessHotkey(m.WParam.ToInt32());
@@ -586,7 +626,8 @@ internal sealed class OverlayForm : Form
             }
         }
 
-        base.WndProc(ref m);
+        try { base.WndProc(ref m); }
+        catch (ObjectDisposedException) { }
     }
 
     private void OnPlayerRowClicked(int rowIdx)
@@ -617,11 +658,14 @@ internal sealed class OverlayForm : Form
     }
 
     // ── Snap-to-edge (magnet) ──
+    // 이미 가장자리에 붙어있으면 snap을 건너뜀 → 조금만 움직여도 즉시 떨어짐.
 
-    private const int SnapDistance = 8;
-
-    private static unsafe void SnapEdges(IntPtr lParam)
+    private unsafe void SnapEdges(IntPtr lParam)
     {
+        var settings = Core.AppSettings.Instance;
+        if (!settings.SnapEnabled) return;
+        int snapDist = Math.Clamp(settings.SnapDistance, 1, 8);
+
         ref var rc = ref *(RECT*)lParam;
         int winW = rc.Right - rc.Left;
         int winH = rc.Bottom - rc.Top;
@@ -629,18 +673,23 @@ internal sealed class OverlayForm : Form
         var screen = Screen.FromRectangle(new Rectangle(rc.Left, rc.Top, winW, winH));
         var wa = screen.WorkingArea;
 
-        // left edge
-        if (Math.Abs(rc.Left - wa.Left) < SnapDistance)
+        // Current position (before this move)
+        var cur = Bounds;
+        bool wasLeft  = cur.Left == wa.Left;
+        bool wasRight = cur.Right == wa.Right;
+        bool wasTop   = cur.Top == wa.Top;
+        bool wasBottom = cur.Bottom == wa.Bottom;
+
+        // Horizontal: only snap if NOT already attached to that edge
+        if (!wasLeft && Math.Abs(rc.Left - wa.Left) < snapDist)
         { rc.Left = wa.Left; rc.Right = rc.Left + winW; }
-        // right edge
-        else if (Math.Abs(rc.Right - wa.Right) < SnapDistance)
+        else if (!wasRight && Math.Abs(rc.Right - wa.Right) < snapDist)
         { rc.Right = wa.Right; rc.Left = rc.Right - winW; }
 
-        // top edge
-        if (Math.Abs(rc.Top - wa.Top) < SnapDistance)
+        // Vertical
+        if (!wasTop && Math.Abs(rc.Top - wa.Top) < snapDist)
         { rc.Top = wa.Top; rc.Bottom = rc.Top + winH; }
-        // bottom edge
-        else if (Math.Abs(rc.Bottom - wa.Bottom) < SnapDistance)
+        else if (!wasBottom && Math.Abs(rc.Bottom - wa.Bottom) < snapDist)
         { rc.Bottom = wa.Bottom; rc.Top = rc.Bottom - winH; }
     }
 

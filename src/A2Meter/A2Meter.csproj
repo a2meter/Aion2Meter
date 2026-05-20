@@ -9,14 +9,21 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>A2Meter.ico</ApplicationIcon>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>1.0.6</Version>
-    <AssemblyVersion>1.0.6.0</AssemblyVersion>
-    <FileVersion>1.0.6.0</FileVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+
+    <!-- Roll forward to the highest installed patch within 8.0.x. Without this
+         a user with an older .NET 8 Desktop Runtime patch (e.g. 8.0.5) can hit
+         TypeLoadException because newer WinForms interop signatures
+         (e.g. UiaReturnRawElementProvider) are not present in their runtime. -->
+    <RollForward>LatestPatch</RollForward>
 
     <!-- Single-file publish settings -->
     <PublishSingleFile>true</PublishSingleFile>
@@ -24,9 +31,11 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
     <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
     <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
@@ -36,10 +45,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\**\*.*">
+    <!-- Fonts are bundled; Icons are downloaded from CDN at runtime. -->
+    <Content Include="Assets\Fonts\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Data\**\*.*">
+    <!-- Data DB files are downloaded from CDN at runtime; exclude from bundle. -->
+    <Content Include="Data\**\*.*" Exclude="Data\game_db.sqlite;Data\game_db.json;Data\known_skills_catalog.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Native\PacketEngine.dll">

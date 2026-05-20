@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using A2Meter.Api;
+using A2Meter.Dps;
 
 namespace A2Meter.Calc;
 
@@ -67,9 +68,12 @@ public class CombatScore
 		{
 			return null;
 		}
+		// Fetch packet-cached equipment (parsed from CharacterLookup packet) to use
+		// as primary sub-stat source before relying solely on API item details.
+		var packetEquip = Api.EquipmentCache.Instance.Get(name, serverId);
 		FormulaConfig formulaConfig = LoadFormulaConfig();
 		SupplementResult supplement = Supplement.CalcSupplement(data.StatData, data.ItemDetails);
-		ExtractedStats extractedStats = ExtractStats(NativeCalcEngine.RunCalc(BuildJsInput(data, supplement)));
+		ExtractedStats extractedStats = ExtractStats(NativeCalcEngine.RunCalc(BuildJsInput(data, supplement, packetEquip)));
 		double num = AccToDi(extractedStats.AccMax, formulaConfig);
 		double num2 = CalcCritChance(extractedStats.CritBreakdown);
 		Dictionary<string, double> dictionary = new Dictionary<string, double>();
@@ -159,7 +163,7 @@ public class CombatScore
 		}
 	}
 
-	private static CalcInput BuildJsInput(CharacterData data, SupplementResult supplement)
+	private static CalcInput BuildJsInput(CharacterData data, SupplementResult supplement, Api.CachedEquipment? packetEquip = null)
 	{
 		List<object> list = new List<object>();
 		List<object> list2 = new List<object>();
@@ -170,6 +174,19 @@ public class CombatScore
 			["purity"] = 0,
 			["frenzy"] = 0
 		};
+		// Build a lookup from packet equipment: itemId → packet subStats.
+		// Used to inject sub-stats from the network packet when API detail is empty.
+		Dictionary<uint, List<object>>? packetSubLookup = null;
+		if (packetEquip?.Items is { Count: > 0 })
+		{
+			packetSubLookup = new Dictionary<uint, List<object>>();
+			foreach (var pItem in packetEquip.Items)
+			{
+				if (pItem.SubStats is { Count: > 0 } && !packetSubLookup.ContainsKey(pItem.ItemId))
+					packetSubLookup[pItem.ItemId] = Api.EquipmentCache.ToCalcSubStats(pItem.SubStats);
+			}
+		}
+
 		int key;
 		JsonElement value;
 		foreach (KeyValuePair<int, JsonElement> itemDetail in data.ItemDetails)
@@ -179,7 +196,15 @@ public class CombatScore
 			JsonElement jsonElement = value;
 			int num2 = num;
 			int valueOrDefault = data.SlotExceed.GetValueOrDefault(num2, 0);
-			object item = AdaptItem(jsonElement, num2, valueOrDefault);
+			// Try to find matching packet sub-stats by item ID from the API response.
+			List<object>? pktSubs = null;
+			if (packetSubLookup != null)
+			{
+				string idStr = jsonElement.GetString("id") ?? "";
+				if (uint.TryParse(idStr, out uint apiItemId) && packetSubLookup.TryGetValue(apiItemId, out var found))
+					pktSubs = found;
+			}
+			object item = AdaptItem(jsonElement, num2, valueOrDefault, pktSubs);
 			if (EquipmentSlots.Contains(num2) || ArcanaSlots.Contains(num2))
 			{
 				list.Add(item);
@@ -259,8 +284,11 @@ public class CombatScore
 		};
 	}
 
-	private static object AdaptItem(JsonElement item, int slot, int exceedLevel)
+	private static object AdaptItem(JsonElement item, int slot, int exceedLevel, List<object>? packetSubStats = null)
 	{
+		var apiSubStats = AdaptStatArray(item, "subStats");
+		// Use packet-parsed sub-stats when API response has none (faster, no extra HTTP call needed).
+		var subStats = (apiSubStats.Count > 0) ? apiSubStats : (packetSubStats ?? apiSubStats);
 		return new
 		{
 			slotPos = slot,
@@ -270,7 +298,7 @@ public class CombatScore
 			exceedLevel = exceedLevel,
 			exceed_level = exceedLevel,
 			main_stats = AdaptStatArray(item, "mainStats"),
-			sub_stats = AdaptStatArray(item, "subStats"),
+			sub_stats = subStats,
 			magic_stone_stat = AdaptStatArray(item, "magicStoneStat")
 		};
 	}

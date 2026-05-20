@@ -33,8 +33,69 @@ internal sealed class SkillDatabase
 
     public SkillDatabase()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Data", "game_db.json");
-        if (File.Exists(path)) LoadFromJson(path);
+        // Prefer SQLite database from AppData (downloaded from CDN).
+        if (Data.GameDatabase.Instance.IsAvailable)
+            LoadFromSqlite();
+        else
+        {
+            // Legacy fallback: bundled JSON (if present).
+            var path = Path.Combine(AppContext.BaseDirectory, "Data", "game_db.json");
+            if (File.Exists(path)) LoadFromJson(path);
+        }
+    }
+
+    private void LoadFromSqlite()
+    {
+        try
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection(
+                $"Data Source={Data.DataManager.DatabasePath};Mode=ReadOnly");
+            conn.Open();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT code, name, job_code FROM skills";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    int code = r.GetInt32(0);
+                    string name = r.GetString(1);
+                    _skills[code] = name;
+                }
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT code, name FROM buffs";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    _buffs[r.GetInt32(0)] = r.GetString(1);
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT code, name FROM dungeons";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    _dungeons[r.GetInt32(0)] = r.GetString(1);
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT code, name, is_boss FROM mobs";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    int code = r.GetInt32(0);
+                    _mobNames[code] = r.GetString(1);
+                    _mobIsBoss[code] = r.GetInt32(2) != 0;
+                }
+            }
+        }
+        catch
+        {
+            // Fall through; dictionaries may be partially loaded — that's acceptable.
+        }
     }
 
     private void LoadFromJson(string path)

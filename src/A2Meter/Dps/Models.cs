@@ -112,6 +112,22 @@ internal sealed class BuffUptimeDto
     public double Uptime { get; set; }
 }
 
+/// Equipment item extracted from character lookup packet (0x4F 0x36).
+internal sealed class EquipmentItem
+{
+    public uint ItemId { get; set; }
+    public int  EnchantLevel { get; set; }   // enchant + exceed combined
+    public int  GemSlotCount { get; set; }
+    public List<EquipmentStat>? SubStats { get; set; }
+}
+
+/// Sub-stat entry on an equipment item.
+internal sealed class EquipmentStat
+{
+    public int StatId { get; set; }
+    public int Value { get; set; }   // integer stats: raw value; percentages: ×100 (15.9% → 1591)
+}
+
 /// Per-second DPS snapshot for timeline replay (matches A2Power TimelineEntry).
 internal sealed class TimelineEntry
 {

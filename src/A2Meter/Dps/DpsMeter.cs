@@ -104,7 +104,7 @@ internal sealed class DpsMeter
 
     /// Roll-up across all targets (party-wide damage view).
     public DpsSnapshot BuildCurrentSnapshot()
-        => Build(_actors.Values, target: _target);
+        => Build(_actors.Values.ToArray(), target: _target);
 
     /// Damage scoped to one target id only — matches the original A2Power
     /// "boss bar" semantics. Returns an empty snapshot if no damage is
@@ -116,10 +116,12 @@ internal sealed class DpsMeter
 
         // Heal totals are pulled from the global actor roll-up so a healer's
         // contribution still shows on a boss-scoped row.
-        foreach (var (actorId, acc) in perActor)
+        // Snapshot to avoid concurrent modification from packet thread.
+        var perActorSnap = perActor.ToArray();
+        foreach (var (actorId, acc) in perActorSnap)
             acc.HealTotal = _actors.TryGetValue(actorId, out var g) ? g.HealTotal : 0;
 
-        return Build(perActor.Values, _target);
+        return Build(perActorSnap.Select(kv => kv.Value), _target);
     }
 
     private DpsSnapshot Build(IEnumerable<ActorAccum> actors, MobTarget? target)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using A2Meter.Dps.Protocol;
 
 namespace A2Meter.Dps;
@@ -12,6 +13,7 @@ internal sealed class BuffTracker
 
     /// Per-entity → per-buff tracking data.
     private readonly Dictionary<int, Dictionary<int, BuffInfo>> _buffs = new();
+    private readonly object _lock = new();
 
     private const uint MAX_REASONABLE_DURATION_MS = 3_600_000; // 1 hour
 
@@ -22,7 +24,7 @@ internal sealed class BuffTracker
 
     public void Reset()
     {
-        _buffs.Clear();
+        lock (_lock) _buffs.Clear();
     }
 
     // Start/Stop are no-ops — tracking is always active once events arrive.
@@ -39,34 +41,37 @@ internal sealed class BuffTracker
         int resolved = ResolveSkillCode(buffId);
         if (resolved < 0) return;
 
-        if (!_buffs.TryGetValue(entityId, out var entityBuffs))
+        lock (_lock)
         {
-            entityBuffs = new Dictionary<int, BuffInfo>();
-            _buffs[entityId] = entityBuffs;
-        }
-
-        var now = DateTime.UtcNow;
-        double durationSec = durationMs / 1000.0;
-
-        if (entityBuffs.TryGetValue(resolved, out var info))
-        {
-            // Buff reapplication: if the previous one expired, accumulate its duration.
-            if (now >= info.ExpiresAt)
+            if (!_buffs.TryGetValue(entityId, out var entityBuffs))
             {
-                info.AccumulatedSec += (info.ExpiresAt - info.StartedAt).TotalSeconds;
-                info.StartedAt = now;
+                entityBuffs = new Dictionary<int, BuffInfo>();
+                _buffs[entityId] = entityBuffs;
             }
-            // Extend (or refresh) expiration.
-            info.ExpiresAt = now + TimeSpan.FromSeconds(durationSec);
-        }
-        else
-        {
-            entityBuffs[resolved] = new BuffInfo
+
+            var now = DateTime.UtcNow;
+            double durationSec = durationMs / 1000.0;
+
+            if (entityBuffs.TryGetValue(resolved, out var info))
             {
-                StartedAt = now,
-                ExpiresAt = now + TimeSpan.FromSeconds(durationSec),
-                AccumulatedSec = 0,
-            };
+                // Buff reapplication: if the previous one expired, accumulate its duration.
+                if (now >= info.ExpiresAt)
+                {
+                    info.AccumulatedSec += (info.ExpiresAt - info.StartedAt).TotalSeconds;
+                    info.StartedAt = now;
+                }
+                // Extend (or refresh) expiration.
+                info.ExpiresAt = now + TimeSpan.FromSeconds(durationSec);
+            }
+            else
+            {
+                entityBuffs[resolved] = new BuffInfo
+                {
+                    StartedAt = now,
+                    ExpiresAt = now + TimeSpan.FromSeconds(durationSec),
+                    AccumulatedSec = 0,
+                };
+            }
         }
     }
 
@@ -75,11 +80,17 @@ internal sealed class BuffTracker
     {
         var result = new List<BuffUptime>();
         if (elapsedSeconds <= 0) return result;
-        if (!_buffs.TryGetValue(entityId, out var entityBuffs)) return result;
+
+        KeyValuePair<int, BuffInfo>[] entries;
+        lock (_lock)
+        {
+            if (!_buffs.TryGetValue(entityId, out var entityBuffs)) return result;
+            entries = entityBuffs.ToArray();
+        }
 
         var now = DateTime.UtcNow;
 
-        foreach (var (buffId, info) in entityBuffs)
+        foreach (var (buffId, info) in entries)
         {
             double sec = info.AccumulatedSec;
             // Add the current (possibly still active) window.
@@ -116,8 +127,11 @@ internal sealed class BuffTracker
     /// Build uptime for all tracked entities.
     public Dictionary<int, List<BuffUptime>> BuildAllSnapshots(double elapsedSeconds)
     {
+        int[] entityIds;
+        lock (_lock) { entityIds = _buffs.Keys.ToArray(); }
+
         var result = new Dictionary<int, List<BuffUptime>>();
-        foreach (var entityId in _buffs.Keys)
+        foreach (var entityId in entityIds)
         {
             var snap = BuildSnapshot(entityId, elapsedSeconds);
             if (snap.Count > 0) result[entityId] = snap;

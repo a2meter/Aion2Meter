@@ -55,13 +55,15 @@ internal sealed class SkillHitDetailForm : Form
         DoubleBuffered = true;
 
         // ── Title bar ──
-        var titleBar = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = _t.HeaderColor };
+        int lineH = TextRenderer.MeasureText("Ag가", new Font(_fn, _fs)).Height;
+        int hdrH = (int)(lineH * 2.25);
+        var titleBar = new Panel { Dock = DockStyle.Top, Height = hdrH, BackColor = _t.HeaderColor };
         var lblTitle = new Label
         {
             Text = skill.Name,
             Font = new Font(_fn, _fs + 0.5f, FontStyle.Bold),
             ForeColor = _t.TextColor, AutoSize = true,
-            Location = new Point(10, 7), BackColor = Color.Transparent,
+            Location = new Point(10, (hdrH - lineH) / 2), BackColor = Color.Transparent,
         };
         var btnClose = new Label
         {
@@ -71,16 +73,18 @@ internal sealed class SkillHitDetailForm : Form
         };
         titleBar.Controls.Add(lblTitle);
         titleBar.Controls.Add(btnClose);
-        titleBar.Resize += (_, _) => btnClose.Location = new Point(titleBar.Width - btnClose.Width - 10, 7);
+        titleBar.Resize += (_, _) => btnClose.Location = new Point(titleBar.Width - btnClose.Width - 10, (hdrH - lineH) / 2);
         btnClose.Click += (_, _) => Close();
         titleBar.MouseDown += (_, e) => Drag(e);
         lblTitle.MouseDown += (_, e) => Drag(e);
 
         // ── Summary badges ──
+        int badgeH = (int)(lineH * 2.0);
+        int badgePad = Math.Max(2, (badgeH - lineH) / 3);
         var summary = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top, Height = 30, BackColor = _t.BgColor,
-            Padding = new Padding(8, 4, 8, 4), WrapContents = false,
+            Dock = DockStyle.Top, Height = badgeH, BackColor = _t.BgColor,
+            Padding = new Padding(8, badgePad, 8, badgePad), WrapContents = false,
         };
         long avg = hits.Count > 0 ? sum / hits.Count : 0;
         summary.Controls.Add(Badge($"타수 {hits.Count}"));
@@ -93,7 +97,7 @@ internal sealed class SkillHitDetailForm : Form
         {
             Dock = DockStyle.Fill,
             Font = new Font(_fn, _fs),
-            RowHeight = (int)(18 + _fs),
+            RowHeight = (int)(lineH * 1.5),
             Columns = new[]
             {
                 ("#",    30f, HorizontalAlignment.Right),

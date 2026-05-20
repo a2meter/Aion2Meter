@@ -15,7 +15,7 @@ namespace A2Meter.Api;
 internal sealed class SkillIconCache
 {
     private const string OldBase = "https://assets.playnccdn.com/static-aion2-gamedata/resources/";
-    private const string NewBase = "https://cdn.jsdelivr.net/gh/a2meter/a2meter.github.io@v1.0.0/Assets/Icon/Skill/";
+    private const string NewBase = "https://cdn.jsdelivr.net/gh/a2meter/a2meter.github.io@v1.0.1/Assets/Icon/Skill/";
     private static readonly Lazy<SkillIconCache> _instance = new(() => new());
     public static SkillIconCache Instance => _instance.Value;
 
@@ -105,6 +105,10 @@ internal sealed class SkillIconCache
 
     private void LoadCatalog()
     {
+        // Prefer SQLite
+        if (LoadCatalogFromSqlite()) return;
+
+        // Fallback: JSON (legacy)
         try
         {
             var path = Path.Combine(AppContext.BaseDirectory, "Data", "known_skills_catalog.json");
@@ -121,6 +125,31 @@ internal sealed class SkillIconCache
                 }
             }
         }
-        catch { /* catalog missing or malformed — icons just won't show */ }
+        catch { }
+    }
+
+    private bool LoadCatalogFromSqlite()
+    {
+        try
+        {
+            var dbPath = Data.DataManager.DatabasePath;
+            if (!File.Exists(dbPath)) return false;
+
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT name, icon_url FROM skill_catalog WHERE icon_url IS NOT NULL";
+            using var r = cmd.ExecuteReader();
+            int count = 0;
+            while (r.Read())
+            {
+                var name = r.GetString(0);
+                var icon = r.GetString(1);
+                _urlMap.TryAdd(name, icon.Replace(OldBase, NewBase));
+                count++;
+            }
+            return count > 0;
+        }
+        catch { return false; }
     }
 }

@@ -48,10 +48,10 @@ internal sealed class OverlayHeaderPanel : Panel
         _brand = new Label
         {
             Text      = $"A2Meter v{AutoUpdater.CurrentVersion.ToString(3)}",
-            ForeColor = AppSettings.Instance.Theme.TextColor,
-            Font      = new Font(AppSettings.Instance.FontName, AppSettings.Instance.FontSize + 0.5f, FontStyle.Bold),
+            ForeColor = AppSettings.Instance.Theme.TextDimColor,
+            Font      = new Font(AppSettings.Instance.FontName, AppSettings.Instance.FontSize, FontStyle.Regular),
             AutoSize  = true,
-            Location  = new Point(10, 9),
+            Location  = new Point(8, 10),
             BackColor = Color.Transparent,
         };
         _brand.MouseDown += (_, e) => BeginParentDrag(e);

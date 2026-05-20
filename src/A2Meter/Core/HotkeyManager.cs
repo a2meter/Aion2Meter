@@ -38,6 +38,7 @@ internal sealed class HotkeyManager : IDisposable
 
     public void RegisterFromSettings(ShortcutSettings shortcuts)
     {
+        _suspended = false;
         UnregisterAll();
         TryRegister(shortcuts.Reset,     () => _form.TriggerClearShortcut());
         TryRegister(shortcuts.Restart,   () => _form.TriggerRestart());
