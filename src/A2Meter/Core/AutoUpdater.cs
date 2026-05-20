@@ -20,11 +20,12 @@ internal static class AutoUpdater
     private const string RepoName = "Aion2Meter";
     private const string AssetName = "A2Meter.exe";
     private const string UpdaterAssetName = "A2Updater.exe";
-    private const string UpdaterReleaseTag = "updater-v1";
+    private const string UpdaterReleaseTag = "updater-v2";
 
     private static readonly string UpdaterDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "A2Meter");
     private static readonly string UpdaterPath = Path.Combine(UpdaterDir, "A2Updater.exe");
+    private static readonly string UpdaterTagFile = Path.Combine(UpdaterDir, "updater_tag.txt");
     private static readonly string InstallPathFile = Path.Combine(UpdaterDir, "install_path.txt");
 
     private static readonly HttpClient Http = new()
@@ -53,14 +54,25 @@ internal static class AutoUpdater
         }
     }
 
-    /// 본체 시작 시 호출 — 업데이터가 appdata에 없으면 GitHub에서 다운로드.
+    /// 본체 시작 시 호출 — 업데이터가 없거나 태그가 구버전이면 GitHub에서 다운로드.
+    /// `UpdaterReleaseTag` 상수를 올리면 다음 실행 시 자동으로 새 업데이터로 교체됨.
     public static async Task EnsureUpdaterAsync(Action<string>? log = null)
     {
         try
         {
-            if (File.Exists(UpdaterPath)) return;
+            string installedTag = "";
+            try
+            {
+                if (File.Exists(UpdaterTagFile))
+                    installedTag = File.ReadAllText(UpdaterTagFile).Trim();
+            }
+            catch { /* treat as missing */ }
 
-            log?.Invoke("[updater] A2Updater.exe not found, downloading...");
+            bool upToDate = File.Exists(UpdaterPath)
+                            && string.Equals(installedTag, UpdaterReleaseTag, StringComparison.Ordinal);
+            if (upToDate) return;
+
+            log?.Invoke($"[updater] need updater {UpdaterReleaseTag} (installed='{installedTag}'), downloading...");
             Directory.CreateDirectory(UpdaterDir);
 
             var release = await GetReleaseByTagAsync(UpdaterReleaseTag);
@@ -73,10 +85,17 @@ internal static class AutoUpdater
 
             if (updaterUrl == null) { log?.Invoke("[updater] updater asset not found in release"); return; }
 
-            using var stream = await Http.GetStreamAsync(updaterUrl);
-            using var fs = File.Create(UpdaterPath);
-            await stream.CopyToAsync(fs);
-            log?.Invoke($"[updater] A2Updater.exe deployed to {UpdaterPath}");
+            // Download to a temp file first, then atomically replace to avoid leaving a
+            // half-written exe if the connection drops mid-stream.
+            string tmpPath = UpdaterPath + ".new";
+            using (var stream = await Http.GetStreamAsync(updaterUrl))
+            using (var fs = File.Create(tmpPath))
+                await stream.CopyToAsync(fs);
+
+            if (File.Exists(UpdaterPath)) File.Delete(UpdaterPath);
+            File.Move(tmpPath, UpdaterPath);
+            File.WriteAllText(UpdaterTagFile, UpdaterReleaseTag);
+            log?.Invoke($"[updater] A2Updater.exe ({UpdaterReleaseTag}) deployed to {UpdaterPath}");
         }
         catch (Exception ex)
         {
