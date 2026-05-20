@@ -8,15 +8,14 @@
 //   2. PID 종료 대기 (최대 10s)
 //   3. GitHub releases 최신 버전 확인
 //   4. 현재 본체 버전과 비교
-//   5. 신버전이면 MessageBox로 묻기
-//      - Yes: 본체 삭제 → 다운로드 → 재실행
-//      - No : 본체 그대로 재실행
+//   5. 신버전이면 UpdateForm.ShowDialog로 묻기
+//      - DialogResult.OK   (다운로드 클릭): 본체 삭제 → 다운로드 → 재실행
+//      - DialogResult.Cancel (창 닫기)    : 본체 그대로 재실행
 //   6. 동일 버전이거나 확인 실패 시: 본체 그대로 재실행
 
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 
 namespace A2Updater;
@@ -31,15 +30,10 @@ internal static class Program
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "A2Meter", "install_path.txt");
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
+    [STAThread]
+    private static int Main(string[] args) => MainAsync(args).GetAwaiter().GetResult();
 
-    private const uint MB_YESNO = 0x00000004;
-    private const uint MB_ICONQUESTION = 0x00000020;
-    private const uint MB_TOPMOST = 0x00040000;
-    private const int IDYES = 6;
-
-    private static async Task<int> Main(string[] args)
+    private static async Task<int> MainAsync(string[] args)
     {
         int pid = 0;
         for (int i = 0; i < args.Length; i++)
@@ -63,19 +57,21 @@ internal static class Program
         bool shouldUpdate = false;
         if (latest != null && currentVer != null && latest.Version > currentVer)
         {
-            // 4. 사용자 확인
-            int rc = MessageBoxW(IntPtr.Zero,
-                $"새 버전이 있습니다.\n\n현재: v{currentVer}\n최신: v{latest.Version}\n\n업데이트하시겠습니까?",
-                "A2Meter 업데이트",
-                MB_YESNO | MB_ICONQUESTION | MB_TOPMOST);
-            shouldUpdate = rc == IDYES;
+            // 4. UpdateForm으로 사용자 확인.
+            //    초기화는 첫 폼 표시 직전에만 — 폼이 필요 없을 때 의존성을 끌어들이지 않도록.
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            using var form = new UpdateForm(currentVer, latest.Version, latest.Notes);
+            shouldUpdate = form.ShowDialog() == DialogResult.OK;
         }
 
         if (shouldUpdate && latest != null)
         {
             try
             {
-                // 5-Yes. 본체 삭제 → 다운로드 → 재실행
+                // 5-OK. 본체 삭제 → 다운로드 → 재실행
                 Console.WriteLine($"[A2Updater] removing old: {target}");
                 DeleteWithRetry(target);
 
@@ -85,9 +81,9 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                MessageBoxW(IntPtr.Zero,
+                MessageBox.Show(
                     $"업데이트 실패: {ex.Message}\n\n수동으로 GitHub에서 다시 받아주세요.",
-                    "A2Meter 업데이트", MB_ICONQUESTION | MB_TOPMOST);
+                    "A2Meter 업데이트", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 2;
             }
         }
@@ -137,7 +133,6 @@ internal static class Program
         {
             var info = FileVersionInfo.GetVersionInfo(path);
             if (string.IsNullOrEmpty(info.FileVersion)) return null;
-            // FileVersion may contain 4-part with revision; trim to 3 for comparison stability.
             return Version.TryParse(info.FileVersion, out var v) ? v : null;
         }
         catch { return null; }
@@ -163,7 +158,7 @@ internal static class Program
                 if (string.Equals(a.Name, AssetName, StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrEmpty(a.BrowserDownloadUrl))
                 {
-                    return new LatestRelease(ver, a.BrowserDownloadUrl);
+                    return new LatestRelease(ver, a.BrowserDownloadUrl, release.Body ?? "");
                 }
             }
             return null;
@@ -199,11 +194,12 @@ internal static class Program
         await File.WriteAllBytesAsync(targetPath, bytes);
     }
 
-    private sealed record LatestRelease(Version Version, string Url);
+    private sealed record LatestRelease(Version Version, string Url, string Notes);
 
     private sealed class GitHubRelease
     {
         [JsonPropertyName("tag_name")] public string? TagName { get; set; }
+        [JsonPropertyName("body")]     public string? Body { get; set; }
         [JsonPropertyName("assets")]   public GitHubAsset[]? Assets { get; set; }
     }
 

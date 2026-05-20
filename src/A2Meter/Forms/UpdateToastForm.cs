@@ -10,20 +10,16 @@ namespace A2Meter.Forms;
 /// Styled to match the OverlayHeaderPanel (same theme colors, owner-drawn buttons).
 internal sealed class UpdateToastForm : Form
 {
-    private readonly string _downloadUrl;
-    private readonly string _releaseNotes;
     private readonly Version _version;
     private readonly Form _parent;
 
     private readonly ToastButton _btnUpdate;
     private readonly ToastButton _btnClose;
 
-    public UpdateToastForm(Form parent, Version version, string downloadUrl, string releaseNotes)
+    public UpdateToastForm(Form parent, Version version)
     {
         _parent = parent;
         _version = version;
-        _downloadUrl = downloadUrl;
-        _releaseNotes = releaseNotes;
 
         var theme = AppSettings.Instance.Theme;
 
@@ -116,9 +112,10 @@ internal sealed class UpdateToastForm : Form
 
     private void OnUpdateClick(object? sender, EventArgs e)
     {
-        var detail = new UpdateDetailForm(_version, _downloadUrl, _releaseNotes);
-        detail.Show();
-        Close();
+        // The detailed update UI lives in A2Updater now; the toast just launches it.
+        AppSettings.Instance.Save();
+        AutoUpdater.LaunchUpdaterAndExit(msg => Console.Error.WriteLine(msg));
+        Environment.Exit(0);
     }
 
     private static GraphicsPath RoundRect(int x, int y, int w, int h, int r)

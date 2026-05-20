@@ -152,10 +152,10 @@ internal static class Program
                 var result = await AutoUpdater.CheckAsync(msg => Console.Error.WriteLine(msg));
                 if (result.HasValue)
                 {
-                    var (ver, url, notes) = result.Value;
+                    var (ver, _, _) = result.Value;
                     overlay.Invoke(() =>
                     {
-                        var toast = new Forms.UpdateToastForm(overlay, ver, url, notes);
+                        var toast = new Forms.UpdateToastForm(overlay, ver);
                         toast.Show();
                     });
                 }
