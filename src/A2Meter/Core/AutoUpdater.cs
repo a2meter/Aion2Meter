@@ -25,6 +25,7 @@ internal static class AutoUpdater
     private static readonly string UpdaterDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "A2Meter");
     private static readonly string UpdaterPath = Path.Combine(UpdaterDir, "A2Updater.exe");
+    private static readonly string InstallPathFile = Path.Combine(UpdaterDir, "install_path.txt");
 
     private static readonly HttpClient Http = new()
     {
@@ -34,6 +35,23 @@ internal static class AutoUpdater
 
     public static Version CurrentVersion =>
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+
+    /// 본체 시작 시 호출 — 현재 실행 파일 경로를 appdata에 기록.
+    /// 업데이터가 본체 exe 위치를 알아내기 위해 사용.
+    public static void PersistInstallPath(Action<string>? log = null)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exe)) return;
+            Directory.CreateDirectory(UpdaterDir);
+            File.WriteAllText(InstallPathFile, exe);
+        }
+        catch (Exception ex)
+        {
+            log?.Invoke($"[updater] persist install path failed: {ex.Message}");
+        }
+    }
 
     /// 본체 시작 시 호출 — 업데이터가 appdata에 없으면 GitHub에서 다운로드.
     public static async Task EnsureUpdaterAsync(Action<string>? log = null)
@@ -102,10 +120,10 @@ internal static class AutoUpdater
         }
     }
 
-    /// 업데이터를 실행하여 본체를 교체. 호출 후 본체는 즉시 종료해야 함.
-    public static void LaunchUpdaterAndExit(string downloadUrl, Action<string>? log = null)
+    /// 업데이터를 실행. 업데이터가 GitHub 재확인 → 사용자 확인 → 교체까지 처리.
+    /// 호출 후 본체는 즉시 종료해야 함.
+    public static void LaunchUpdaterAndExit(Action<string>? log = null)
     {
-        var currentExe = Environment.ProcessPath!;
         var pid = Environment.ProcessId;
 
         if (!File.Exists(UpdaterPath))
@@ -114,12 +132,15 @@ internal static class AutoUpdater
             return;
         }
 
-        log?.Invoke($"[updater] launching A2Updater (pid={pid}, target={currentExe})");
+        // Ensure install_path.txt is up-to-date for the updater.
+        PersistInstallPath(log);
+
+        log?.Invoke($"[updater] launching A2Updater (pid={pid})");
 
         Process.Start(new ProcessStartInfo
         {
             FileName = UpdaterPath,
-            Arguments = $"--target \"{currentExe}\" --url \"{downloadUrl}\" --pid {pid}",
+            Arguments = $"--pid {pid}",
             UseShellExecute = false,
             CreateNoWindow = true,
         });

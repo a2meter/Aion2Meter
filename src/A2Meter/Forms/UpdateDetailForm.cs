@@ -157,7 +157,7 @@ internal sealed class UpdateDetailForm : Form
             _btnDownload.Text = "업데이트 중...";
 
             AppSettings.Instance.Save();
-            AutoUpdater.LaunchUpdaterAndExit(_downloadUrl, msg => Console.Error.WriteLine(msg));
+            AutoUpdater.LaunchUpdaterAndExit(msg => Console.Error.WriteLine(msg));
             Environment.Exit(0);
         }
         catch (Exception ex)

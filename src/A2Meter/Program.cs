@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -18,16 +19,74 @@ internal static class Program
     private static readonly string CrashLogPath =
         System.IO.Path.Combine(AppContext.BaseDirectory, "crash.log");
 
+    private static readonly string CrashLogPathAlt =
+        System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "A2Meter", "crash.log");
+
+    // ── Native crash handler (D2D/Vortice access violations) ──
+    private delegate int UnhandledExceptionFilterDelegate(IntPtr exceptionPointers);
+    private static UnhandledExceptionFilterDelegate? _nativeFilterRef;   // prevent GC
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr SetUnhandledExceptionFilter(UnhandledExceptionFilterDelegate lpTopLevelExceptionFilter);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct EXCEPTION_POINTERS { public IntPtr ExceptionRecord; public IntPtr ContextRecord; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct EXCEPTION_RECORD { public uint ExceptionCode; public uint ExceptionFlags; public IntPtr Next; public IntPtr ExceptionAddress; }
+
+    // CLR managed exceptions are raised through SEH with this exception code
+    // (the legacy "MSC \0" / "throw" code used by the CLR). They are already
+    // handled by AppDomain.UnhandledException / Application.ThreadException
+    // with a proper managed stack trace, so the native filter must skip them
+    // — otherwise every managed crash gets reported twice, once as a useful
+    // "UnhandledException" entry and once as a stack-less "NativeCrash".
+    private const uint EXCEPTION_CLR = 0xE0434352u;
+
+    private static int NativeExceptionFilter(IntPtr pExInfo)
+    {
+        try
+        {
+            if (pExInfo == IntPtr.Zero) return 0;
+            var ptrs = Marshal.PtrToStructure<EXCEPTION_POINTERS>(pExInfo);
+            if (ptrs.ExceptionRecord == IntPtr.Zero) return 0;
+            var rec = Marshal.PtrToStructure<EXCEPTION_RECORD>(ptrs.ExceptionRecord);
+
+            // Managed CLR exception — let the managed handlers report it instead.
+            if (rec.ExceptionCode == EXCEPTION_CLR) return 0;
+
+            string detail = $"code=0x{rec.ExceptionCode:X8} addr=0x{rec.ExceptionAddress:X}";
+            WriteCrashLog("NativeCrash", new Exception($"Native exception: {detail}"));
+        }
+        catch { }
+        return 0;   // EXCEPTION_CONTINUE_SEARCH
+    }
+
     [STAThread]
     private static void Main(string[] args)
     {
+        // Native crash filter — catches D2D / Vortice access violations.
+        _nativeFilterRef = NativeExceptionFilter;
+        SetUnhandledExceptionFilter(_nativeFilterRef);
+
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             WriteCrashLog("UnhandledException", e.ExceptionObject as Exception);
 
         Application.ThreadException += (_, e) =>
             WriteCrashLog("ThreadException", e.Exception);
 
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashLog("UnobservedTaskException", e.Exception);
+            e.SetObserved();
+        };
+
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+
+        try
+        {
 
         var parsed = ParseArgs(args);
 
@@ -53,6 +112,21 @@ internal static class Program
 
         var settings = AppSettings.Instance;
 
+        // Show setup dialog if prerequisites are missing.
+        if (NeedsSetup())
+        {
+            using var setup = new Forms.SetupForm();
+            if (setup.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                return;
+        }
+
+        // Fire-and-forget: post any new crash entries to the proxy. Disabled by
+        // default; only runs when the user has opted in via SettingsPanelForm.
+        _ = Task.Run(() => CrashReporter.ReportPendingAsync(settings));
+
+        // Fire-and-forget: check for game data updates.
+        _ = Task.Run(() => Data.DataManager.CheckForUpdateAsync());
+
         using var overlay = new OverlayForm();
 
         if (replayDir is not null)
@@ -67,6 +141,9 @@ internal static class Program
             var hk = new HotkeyManager(overlay);
             overlay.Hotkeys = hk;
             hk.RegisterFromSettings(settings.Shortcuts);
+
+            // 본체 실행 경로를 appdata에 기록 (업데이터가 이 경로의 exe를 교체).
+            AutoUpdater.PersistInstallPath(msg => Console.Error.WriteLine(msg));
 
             // 업데이터 자동 배치 + 업데이트 확인.
             _ = Task.Run(async () =>
@@ -101,6 +178,13 @@ internal static class Program
         };
 
         Application.Run(overlay);
+
+        }
+        catch (Exception ex)
+        {
+            WriteCrashLog("Main", ex);
+            throw;
+        }
     }
 
     private static void RunDemo()
@@ -136,13 +220,17 @@ internal static class Program
         var rows = new List<DpsCanvas.PlayerRow>
         {
             new("수호성",   "수호성", 8_450_000, 1.00, 352_083, 0.34, 0,
-                new D2DColor(0.490f, 0.627f, 0.976f, 1f), skills, 42000, 410_000, 352_083, 120_000),
+                new D2DColor(0.490f, 0.627f, 0.976f, 1f), new D2DColor(0.490f, 0.627f, 0.976f, 1f),
+                skills, 42000, 410_000, 352_083, 120_000),
             new("살성",    "살성",   7_820_000, 0.93, 325_833, 0.48, 0,
-                new D2DColor(0.643f, 0.906f, 0.608f, 1f), null, 38500, 398_000, 325_833, 0),
+                new D2DColor(0.643f, 0.906f, 0.608f, 1f), new D2DColor(0.643f, 0.906f, 0.608f, 1f),
+                null, 38500, 398_000, 325_833, 0),
             new("마도성",  "마도성", 6_950_000, 0.82, 289_583, 0.41, 0,
-                new D2DColor(0.718f, 0.549f, 0.949f, 1f), null, 35200, 372_000, 289_583, 1_200_000),
+                new D2DColor(0.718f, 0.549f, 0.949f, 1f), new D2DColor(0.718f, 0.549f, 0.949f, 1f),
+                null, 35200, 372_000, 289_583, 1_200_000),
             new("치유성",  "치유성", 2_180_000, 0.26, 90_833,  0.22, 4_500_000,
-                new D2DColor(0.906f, 0.812f, 0.490f, 1f), null, 31000, 120_000, 90_833, 0),
+                new D2DColor(0.906f, 0.812f, 0.490f, 1f), new D2DColor(0.906f, 0.812f, 0.490f, 1f),
+                null, 31000, 120_000, 90_833, 0),
         };
 
         long total = 0;
@@ -202,12 +290,40 @@ internal static class Program
         return (dir, realtime, speed, demo);
     }
 
-    private static void WriteCrashLog(string source, Exception? ex)
+    /// Returns true if the setup dialog should be shown (Npcap missing or data not downloaded).
+    private static bool NeedsSetup()
     {
+        if (!Data.DataManager.IsReady) return true;
+
+        // Check Npcap via registry.
         try
         {
-            var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n{ex}\n\n";
-            System.IO.File.AppendAllText(CrashLogPath, msg);
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Npcap");
+            if (key != null) return false;
+        }
+        catch { }
+
+        // Check Npcap DLL presence.
+        var npcapDir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "Npcap");
+        if (System.IO.File.Exists(System.IO.Path.Combine(npcapDir, "wpcap.dll")))
+            return false;
+
+        var sys32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        if (System.IO.File.Exists(System.IO.Path.Combine(sys32, "wpcap.dll")))
+            return false;
+
+        return true;
+    }
+
+    private static void WriteCrashLog(string source, Exception? ex)
+    {
+        var msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n{ex}\n\n";
+        try { System.IO.File.AppendAllText(CrashLogPath, msg); } catch { }
+        try
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(CrashLogPathAlt)!);
+            System.IO.File.AppendAllText(CrashLogPathAlt, msg);
         }
         catch { }
     }
