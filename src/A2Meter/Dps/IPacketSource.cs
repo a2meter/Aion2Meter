@@ -34,6 +34,9 @@ internal interface IPacketSource : IDisposable
     /// Fired when an entity is removed from the world (death / despawn).
     event Action<int>? EntityRemoved;
     event Action<PartyMember>? PartyMemberSeen;
+    /// Fired specifically when a party-request packet arrives (07 97). Distinct
+    /// from PartyMemberSeen — used to trigger the tier lookup popup in the UI.
+    event Action<PartyMember>? PartyRequestReceived;
     event Action? PartyLeft;
     /// Dungeon enter/exit. Arg = dungeonId (>0 = entered, 0 = left).
     event Action<int>? DungeonChanged;

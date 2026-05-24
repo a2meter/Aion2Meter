@@ -138,6 +138,7 @@ internal sealed class OverlayForm : Form
         _pipeline = new DpsPipeline(_source, _meter, _party);
         _pipeline.DataPushed += OnDataPushed;
         _pipeline.CombatStarted += OnCombatStarted;
+        _source.PartyRequestReceived += OnPartyRequestReceived;
         try { _pipeline.Start(); }
         catch (Exception ex)
         {
@@ -186,6 +187,25 @@ internal sealed class OverlayForm : Form
                     _renderer.ActiveTab = OverlayRenderer.TabId.Dps;
                     RequestRender();
                 }
+            });
+        }
+        catch { }
+    }
+
+    /// 07 97 party-request packet → pop a toast with the requester's tier
+    /// (fetched async from /api/players/tier on the web side).
+    private void OnPartyRequestReceived(PartyMember member)
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        // Only show toasts for requests with enough identity to look up.
+        if (string.IsNullOrEmpty(member.Nickname) || member.ServerId <= 0) return;
+        try
+        {
+            BeginInvoke(() =>
+            {
+                if (IsDisposed) return;
+                var toast = new PartyRequestToastForm(this, member);
+                toast.Show(this);
             });
         }
         catch { }

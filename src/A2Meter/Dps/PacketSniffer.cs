@@ -19,6 +19,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     void IInternalEventRaise.RaiseMobSpawned(MobTarget m)        => MobSpawned?.Invoke(m);
     void IInternalEventRaise.RaiseEntityRemoved(int id)          => EntityRemoved?.Invoke(id);
     void IInternalEventRaise.RaisePartyMemberSeen(PartyMember m) => PartyMemberSeen?.Invoke(m);
+    void IInternalEventRaise.RaisePartyRequestReceived(PartyMember m) => PartyRequestReceived?.Invoke(m);
     void IInternalEventRaise.RaisePartyLeft() => PartyLeft?.Invoke();
     void IInternalEventRaise.RaiseDungeonChanged(int id) => DungeonChanged?.Invoke(id);
     void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts) => BuffEvent?.Invoke(eid, bid, type, dur, ts);
@@ -29,6 +30,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     public event Action<MobTarget>? MobSpawned;
     public event Action<int>? EntityRemoved;
     public event Action<PartyMember>? PartyMemberSeen;
+    public event Action<PartyMember>? PartyRequestReceived;
     public event Action? PartyLeft;
     public event Action<int>? DungeonChanged;
     public event Action<int, int, int, uint, long>? BuffEvent;

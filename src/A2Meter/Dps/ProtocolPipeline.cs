@@ -110,6 +110,9 @@ internal sealed class ProtocolPipeline : IDisposable
         _party.PartyUpdate  += OnPartyRoster;
         _party.PartyAccept  += OnPartyMember;
         _party.PartyRequest += OnPartyMember;
+        // Party-request packets (07 97) also raise a distinct event for the
+        // UI toast that shows the requester's web-side tier.
+        _party.PartyRequest += OnPartyRequestReceived;
         _party.PartyLeft    += OnPartyLeft;
         _party.PartyEjected += OnPartyLeft;
         _party.CombatPowerDetected += OnPartyCpByName;
@@ -369,6 +372,9 @@ internal sealed class ProtocolPipeline : IDisposable
     private void TriggerPartyMemberSeen(PartyMember member)
         => (_source as IInternalEventRaise)?.RaisePartyMemberSeen(member);
 
+    private void OnPartyRequestReceived(PartyMember member)
+        => (_source as IInternalEventRaise)?.RaisePartyRequestReceived(member);
+
     private void OnDungeonDetected(int dungeonId, int stage)
         => (_source as IInternalEventRaise)?.RaiseDungeonChanged(dungeonId);
 
@@ -409,6 +415,7 @@ internal interface IInternalEventRaise
     void RaiseMobSpawned(MobTarget mob);
     void RaiseEntityRemoved(int entityId);
     void RaisePartyMemberSeen(PartyMember member);
+    void RaisePartyRequestReceived(PartyMember member);
     void RaisePartyLeft();
     void RaiseDungeonChanged(int dungeonId);
     void RaiseBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp);
