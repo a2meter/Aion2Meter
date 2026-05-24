@@ -19,15 +19,17 @@ internal sealed class PartyRequestToastForm : Form
 
     private readonly Form _parent;
     private readonly PartyMember _member;
+    private readonly int? _currentDungeonId;
 
     private string _tierText = "티어 조회 중...";
     private Color  _tierColor = Color.FromArgb(140, 150, 170);
     private System.Windows.Forms.Timer? _autoCloseTimer;
 
-    public PartyRequestToastForm(Form parent, PartyMember member)
+    public PartyRequestToastForm(Form parent, PartyMember member, int? currentDungeonId = null)
     {
         _parent = parent;
         _member = member;
+        _currentDungeonId = currentDungeonId;
 
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -95,12 +97,23 @@ internal sealed class PartyRequestToastForm : Form
                 return;
             }
 
-            // Pick the top-ranked dungeon (sorted by zScore desc on the server).
-            var top = resp.Dungeons[0];
+            // Prefer the tier for the dungeon the player is currently in
+            // (that's the one the requester wants to join). Fall back to the
+            // top-ranked dungeon when not in one, or when the requester has
+            // no record for it.
+            PlayerTierClient.DungeonTier pick = resp.Dungeons[0];
+            string prefix = "최고";
+            if (_currentDungeonId is int dgId)
+            {
+                var match = resp.Dungeons.Find(d => d.DungeonId == dgId);
+                if (match != null) { pick = match; prefix = "현재 던전"; }
+            }
+            var chosen = pick;
+            var label  = prefix;
             BeginInvoke(() =>
             {
-                _tierText = $"{TierKo(top.Tier)} (n={top.SampleCount})";
-                _tierColor = TierColor(top.Tier);
+                _tierText = $"{label}: {TierKo(chosen.Tier)} (n={chosen.SampleCount})";
+                _tierColor = TierColor(chosen.Tier);
                 Invalidate();
             });
         }

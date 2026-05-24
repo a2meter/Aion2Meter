@@ -50,6 +50,10 @@ internal sealed class DpsPipeline : IDisposable
     private bool       _inDungeon;          // true when inside a dungeon instance
     private int?       _dungeonId;          // current dungeon ID for record storage
 
+    /// Current dungeon ID (null if not in a dungeon instance). Exposed so the
+    /// overlay can prefer the active dungeon when displaying a player's tier.
+    public int? CurrentDungeonId => _dungeonId;
+
     // ── Removed entities tracking (A2Power _removedEntities) ──
     private readonly HashSet<int> _removedEntities = new();
 

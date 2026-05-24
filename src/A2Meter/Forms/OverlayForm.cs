@@ -204,7 +204,7 @@ internal sealed class OverlayForm : Form
             BeginInvoke(() =>
             {
                 if (IsDisposed) return;
-                var toast = new PartyRequestToastForm(this, member);
+                var toast = new PartyRequestToastForm(this, member, _pipeline?.CurrentDungeonId);
                 toast.Show(this);
             });
         }
