@@ -60,11 +60,7 @@ internal static class PlayerTierClient
         [JsonPropertyName("baselineNDps")] public long BaselineNDps { get; set; }
         [JsonPropertyName("baselineRDps")] public long BaselineRDps { get; set; }
         [JsonPropertyName("tierScore")]    public double TierScore { get; set; }
-        [JsonPropertyName("nDpsTierScore")] public double NDpsTierScore { get; set; }
-        [JsonPropertyName("rDpsTierScore")] public double RDpsTierScore { get; set; }
         [JsonPropertyName("zScore")]       public double ZScore { get; set; }
-        [JsonPropertyName("nDpsTier")]     public string NDpsTier { get; set; } = "";
-        [JsonPropertyName("rDpsTier")]     public string RDpsTier { get; set; } = "";
         [JsonPropertyName("tier")]         public string Tier { get; set; } = "";
     }
 }

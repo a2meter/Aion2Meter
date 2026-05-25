@@ -22,10 +22,8 @@ internal sealed class PartyRequestToastForm : Form
     private readonly int? _currentDungeonId;
 
     private string _tierText = "티어 조회 중...";
-    private string _nTier = "";
-    private string _rTier = "";
-    private Image? _nTierIcon;
-    private Image? _rTierIcon;
+    private string _tier = "";
+    private Image? _tierIcon;
     private Color  _tierColor = Color.FromArgb(140, 150, 170);
     private string _dungeonText = "";
     private System.Windows.Forms.Timer? _autoCloseTimer;
@@ -94,7 +92,7 @@ internal sealed class PartyRequestToastForm : Form
                 BeginInvoke(() =>
                 {
                     _tierText = "기록 없음";
-                    SetTierIcons("", "");
+                    SetTierIcon("");
                     _tierColor = Color.FromArgb(120, 130, 150);
                     Invalidate();
                 });
@@ -113,11 +111,10 @@ internal sealed class PartyRequestToastForm : Form
             var label = prefix;
             BeginInvoke(() =>
             {
-                string nTier = string.IsNullOrWhiteSpace(chosen.NDpsTier) ? chosen.Tier : chosen.NDpsTier;
-                string rTier = string.IsNullOrWhiteSpace(chosen.RDpsTier) ? chosen.Tier : chosen.RDpsTier;
-                _tierText = $"{label} (n={chosen.SampleCount})";
-                SetTierIcons(nTier, rTier);
-                _tierColor = TierColor(rTier);
+                string tier = chosen.Tier;
+                _tierText = $"{label} · 표본 {chosen.SampleCount}";
+                SetTierIcon(tier);
+                _tierColor = TierColor(tier);
                 Invalidate();
             });
         }
@@ -127,19 +124,17 @@ internal sealed class PartyRequestToastForm : Form
             BeginInvoke(() =>
             {
                 _tierText = "조회 실패";
-                SetTierIcons("", "");
+                SetTierIcon("");
                 _tierColor = Color.FromArgb(180, 90, 90);
                 Invalidate();
             });
         }
     }
 
-    private void SetTierIcons(string nTier, string rTier)
+    private void SetTierIcon(string tier)
     {
-        _nTier = nTier;
-        _rTier = rTier;
-        _nTierIcon = TierIconCache.Get(nTier);
-        _rTierIcon = TierIconCache.Get(rTier);
+        _tier = tier;
+        _tierIcon = TierIconCache.Get(tier);
     }
 
     private static Color TierColor(string tier) => tier switch
@@ -227,16 +222,15 @@ internal sealed class PartyRequestToastForm : Form
             g.DrawString(_tierText, infoFont, infoBrush, new RectangleF(12, Height - 29, 88, 20), infoFormat);
 
         using var tierFont = new Font(fn, Math.Max(8f, fs - 1.5f), FontStyle.Bold);
-        DrawTierBadge(g, tierFont, "n", _nTier, _nTierIcon, 106, Height - 33);
-        DrawTierBadge(g, tierFont, "r", _rTier, _rTierIcon, 218, Height - 33);
+        DrawTierBadge(g, tierFont, "종합", _tier, _tierIcon, 106, Height - 33);
     }
 
-    private static void DrawTierBadge(Graphics g, Font font, string metric, string tier, Image? icon, float x, float y)
+    private static void DrawTierBadge(Graphics g, Font font, string label, string tier, Image? icon, float x, float y)
     {
         using var labelBrush = new SolidBrush(Color.FromArgb(170, 180, 200));
-        g.DrawString(metric, font, labelBrush, x, y + 5);
+        g.DrawString(label, font, labelBrush, x, y + 5);
 
-        float iconX = x + 16;
+        float iconX = x + 36;
         if (icon != null)
             g.DrawImage(icon, new RectangleF(iconX, y, 26, 26));
         else
