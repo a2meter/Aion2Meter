@@ -562,6 +562,7 @@ internal sealed class DpsPipeline : IDisposable
         CaptureTimelineSnapshot(snap, force: true);
 
         // Enrich snapshot players with CP/Score, skill levels, and server info before saving.
+        var allowedBuffCasterIds = BuildAllowedBuffCasterIds(snap.Players);
         foreach (var p in snap.Players)
         {
             string cleanName = StripServerSuffix(p.Name);
@@ -597,7 +598,7 @@ internal sealed class DpsPipeline : IDisposable
             p.ServerName = sname;
 
             // Persist buff uptime into the snapshot so history replays show it.
-            var buffs = _buffTracker.BuildSnapshot(p.EntityId, snap.ElapsedSeconds);
+            var buffs = BuffUptimeFilter.Filter(_buffTracker.BuildSnapshot(p.EntityId, snap.ElapsedSeconds), allowedBuffCasterIds);
             if (buffs.Count > 0)
                 p.Buffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime, CasterEntityId = b.CasterEntityId });
 
@@ -615,7 +616,7 @@ internal sealed class DpsPipeline : IDisposable
         List<BuffUptimeDto>? targetBuffs = null;
         if (_currentTargetId != 0)
         {
-            var buffs = _buffTracker.BuildSnapshot(_currentTargetId, snap.ElapsedSeconds);
+            var buffs = BuffUptimeFilter.Filter(_buffTracker.BuildSnapshot(_currentTargetId, snap.ElapsedSeconds), allowedBuffCasterIds);
             if (buffs.Count > 0)
                 targetBuffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime, CasterEntityId = b.CasterEntityId });
         }
@@ -714,6 +715,28 @@ internal sealed class DpsPipeline : IDisposable
         }
     }
 
+    private HashSet<int> BuildAllowedBuffCasterIds(IReadOnlyList<ActorDps>? fallbackPlayers = null)
+    {
+        var ids = new HashSet<int>();
+        if (_party.SelfEntityId is int selfId && selfId > 0)
+            ids.Add(selfId);
+
+        foreach (var pm in _party.SnapshotMembers())
+        {
+            if (!pm.IsSelf && !pm.IsPartyMember) continue;
+            if (pm.CharacterId > 0 && pm.CharacterId <= int.MaxValue)
+                ids.Add((int)pm.CharacterId);
+        }
+
+        if (ids.Count == 0 && fallbackPlayers != null)
+        {
+            foreach (var p in fallbackPlayers)
+                if (p.EntityId > 0) ids.Add(p.EntityId);
+        }
+
+        return ids;
+    }
+
     /// Public entry to map a stored snapshot for history display.
     public IReadOnlyList<DpsCanvas.PlayerRow> MapSnapshotForCanvas(DpsSnapshot snap)
         => MapForCanvas(snap.Players, snap.ElapsedSeconds, filterParty: false);
@@ -721,6 +744,7 @@ internal sealed class DpsPipeline : IDisposable
     private IReadOnlyList<DpsCanvas.PlayerRow> MapForCanvas(IReadOnlyList<ActorDps> players, double elapsedSec, bool filterParty = true)
     {
         var rows = new List<DpsCanvas.PlayerRow>(players.Count);
+        var allowedBuffCasterIds = BuildAllowedBuffCasterIds(players);
         foreach (var p in players)
         {
             // Skip unidentified actors (mobs/targets that received damage but never
@@ -803,9 +827,9 @@ internal sealed class DpsPipeline : IDisposable
 
             string displayName = !string.IsNullOrEmpty(sname) && !p.Name.Contains('[') ? $"{p.Name}[{sname}]" : p.Name;
             // Live tracker first; fall back to persisted snapshot (history replay).
-            var buffs = _buffTracker.BuildSnapshot(p.EntityId, elapsedSec);
+            var buffs = BuffUptimeFilter.Filter(_buffTracker.BuildSnapshot(p.EntityId, elapsedSec), allowedBuffCasterIds);
             if (buffs.Count == 0 && p.Buffs is { Count: > 0 })
-                buffs = p.Buffs.ConvertAll(b => new BuffUptime(b.Name, b.BuffId, b.Uptime, b.CasterEntityId));
+                buffs = BuffUptimeFilter.Filter(p.Buffs.ConvertAll(b => new BuffUptime(b.Name, b.BuffId, b.Uptime, b.CasterEntityId)), allowedBuffCasterIds);
             rows.Add(new DpsCanvas.PlayerRow(
                 Name:        displayName,
                 JobIconKey:  JobCodeToKey(p.JobCode),
