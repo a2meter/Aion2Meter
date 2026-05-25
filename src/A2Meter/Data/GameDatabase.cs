@@ -70,6 +70,85 @@ internal sealed class GameDatabase : IDisposable
         return cmd.ExecuteScalar() as string;
     }
 
+    public DungeonInfo? GetDungeonInfo(int code)
+    {
+        var name = GetDungeonName(code);
+        if (string.IsNullOrEmpty(name)) return null;
+        return new DungeonInfo
+        {
+            Id = code,
+            AssetName = name,
+            BaseName = BaseNameOf(name),
+            Tier = TierOfDungeonName(name),
+        };
+    }
+
+    public List<DungeonBossInfo> GetDungeonBosses(int dungeonId)
+    {
+        var result = new List<DungeonBossInfo>();
+        if (_conn == null) return result;
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT db.ord, m.code, m.name, m.level, m.grade, m.is_final_boss
+              FROM dungeon_bosses db
+              JOIN mobs m ON m.code = db.mob_code
+             WHERE db.dungeon_id = @d
+             ORDER BY db.ord";
+        cmd.Parameters.AddWithValue("@d", dungeonId);
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            result.Add(new DungeonBossInfo
+            {
+                Order = r.GetInt32(0),
+                MobId = r.GetInt32(1),
+                Name = r.GetString(2),
+                Level = r.IsDBNull(3) ? null : r.GetInt32(3),
+                Grade = r.IsDBNull(4) ? null : r.GetInt32(4),
+                IsFinalBoss = r.GetInt32(5) != 0,
+            });
+        }
+        return result;
+    }
+
+    public DungeonBossInfo? FindDungeonBossByName(int dungeonId, string bossName)
+    {
+        if (_conn == null || string.IsNullOrWhiteSpace(bossName)) return null;
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT db.ord, m.code, m.name, m.level, m.grade, m.is_final_boss
+              FROM dungeon_bosses db
+              JOIN mobs m ON m.code = db.mob_code
+             WHERE db.dungeon_id = @d AND m.name = @n
+             LIMIT 1";
+        cmd.Parameters.AddWithValue("@d", dungeonId);
+        cmd.Parameters.AddWithValue("@n", bossName);
+        using var r = cmd.ExecuteReader();
+        if (!r.Read()) return null;
+        return new DungeonBossInfo
+        {
+            Order = r.GetInt32(0),
+            MobId = r.GetInt32(1),
+            Name = r.GetString(2),
+            Level = r.IsDBNull(3) ? null : r.GetInt32(3),
+            Grade = r.IsDBNull(4) ? null : r.GetInt32(4),
+            IsFinalBoss = r.GetInt32(5) != 0,
+        };
+    }
+
+    private static string BaseNameOf(string name)
+        => System.Text.RegularExpressions.Regex.Replace(name, @"_(G_\d+|Normal|Easy|Hard|\d+)$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static string TierOfDungeonName(string name)
+    {
+        if (name.EndsWith("_Easy", StringComparison.OrdinalIgnoreCase)) return "쉬움";
+        if (name.EndsWith("_Normal", StringComparison.OrdinalIgnoreCase)) return "보통";
+        if (name.EndsWith("_Hard", StringComparison.OrdinalIgnoreCase)) return "어려움";
+        var m = System.Text.RegularExpressions.Regex.Match(name, @"_G_(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (m.Success) return $"{int.Parse(m.Groups[1].Value)}단계";
+        return "기본";
+    }
+
     // ── Item Queries ────────────────────────────────────────────────────────
 
     /// Returns the raw_json for an item, which for Plaync-sourced items
@@ -222,6 +301,24 @@ internal sealed class ItemInfo
     public int Grade { get; set; }
     public int MagicStoneCount { get; set; }
     public int ItemLevel { get; set; }
+}
+
+internal sealed class DungeonInfo
+{
+    public int Id { get; set; }
+    public string AssetName { get; set; } = "";
+    public string BaseName { get; set; } = "";
+    public string Tier { get; set; } = "";
+}
+
+internal sealed class DungeonBossInfo
+{
+    public int Order { get; set; }
+    public int MobId { get; set; }
+    public string Name { get; set; } = "";
+    public int? Level { get; set; }
+    public int? Grade { get; set; }
+    public bool IsFinalBoss { get; set; }
 }
 
 internal sealed class ItemMainStat

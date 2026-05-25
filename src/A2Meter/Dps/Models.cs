@@ -102,6 +102,10 @@ internal sealed class PartyMember
     public bool   IsPartyMember { get; set; }
     /// True when this member was detected via a character lookup packet (0x4F 0x36).
     public bool   IsLookup { get; set; }
+    /// True when this member came from a party-request packet (07 97).
+    public bool   IsPartyRequest { get; set; }
+    /// Monotonic arrival order for party-request rows. Lower values arrived first.
+    public long   PartyRequestOrder { get; set; }
 }
 
 /// JSON-friendly buff uptime DTO stored inside ActorDps / CombatRecord.
@@ -110,6 +114,7 @@ internal sealed class BuffUptimeDto
     public string Name { get; set; } = "";
     public int    BuffId { get; set; }
     public double Uptime { get; set; }
+    public int    CasterEntityId { get; set; }
 }
 
 /// Equipment item extracted from character lookup packet (0x4F 0x36).

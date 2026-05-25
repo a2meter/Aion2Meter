@@ -105,7 +105,17 @@ internal sealed class OverlayRenderer : IDisposable
 
     /// Party member rows for the Party tab.
     private readonly List<PartyRow> _partyRows = new();
-    public sealed record PartyRow(string Name, string JobIconKey, int CombatPower, int CombatScore, int ServerId, string ServerName, bool IsSelf, int Level = 0);
+    public sealed record PartyRow(
+        string Name,
+        string JobIconKey,
+        int CombatPower,
+        int CombatScore,
+        int ServerId,
+        string ServerName,
+        bool IsSelf,
+        int Level = 0,
+        bool IsPartyRequest = false,
+        long PartyRequestOrder = 0);
 
     public void SetPartyData(IReadOnlyList<PartyRow> rows)
     {
@@ -1261,6 +1271,16 @@ internal sealed class OverlayRenderer : IDisposable
 
             // Level (right of name)
             float cpX = textLeft + nameWidth + 6f;
+            if (row.IsPartyRequest)
+            {
+                string requestText = row.PartyRequestOrder > 0 ? $"신청 {row.PartyRequestOrder}" : "신청";
+                _brushGold!.Color = new D2DColor(1f, 0.82f, 0.40f, 1f);
+                var reqLayout = _dwFactory.CreateTextLayout(requestText, FCpScore, 120f, rowH);
+                reqLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                dc.DrawTextLayout(new Vector2(cpX, y), reqLayout, _brushGold);
+                cpX += reqLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
+                reqLayout.Dispose();
+            }
             if (row.Level > 0)
             {
                 _brushTextDim!.Color = new D2DColor(0.70f, 0.70f, 0.70f, 1f);

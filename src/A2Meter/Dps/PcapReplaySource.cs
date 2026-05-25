@@ -25,7 +25,7 @@ internal sealed class PcapReplaySource : IPacketSource, IInternalEventRaise
     void IInternalEventRaise.RaisePartyRequestReceived(PartyMember m) => PartyRequestReceived?.Invoke(m);
     void IInternalEventRaise.RaisePartyLeft() => PartyLeft?.Invoke();
     void IInternalEventRaise.RaiseDungeonChanged(int id) => DungeonChanged?.Invoke(id);
-    void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts) => BuffEvent?.Invoke(eid, bid, type, dur, ts);
+    void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts, int casterId) => BuffEvent?.Invoke(eid, bid, type, dur, ts, casterId);
 
     public event Action<TcpSegment>? SegmentReceived;
     public event Action<CombatHitArgs>? CombatHit;
@@ -36,7 +36,7 @@ internal sealed class PcapReplaySource : IPacketSource, IInternalEventRaise
     public event Action<PartyMember>? PartyRequestReceived;
     public event Action? PartyLeft;
     public event Action<int>? DungeonChanged;
-    public event Action<int, int, int, uint, long>? BuffEvent;
+    public event Action<int, int, int, uint, long, int>? BuffEvent;
     public event Action? Completed;
 
     public bool IsRunning { get; private set; }

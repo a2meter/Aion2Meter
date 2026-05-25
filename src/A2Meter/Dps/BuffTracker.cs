@@ -11,8 +11,8 @@ internal sealed class BuffTracker
 {
     private readonly SkillDatabase _skills;
 
-    /// Per-entity → per-buff tracking data.
-    private readonly Dictionary<int, Dictionary<int, BuffInfo>> _buffs = new();
+    /// Per-entity → per-(buff,caster) tracking data.
+    private readonly Dictionary<int, Dictionary<BuffKey, BuffInfo>> _buffs = new();
     private readonly object _lock = new();
 
     private const uint MAX_REASONABLE_DURATION_MS = 3_600_000; // 1 hour
@@ -31,7 +31,7 @@ internal sealed class BuffTracker
     public void Start() { }
 
     /// Record a buff event.
-    public void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp)
+    public void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
     {
         // Filter: permanent, zero-length, and unreasonably long buffs are ignored.
         if (durationMs == 0 || durationMs == uint.MaxValue || durationMs > MAX_REASONABLE_DURATION_MS)
@@ -45,14 +45,15 @@ internal sealed class BuffTracker
         {
             if (!_buffs.TryGetValue(entityId, out var entityBuffs))
             {
-                entityBuffs = new Dictionary<int, BuffInfo>();
+                entityBuffs = new Dictionary<BuffKey, BuffInfo>();
                 _buffs[entityId] = entityBuffs;
             }
 
             var now = DateTime.UtcNow;
             double durationSec = durationMs / 1000.0;
 
-            if (entityBuffs.TryGetValue(resolved, out var info))
+            var key = new BuffKey(resolved, casterId);
+            if (entityBuffs.TryGetValue(key, out var info))
             {
                 // Buff reapplication: if the previous one expired, accumulate its duration.
                 if (now >= info.ExpiresAt)
@@ -65,8 +66,9 @@ internal sealed class BuffTracker
             }
             else
             {
-                entityBuffs[resolved] = new BuffInfo
+                entityBuffs[key] = new BuffInfo
                 {
+                    CasterId = casterId,
                     StartedAt = now,
                     ExpiresAt = now + TimeSpan.FromSeconds(durationSec),
                     AccumulatedSec = 0,
@@ -81,7 +83,7 @@ internal sealed class BuffTracker
         var result = new List<BuffUptime>();
         if (elapsedSeconds <= 0) return result;
 
-        KeyValuePair<int, BuffInfo>[] entries;
+        KeyValuePair<BuffKey, BuffInfo>[] entries;
         lock (_lock)
         {
             if (!_buffs.TryGetValue(entityId, out var entityBuffs)) return result;
@@ -90,7 +92,7 @@ internal sealed class BuffTracker
 
         var now = DateTime.UtcNow;
 
-        foreach (var (buffId, info) in entries)
+        foreach (var (key, info) in entries)
         {
             double sec = info.AccumulatedSec;
             // Add the current (possibly still active) window.
@@ -102,22 +104,22 @@ internal sealed class BuffTracker
             if (sec <= 0) continue;
 
             double uptime = Math.Min(1.0, sec / elapsedSeconds);
-            string name = _skills.GetSkillName(buffId) ?? $"버프#{buffId}";
+            string name = _skills.GetSkillName(key.BuffId) ?? $"버프#{key.BuffId}";
 
-            // Merge entries with the same resolved name (keep highest uptime).
+            // Merge entries with the same resolved name and caster (keep highest uptime).
             bool merged = false;
             for (int i = 0; i < result.Count; i++)
             {
-                if (result[i].Name == name)
+                if (result[i].Name == name && result[i].CasterEntityId == key.CasterId)
                 {
                     if (uptime > result[i].Uptime)
-                        result[i] = new BuffUptime(name, buffId, uptime);
+                        result[i] = new BuffUptime(name, key.BuffId, uptime, key.CasterId);
                     merged = true;
                     break;
                 }
             }
             if (!merged)
-                result.Add(new BuffUptime(name, buffId, uptime));
+                result.Add(new BuffUptime(name, key.BuffId, uptime, key.CasterId));
         }
 
         result.Sort((a, b) => b.Uptime.CompareTo(a.Uptime));
@@ -166,10 +168,13 @@ internal sealed class BuffTracker
 
     private sealed class BuffInfo
     {
+        public int CasterId;
         public DateTime StartedAt;
         public DateTime ExpiresAt;
         public double AccumulatedSec;
     }
+
+    private readonly record struct BuffKey(int BuffId, int CasterId);
 }
 
-internal readonly record struct BuffUptime(string Name, int BuffId, double Uptime);
+internal readonly record struct BuffUptime(string Name, int BuffId, double Uptime, int CasterEntityId);

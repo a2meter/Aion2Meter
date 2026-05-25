@@ -109,7 +109,7 @@ internal sealed class ProtocolPipeline : IDisposable
         _party.PartyList    += OnPartyRoster;
         _party.PartyUpdate  += OnPartyRoster;
         _party.PartyAccept  += OnPartyMember;
-        _party.PartyRequest += OnPartyMember;
+        _party.PartyRequest += OnPartyRequestMember;
         // Party-request packets (07 97) also raise a distinct event for the
         // UI toast that shows the requester's web-side tier.
         _party.PartyRequest += OnPartyRequestReceived;
@@ -261,10 +261,19 @@ internal sealed class ProtocolPipeline : IDisposable
     private void OnPartyMember(PartyMember m)
     {
         m.IsPartyMember = true;
+        m.IsPartyRequest = false;
         if (m.CharacterId != 0)
         {
             _identities[(int)m.CharacterId] = (m.Nickname, m.JobCode);
         }
+        TriggerPartyMemberSeen(m);
+    }
+
+    private void OnPartyRequestMember(PartyMember m)
+    {
+        m.IsPartyRequest = true;
+        m.IsLookup = true;
+        m.IsPartyMember = false;
         TriggerPartyMemberSeen(m);
     }
 
@@ -379,7 +388,7 @@ internal sealed class ProtocolPipeline : IDisposable
         => (_source as IInternalEventRaise)?.RaiseDungeonChanged(dungeonId);
 
     private void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
-        => (_source as IInternalEventRaise)?.RaiseBuffEvent(entityId, buffId, type, durationMs, timestamp);
+        => (_source as IInternalEventRaise)?.RaiseBuffEvent(entityId, buffId, type, durationMs, timestamp, casterId);
 
     private void OnCharacterLookup(int entityId, string nickname, int serverId, int jobCode, int level, int combatPower)
     {
@@ -418,5 +427,5 @@ internal interface IInternalEventRaise
     void RaisePartyRequestReceived(PartyMember member);
     void RaisePartyLeft();
     void RaiseDungeonChanged(int dungeonId);
-    void RaiseBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp);
+    void RaiseBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId);
 }

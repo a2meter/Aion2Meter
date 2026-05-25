@@ -22,7 +22,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     void IInternalEventRaise.RaisePartyRequestReceived(PartyMember m) => PartyRequestReceived?.Invoke(m);
     void IInternalEventRaise.RaisePartyLeft() => PartyLeft?.Invoke();
     void IInternalEventRaise.RaiseDungeonChanged(int id) => DungeonChanged?.Invoke(id);
-    void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts) => BuffEvent?.Invoke(eid, bid, type, dur, ts);
+    void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts, int casterId) => BuffEvent?.Invoke(eid, bid, type, dur, ts, casterId);
 
     public event Action<TcpSegment>? SegmentReceived;
     public event Action<CombatHitArgs>? CombatHit;
@@ -33,7 +33,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     public event Action<PartyMember>? PartyRequestReceived;
     public event Action? PartyLeft;
     public event Action<int>? DungeonChanged;
-    public event Action<int, int, int, uint, long>? BuffEvent;
+    public event Action<int, int, int, uint, long, int>? BuffEvent;
 
     public bool IsRunning { get; private set; }
 
@@ -87,8 +87,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
                 d.StartCapture();
                 _candidates.Add(d);
 
-                var fn = (d is LibPcapLiveDevice l) ? l.Interface.FriendlyName : null;
-                Console.Error.WriteLine($"[sniffer] probing: {fn ?? d.Description ?? d.Name}");
+                Console.Error.WriteLine($"[sniffer] probing: {DisplayName(d)}");
             }
             catch
             {
@@ -165,8 +164,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
                 }
             }
 
-            var fn = (winner is LibPcapLiveDevice ld) ? ld.Interface.FriendlyName : null;
-            Console.Error.WriteLine($"[sniffer] locked onto: {fn ?? winner.Description ?? winner.Name}");
+            Console.Error.WriteLine($"[sniffer] locked onto: {DisplayName(winner)}");
         }
         catch
         {
@@ -201,8 +199,7 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
         Interlocked.Exchange(ref _locked, 1);
         IsRunning = true;
 
-        var fn = (dev is LibPcapLiveDevice ld) ? ld.Interface.FriendlyName : null;
-        Console.Error.WriteLine($"[sniffer] capturing on: {fn ?? dev.Description ?? dev.Name}  filter={_filter}");
+        Console.Error.WriteLine($"[sniffer] capturing on: {DisplayName(dev)}  filter={_filter}");
     }
 
     internal static TcpSegment? TryExtractTcpSegment(Packet root, DateTime tsUtc)
@@ -229,8 +226,8 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
         {
             if (d.Description?.Contains(spec, StringComparison.OrdinalIgnoreCase) == true) return d;
             if (d is LibPcapLiveDevice ld &&
-                (ld.Interface.FriendlyName?.Contains(spec, StringComparison.OrdinalIgnoreCase) == true ||
-                 ld.Interface.Name?.Contains(spec, StringComparison.OrdinalIgnoreCase) == true))
+                (ld.Interface?.FriendlyName?.Contains(spec, StringComparison.OrdinalIgnoreCase) == true ||
+                 ld.Interface?.Name?.Contains(spec, StringComparison.OrdinalIgnoreCase) == true))
                 return d;
         }
         return null;
@@ -238,11 +235,17 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
 
     private static bool HasIPv4(LibPcapLiveDevice d)
     {
-        if (d.Interface.Addresses is null) return false;
+        if (d.Interface?.Addresses is null) return false;
         foreach (var a in d.Interface.Addresses)
             if (a.Addr?.ipAddress?.AddressFamily == AddressFamily.InterNetwork)
                 return true;
         return false;
+    }
+
+    private static string DisplayName(ICaptureDevice d)
+    {
+        var friendlyName = (d as LibPcapLiveDevice)?.Interface?.FriendlyName;
+        return friendlyName ?? d.Description ?? d.Name ?? "<unknown>";
     }
 
     private static void StopDevice(ICaptureDevice? d)

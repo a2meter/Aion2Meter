@@ -4,23 +4,17 @@ using System.Collections.Generic;
 namespace A2Meter.Dps;
 
 /// Authoritative roster of players currently in the party / nearby.
-/// Keyed by characterId (the protocol's stable identity), not by EntityId
-/// (which is per-zone and can shift when re-entering a map).
-///
-/// Thread safety:
-/// PacketEngine threads call Upsert/Remove/Purge*/Clear concurrently with
-/// timer-driven readers (DpsPipeline.Push runs on the ThreadPool). All
-/// internal access to <c>_members</c> and <c>_partyNames</c> is serialized
-/// through <c>_sync</c>; external callers must enumerate via
-/// <see cref="SnapshotMembers"/> rather than touching the dictionary directly.
+/// Keyed by characterId when available. Packets such as party requests can
+/// arrive without a characterId, so those rows are assigned a synthetic key
+/// based on server + nickname until a real id is observed.
 internal sealed class PartyTracker
 {
     private readonly object _sync = new();
     private readonly Dictionary<uint, PartyMember> _members = new();
-
-    /// Confirmed party member nicknames — bridges characterId (party protocol)
-    /// with entityId (UserInfo/combat) since they use different ID spaces.
+    private readonly Dictionary<string, uint> _namedKeys = new(StringComparer.Ordinal);
     private readonly HashSet<string> _partyNames = new(StringComparer.Ordinal);
+    private uint _nextSyntheticId = 0x80000000;
+    private long _nextPartyRequestOrder;
 
     /// EntityId of the local player (set when UserInfo isSelf=1 arrives).
     public int? SelfEntityId { get; private set; }
@@ -40,10 +34,7 @@ internal sealed class PartyTracker
         }
     }
 
-    /// Race-safe snapshot of the current member set. Returns a fresh array;
-    /// the caller may iterate freely without worrying about concurrent
-    /// Upsert/Remove. Each <see cref="PartyMember"/> is shared by reference
-    /// — treat its fields as read-only outside PartyTracker.
+    /// Race-safe snapshot of the current member set. Returns a fresh array.
     public PartyMember[] SnapshotMembers()
     {
         lock (_sync)
@@ -78,11 +69,12 @@ internal sealed class PartyTracker
         bool changed;
         lock (_sync)
         {
-            if (member.IsSelf && member.CharacterId != 0)
+            bool hasProtocolId = member.CharacterId != 0;
+            uint key = ResolveMemberKey(member, out var existing);
+
+            if (member.IsSelf && hasProtocolId)
                 SelfEntityId = (int)member.CharacterId;
 
-            // When a party protocol confirms a member, record their nickname
-            // and retroactively mark any existing entry with the same name.
             if (member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname))
             {
                 _partyNames.Add(member.Nickname);
@@ -91,50 +83,113 @@ internal sealed class PartyTracker
                         m.IsPartyMember = true;
             }
 
-            // Bridge: if this member's nickname matches a confirmed party member, mark them.
             if (!member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname) && _partyNames.Contains(member.Nickname))
                 member.IsPartyMember = true;
 
-            // When CharacterId is 0 (e.g. CombatPowerByName event), merge into
-            // an existing entry found by nickname instead of creating a ghost at key 0.
-            if (member.CharacterId == 0 && !string.IsNullOrEmpty(member.Nickname))
+            if (existing != null)
+                MergeExisting(member, existing);
+
+            if (member.IsPartyMember)
             {
-                foreach (var kvp in _members)
-                {
-                    if (kvp.Value.Nickname == member.Nickname)
-                    {
-                        var exist = kvp.Value;
-                        if (member.CombatPower > exist.CombatPower) exist.CombatPower = member.CombatPower;
-                        if (member.ServerId > 0 && exist.ServerId == 0) { exist.ServerId = member.ServerId; exist.ServerName = member.ServerName; }
-                        if (member.JobCode > 0 && exist.JobCode == 0) exist.JobCode = member.JobCode;
-                        if (member.IsPartyMember) exist.IsPartyMember = true;
-                        changed = true;
-                        goto raise;
-                    }
-                }
-                // No existing entry — fall through and store at key 0.
+                member.IsPartyRequest = false;
+                member.PartyRequestOrder = 0;
+            }
+            else if (member.IsPartyRequest && member.PartyRequestOrder == 0)
+            {
+                member.PartyRequestOrder = ++_nextPartyRequestOrder;
             }
 
-            // Preserve existing flags/values when upserting identity-only data.
-            if (_members.TryGetValue(member.CharacterId, out var existing))
-            {
-                if (!member.IsPartyMember) member.IsPartyMember = existing.IsPartyMember;
-                if (!member.IsLookup)      member.IsLookup      = existing.IsLookup;
-                if (member.CombatPower == 0 && existing.CombatPower > 0)
-                    member.CombatPower = existing.CombatPower;
-            }
-
-            _members[member.CharacterId] = member;
+            _members[key] = member;
             changed = true;
         }
-    raise:
+
         if (changed) Changed?.Invoke();
+    }
+
+    private uint ResolveMemberKey(PartyMember member, out PartyMember? existing)
+    {
+        existing = null;
+        string? nameKey = GetNameKey(member);
+
+        if (member.CharacterId != 0)
+        {
+            if (nameKey != null &&
+                _namedKeys.TryGetValue(nameKey, out var oldKey) &&
+                oldKey != member.CharacterId &&
+                _members.TryGetValue(oldKey, out var oldMember))
+            {
+                existing = oldMember;
+                _members.Remove(oldKey);
+            }
+            else
+            {
+                _members.TryGetValue(member.CharacterId, out existing);
+            }
+
+            if (nameKey != null) _namedKeys[nameKey] = member.CharacterId;
+            return member.CharacterId;
+        }
+
+        if (nameKey == null)
+        {
+            _members.TryGetValue(0, out existing);
+            return 0;
+        }
+
+        if (!_namedKeys.TryGetValue(nameKey, out var key))
+        {
+            key = _nextSyntheticId++;
+            _namedKeys[nameKey] = key;
+        }
+
+        member.CharacterId = key;
+        _members.TryGetValue(key, out existing);
+        return key;
+    }
+
+    private static void MergeExisting(PartyMember member, PartyMember existing)
+    {
+        if (!member.IsPartyMember) member.IsPartyMember = existing.IsPartyMember;
+        if (!member.IsLookup) member.IsLookup = existing.IsLookup;
+        if (!member.IsPartyRequest) member.IsPartyRequest = existing.IsPartyRequest;
+        if (member.PartyRequestOrder == 0) member.PartyRequestOrder = existing.PartyRequestOrder;
+        if (member.CombatPower == 0 && existing.CombatPower > 0) member.CombatPower = existing.CombatPower;
+        if (member.ServerId == 0 && existing.ServerId > 0)
+        {
+            member.ServerId = existing.ServerId;
+            member.ServerName = existing.ServerName;
+        }
+        if (member.JobCode == 0 && existing.JobCode > 0) member.JobCode = existing.JobCode;
+        if (member.Level == 0 && existing.Level > 0) member.Level = existing.Level;
+    }
+
+    private static string? GetNameKey(PartyMember member)
+        => string.IsNullOrEmpty(member.Nickname)
+            ? null
+            : $"{member.ServerId}\u001f{member.Nickname}";
+
+    private void ForgetNamedKey(uint memberKey)
+    {
+        string? remove = null;
+        foreach (var kvp in _namedKeys)
+        {
+            if (kvp.Value == memberKey)
+            {
+                remove = kvp.Key;
+                break;
+            }
+        }
+        if (remove != null) _namedKeys.Remove(remove);
     }
 
     public void Remove(uint characterId)
     {
         bool removed;
-        lock (_sync) { removed = _members.Remove(characterId); }
+        lock (_sync)
+        {
+            removed = _members.Remove(characterId);
+            if (removed) ForgetNamedKey(characterId);
+        }
         if (removed) Changed?.Invoke();
     }
 
@@ -150,7 +205,8 @@ internal sealed class PartyTracker
         Changed?.Invoke();
     }
 
-    /// Remove members that are neither self nor confirmed party members.
+    /// Remove members that are neither self, confirmed party members, nor
+    /// pending party-request rows.
     public void PurgeNonParty()
     {
         bool changed = false;
@@ -158,11 +214,15 @@ internal sealed class PartyTracker
         {
             List<uint>? toRemove = null;
             foreach (var kvp in _members)
-                if (!kvp.Value.IsSelf && !kvp.Value.IsPartyMember)
+                if (!kvp.Value.IsSelf && !kvp.Value.IsPartyMember && !kvp.Value.IsPartyRequest)
                     (toRemove ??= new List<uint>()).Add(kvp.Key);
             if (toRemove != null)
             {
-                foreach (var id in toRemove) _members.Remove(id);
+                foreach (var id in toRemove)
+                {
+                    _members.Remove(id);
+                    ForgetNamedKey(id);
+                }
                 changed = toRemove.Count > 0;
             }
         }
@@ -176,7 +236,9 @@ internal sealed class PartyTracker
         {
             if (_members.Count == 0) return;
             _partyNames.Clear();
+            _namedKeys.Clear();
             _members.Clear();
+            _nextPartyRequestOrder = 0;
             changed = true;
         }
         if (changed) Changed?.Invoke();

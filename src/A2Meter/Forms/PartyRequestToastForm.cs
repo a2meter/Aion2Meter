@@ -1,9 +1,11 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 using A2Meter.Api;
 using A2Meter.Core;
+using A2Meter.Data;
 using A2Meter.Dps;
 
 namespace A2Meter.Forms;
@@ -15,7 +17,7 @@ namespace A2Meter.Forms;
 internal sealed class PartyRequestToastForm : Form
 {
     private const int ToastWidth = 340;
-    private const int ToastHeight = 96;
+    private const int ToastHeight = 112;
 
     private readonly Form _parent;
     private readonly PartyMember _member;
@@ -23,6 +25,7 @@ internal sealed class PartyRequestToastForm : Form
 
     private string _tierText = "티어 조회 중...";
     private Color  _tierColor = Color.FromArgb(140, 150, 170);
+    private string _dungeonText = "";
     private System.Windows.Forms.Timer? _autoCloseTimer;
 
     public PartyRequestToastForm(Form parent, PartyMember member, int? currentDungeonId = null)
@@ -52,6 +55,7 @@ internal sealed class PartyRequestToastForm : Form
         _autoCloseTimer.Start();
 
         Paint += OnPaint;
+        _dungeonText = BuildDungeonHint(currentDungeonId);
 
         PlaceAtBottom();
         parent.Move += OnParentMoved;
@@ -209,6 +213,18 @@ internal sealed class PartyRequestToastForm : Form
         using (var subBrush = new SolidBrush(theme.TextDimColor))
             g.DrawString(sub, subFont, subBrush, 12, 50);
 
+        if (!string.IsNullOrEmpty(_dungeonText))
+        {
+            using var dgFont = new Font(fn, Math.Max(8f, fs - 1.5f));
+            using var dgBrush = new SolidBrush(theme.TextDimColor);
+            using var dgFormat = new StringFormat
+            {
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.NoWrap,
+            };
+            g.DrawString(_dungeonText, dgFont, dgBrush, new RectangleF(12, 68, Width - 24, 18), dgFormat);
+        }
+
         // Tier badge (bottom-right)
         using (var tierFont = new Font(fn, fs + 0.5f, FontStyle.Bold))
         {
@@ -229,6 +245,30 @@ internal sealed class PartyRequestToastForm : Form
         p.AddArc(x, y + h - r * 2, r * 2, r * 2, 90, 90);
         p.CloseFigure();
         return p;
+    }
+
+    private static string BuildDungeonHint(int? dungeonId)
+    {
+        if (dungeonId is not int dgId) return "";
+        try
+        {
+            var db = GameDatabase.Instance;
+            var info = db.GetDungeonInfo(dgId);
+            var bosses = db.GetDungeonBosses(dgId);
+            if (info == null && bosses.Count == 0) return $"현재 던전 #{dgId}";
+
+            var dungeonName = info == null
+                ? $"#{dgId}"
+                : $"{info.BaseName} {info.Tier}".Trim();
+            if (bosses.Count == 0) return $"현재 던전: {dungeonName}";
+
+            var bossText = string.Join(" / ", bosses.OrderBy(b => b.Order).Select(b => $"{b.Order}N {b.Name}"));
+            return $"현재 던전: {dungeonName} · {bossText}";
+        }
+        catch
+        {
+            return $"현재 던전 #{dgId}";
+        }
     }
 
     private sealed class ToastCloseButton : Control

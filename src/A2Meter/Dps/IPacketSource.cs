@@ -40,8 +40,8 @@ internal interface IPacketSource : IDisposable
     event Action? PartyLeft;
     /// Dungeon enter/exit. Arg = dungeonId (>0 = entered, 0 = left).
     event Action<int>? DungeonChanged;
-    /// Buff apply/remove. Args: (entityId, buffId, type, durationMs, timestamp).
-    event Action<int, int, int, uint, long>? BuffEvent;
+    /// Buff apply/remove. Args: (entityId, buffId, type, durationMs, timestamp, casterId).
+    event Action<int, int, int, uint, long, int>? BuffEvent;
 
     void Start();
     void Stop();

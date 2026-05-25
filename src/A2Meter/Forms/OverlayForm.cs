@@ -206,6 +206,11 @@ internal sealed class OverlayForm : Form
                 if (IsDisposed) return;
                 var toast = new PartyRequestToastForm(this, member, _pipeline?.CurrentDungeonId);
                 toast.Show(this);
+                if (_renderer != null)
+                {
+                    _renderer.SetPartyData(BuildPartyRows());
+                    RequestRender();
+                }
             });
         }
         catch { }
@@ -219,7 +224,7 @@ internal sealed class OverlayForm : Form
         foreach (var pm in snapshot)
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
-            if (!pm.IsSelf && !pm.IsPartyMember && !pm.IsLookup) continue;
+            if (!pm.IsSelf && !pm.IsPartyMember && !pm.IsLookup && !pm.IsPartyRequest) continue;
 
             int cp = pm.CombatPower;
             int score = 0;
@@ -246,15 +251,27 @@ internal sealed class OverlayForm : Form
                 ServerId: sid,
                 ServerName: sname,
                 IsSelf: pm.IsSelf,
-                Level: pm.Level));
+                Level: pm.Level,
+                IsPartyRequest: pm.IsPartyRequest,
+                PartyRequestOrder: pm.PartyRequestOrder));
         }
-        // Self first, then sort by CP descending.
-        list.Sort((a, b) =>
-        {
-            if (a.IsSelf != b.IsSelf) return a.IsSelf ? -1 : 1;
-            return b.CombatPower.CompareTo(a.CombatPower);
-        });
+        list.Sort(ComparePartyRows);
         return list;
+    }
+
+    private static int ComparePartyRows(OverlayRenderer.PartyRow a, OverlayRenderer.PartyRow b)
+    {
+        if (a.IsSelf != b.IsSelf) return a.IsSelf ? -1 : 1;
+        if (a.IsPartyRequest != b.IsPartyRequest) return a.IsPartyRequest ? -1 : 1;
+        if (a.IsPartyRequest)
+        {
+            long ao = a.PartyRequestOrder > 0 ? a.PartyRequestOrder : long.MaxValue;
+            long bo = b.PartyRequestOrder > 0 ? b.PartyRequestOrder : long.MaxValue;
+            int order = ao.CompareTo(bo);
+            if (order != 0) return order;
+        }
+        int cp = b.CombatPower.CompareTo(a.CombatPower);
+        return cp != 0 ? cp : string.Compare(a.Name, b.Name, StringComparison.Ordinal);
     }
 
     /// Render the D2D frame and present via UpdateLayeredWindow.

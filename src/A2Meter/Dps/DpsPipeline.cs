@@ -101,7 +101,7 @@ internal sealed class DpsPipeline : IDisposable
         _source.PartyMemberSeen += OnPartyMemberSeen;
         _source.PartyLeft       += () => _party.ClearPartyFlags();
         _source.DungeonChanged  += id => { _dungeonId = id > 0 ? id : (int?)null; _inDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id); };
-        _source.BuffEvent       += (eid, bid, type, dur, ts) => _buffTracker.OnBuff(eid, bid, type, dur, ts);
+        _source.BuffEvent       += (eid, bid, type, dur, ts, casterId) => _buffTracker.OnBuff(eid, bid, type, dur, ts, casterId);
         _source.SegmentReceived += seg => Ping.Feed(seg);
 
         _pushTimer = new System.Threading.Timer(_ => Push(), null,
@@ -168,7 +168,7 @@ internal sealed class DpsPipeline : IDisposable
         _party.Upsert(m);
 
         // Trigger async skill level fetch from Plaync API (self + party only).
-        if (!string.IsNullOrEmpty(m.Nickname) && m.ServerId > 0 && (m.IsSelf || m.IsPartyMember))
+        if (!string.IsNullOrEmpty(m.Nickname) && m.ServerId > 0 && (m.IsSelf || m.IsPartyMember || m.IsPartyRequest))
             Api.SkillLevelCache.Instance.EnsureLoaded(m.Nickname, m.ServerId);
 
         // Detection triggers immediate refresh to show the new member row.
@@ -587,7 +587,7 @@ internal sealed class DpsPipeline : IDisposable
             // Persist buff uptime into the snapshot so history replays show it.
             var buffs = _buffTracker.BuildSnapshot(p.EntityId, snap.ElapsedSeconds);
             if (buffs.Count > 0)
-                p.Buffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime });
+                p.Buffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime, CasterEntityId = b.CasterEntityId });
 
             // Display name with server suffix for web upload.
             if (!string.IsNullOrEmpty(sname) && !p.Name.Contains('['))
@@ -780,7 +780,7 @@ internal sealed class DpsPipeline : IDisposable
             // Live tracker first; fall back to persisted snapshot (history replay).
             var buffs = _buffTracker.BuildSnapshot(p.EntityId, elapsedSec);
             if (buffs.Count == 0 && p.Buffs is { Count: > 0 })
-                buffs = p.Buffs.ConvertAll(b => new BuffUptime(b.Name, b.BuffId, b.Uptime));
+                buffs = p.Buffs.ConvertAll(b => new BuffUptime(b.Name, b.BuffId, b.Uptime, b.CasterEntityId));
             rows.Add(new DpsCanvas.PlayerRow(
                 Name:        displayName,
                 JobIconKey:  JobCodeToKey(p.JobCode),
