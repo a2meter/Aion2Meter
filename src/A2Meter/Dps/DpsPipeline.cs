@@ -612,6 +612,14 @@ internal sealed class DpsPipeline : IDisposable
         foreach (var p in snap.Players)
             p.IsUploader = p.EntityId == selfEntityId;
 
+        List<BuffUptimeDto>? targetBuffs = null;
+        if (_currentTargetId != 0)
+        {
+            var buffs = _buffTracker.BuildSnapshot(_currentTargetId, snap.ElapsedSeconds);
+            if (buffs.Count > 0)
+                targetBuffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime, CasterEntityId = b.CasterEntityId });
+        }
+
         var record = new CombatRecord
         {
             Timestamp   = DateTime.Now,
@@ -625,6 +633,7 @@ internal sealed class DpsPipeline : IDisposable
             Snapshot    = snap,
             Timeline    = _timeline.Count > 0 ? new List<TimelineEntry>(_timeline) : null,
             HitLog      = _hitLog.Count > 0 ? new List<HitLogEntry>(_hitLog) : null,
+            TargetBuffs = targetBuffs,
             DungeonId   = IsDummy(_currentTarget?.Name) ? null : _dungeonId,
         };
 
