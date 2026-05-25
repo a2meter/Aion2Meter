@@ -17,6 +17,10 @@ internal static class TierIconCache
 
     public static string Ko(string? tier) => Normalize(tier) switch
     {
+        "Challenger1" => "챌린저 1위",
+        "Challenger2" => "챌린저 2위",
+        "Challenger3" => "챌린저 3위",
+        "Challenger"  => "챌린저",
         "Grandmaster" => "그랜드마스터",
         "Master"      => "마스터",
         "Diamond"     => "다이아",
@@ -25,7 +29,8 @@ internal static class TierIconCache
         "Silver"      => "실버",
         "Bronze"      => "브론즈",
         "Iron"        => "아이언",
-        _             => "없음",
+        "Unranked"    => "언랭크",
+        _             => "언랭크",
     };
 
     private static string Normalize(string? tier)
@@ -35,6 +40,10 @@ internal static class TierIconCache
     {
         string file = tier switch
         {
+            "Challenger1" => "UT_Arena_Ranking_Grade_Challenger_01.png",
+            "Challenger2" => "UT_Arena_Ranking_Grade_Challenger_02.png",
+            "Challenger3" => "UT_Arena_Ranking_Grade_Challenger_03.png",
+            "Challenger"  => "UT_Arena_Ranking_Grade_Challenger_01.png",
             "Grandmaster" => "UT_Arena_Ranking_Grade_GrandMaster.png",
             "Master"      => "UT_Arena_Ranking_Grade_Master.png",
             "Diamond"     => "UT_Arena_Ranking_Grade_Diamond.png",

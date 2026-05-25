@@ -139,6 +139,10 @@ internal sealed class PartyRequestToastForm : Form
 
     private static Color TierColor(string tier) => tier switch
     {
+        "Challenger1" => Color.FromArgb(255, 120, 80),
+        "Challenger2" => Color.FromArgb(255, 120, 80),
+        "Challenger3" => Color.FromArgb(255, 120, 80),
+        "Challenger"  => Color.FromArgb(255, 120, 80),
         "Grandmaster" => Color.FromArgb(255, 90, 90),
         "Master"      => Color.FromArgb(220, 80, 220),
         "Diamond"     => Color.FromArgb(110, 200, 240),
@@ -245,6 +249,10 @@ internal sealed class PartyRequestToastForm : Form
 
     private static string TierShortKo(string tier) => tier switch
     {
+        "Challenger1" => "챌린저 1위",
+        "Challenger2" => "챌린저 2위",
+        "Challenger3" => "챌린저 3위",
+        "Challenger"  => "챌린저",
         "Grandmaster" => "그마",
         "Master"      => "마스터",
         "Diamond"     => "다이아",
@@ -253,7 +261,8 @@ internal sealed class PartyRequestToastForm : Form
         "Silver"      => "실버",
         "Bronze"      => "브론즈",
         "Iron"        => "아이언",
-        _             => "없음",
+        "Unranked"    => "언랭크",
+        _             => "언랭크",
     };
 
     private static GraphicsPath RoundRect(int x, int y, int w, int h, int r)
