@@ -622,6 +622,8 @@ internal sealed class DpsPipeline : IDisposable
                 targetBuffs = buffs.ConvertAll(b => new BuffUptimeDto { Name = b.Name, BuffId = b.BuffId, Uptime = b.Uptime, CasterEntityId = b.CasterEntityId });
         }
 
+        bool isDummyTarget = IsDummy(_currentTarget?.Name);
+
         var record = new CombatRecord
         {
             Timestamp   = DateTime.Now,
@@ -636,13 +638,13 @@ internal sealed class DpsPipeline : IDisposable
             Timeline    = _timeline.Count > 0 ? new List<TimelineEntry>(_timeline) : null,
             HitLog      = _hitLog.Count > 0 ? new List<HitLogEntry>(_hitLog) : null,
             TargetBuffs = targetBuffs,
-            DungeonId   = IsDummy(_currentTarget?.Name) ? null : _dungeonId,
+            DungeonId   = isDummyTarget ? null : _dungeonId,
         };
 
         if (!_history.Save(record))
             return; // duplicate of previous record — skip upload too
 
-        if (AppSettings.Instance.WebUploadEnabled)
+        if (!isDummyTarget && AppSettings.Instance.WebUploadEnabled)
         {
             _uploader.BaseUrl = AppSettings.Instance.WebUploadUrl;
             _uploader.UploadAsync(record);
