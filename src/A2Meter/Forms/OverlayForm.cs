@@ -22,6 +22,8 @@ internal sealed class OverlayForm : Form
     private IPacketSource? _source;
     private readonly DpsMeter      _meter   = new();
     private readonly PartyTracker  _party   = new();
+    private readonly Dictionary<string, string> _partyTierCache = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _partyTierLoading = new(StringComparer.Ordinal);
     private DpsPipeline? _pipeline;
     private ProtocolPipeline? _protocol;
     private ForegroundWatcher? _fgWatcher;
@@ -244,6 +246,8 @@ internal sealed class OverlayForm : Form
                 Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, sid);
             }
 
+            string tier = GetCachedTier(pm.Nickname, sid);
+
             string displayName = !string.IsNullOrEmpty(sname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{sname}]" : pm.Nickname;
             if (!seen.Add(displayName)) continue;
 
@@ -256,6 +260,7 @@ internal sealed class OverlayForm : Form
                 ServerName: sname,
                 IsSelf: pm.IsSelf,
                 Level: pm.Level,
+                Tier: tier,
                 IsPartyRequest: pm.IsPartyRequest,
                 PartyRequestOrder: pm.PartyRequestOrder));
         }
@@ -277,6 +282,57 @@ internal sealed class OverlayForm : Form
         int cp = b.CombatPower.CompareTo(a.CombatPower);
         return cp != 0 ? cp : string.Compare(a.Name, b.Name, StringComparison.Ordinal);
     }
+
+    private string GetCachedTier(string nickname, int serverId)
+    {
+        if (string.IsNullOrWhiteSpace(nickname) || serverId <= 0) return "";
+        string key = TierKey(nickname, serverId);
+        if (_partyTierCache.TryGetValue(key, out var tier)) return tier;
+        EnsureTierLoaded(nickname, serverId, key);
+        return "";
+    }
+
+    private void EnsureTierLoaded(string nickname, int serverId, string key)
+    {
+        if (_partyTierLoading.Contains(key)) return;
+        _partyTierLoading.Add(key);
+
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            string tier = "Unranked";
+            try
+            {
+                var resp = await Api.PlayerTierClient.FetchAsync(nickname, serverId).ConfigureAwait(false);
+                if (resp?.Dungeons is { Count: > 0 })
+                {
+                    var pick = resp.Dungeons[0];
+                    if (_pipeline?.CurrentDungeonId is int dgId)
+                    {
+                        var current = resp.Dungeons.Find(d => d.DungeonId == dgId);
+                        if (current != null) pick = current;
+                    }
+                    if (!string.IsNullOrWhiteSpace(pick.Tier)) tier = pick.Tier;
+                }
+            }
+            catch { }
+
+            if (IsDisposed) return;
+            try
+            {
+                BeginInvoke(() =>
+                {
+                    _partyTierCache[key] = tier;
+                    _partyTierLoading.Remove(key);
+                    _renderer?.SetPartyData(BuildPartyRows());
+                    RequestRender();
+                });
+            }
+            catch { }
+        });
+    }
+
+    private static string TierKey(string nickname, int serverId)
+        => $"{serverId}\u001f{nickname.Trim()}";
 
     /// Render the D2D frame and present via UpdateLayeredWindow.
     private void RequestRender()
