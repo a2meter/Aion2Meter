@@ -16,6 +16,17 @@ internal sealed class BuffTracker
     private readonly object _lock = new();
 
     private const uint MAX_REASONABLE_DURATION_MS = 3_600_000; // 1 hour
+    private static readonly Dictionary<int, int> BuffAliases = new()
+    {
+        // 보호의 빛 toggle abnormal -> 실제 파티 aura abnormal.
+        [174100001] = 174100011,
+        [174100101] = 174100111,
+        [174100201] = 174100211,
+        [174100301] = 174100311,
+        [174100401] = 174100411,
+    };
+
+    private static readonly HashSet<int> PermanentTrackableBuffIds = new(BuffAliases.Values);
 
     public BuffTracker(SkillDatabase? skills = null)
     {
@@ -33,13 +44,17 @@ internal sealed class BuffTracker
     /// Record a buff event.
     public void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
     {
-        // Filter: permanent, zero-length, and unreasonably long buffs are ignored.
-        if (durationMs == 0 || durationMs == uint.MaxValue || durationMs > MAX_REASONABLE_DURATION_MS)
-            return;
-
         // Resolve buff to a known skill code.
-        int resolved = ResolveSkillCode(buffId);
+        int resolved = ResolveSkillCode(NormalizeBuffId(buffId));
         if (resolved < 0) return;
+
+        bool isPermanentTracked = durationMs == uint.MaxValue && PermanentTrackableBuffIds.Contains(resolved);
+
+        // Filter: zero-length, permanent, and unreasonably long buffs are ignored
+        // unless they are known DPS-relevant toggle auras.
+        if (durationMs == 0 || (!isPermanentTracked && durationMs == uint.MaxValue) ||
+            (!isPermanentTracked && durationMs > MAX_REASONABLE_DURATION_MS))
+            return;
 
         lock (_lock)
         {
@@ -50,9 +65,12 @@ internal sealed class BuffTracker
             }
 
             var now = DateTime.UtcNow;
-            double durationSec = durationMs / 1000.0;
+            var expiresAt = isPermanentTracked
+                ? DateTime.MaxValue
+                : now + TimeSpan.FromMilliseconds(durationMs);
+            int effectiveCasterId = casterId > 0 ? casterId : entityId;
 
-            var key = new BuffKey(resolved, casterId);
+            var key = new BuffKey(resolved, effectiveCasterId);
             if (entityBuffs.TryGetValue(key, out var info))
             {
                 // Buff reapplication: if the previous one expired, accumulate its duration.
@@ -62,15 +80,15 @@ internal sealed class BuffTracker
                     info.StartedAt = now;
                 }
                 // Extend (or refresh) expiration.
-                info.ExpiresAt = now + TimeSpan.FromSeconds(durationSec);
+                info.ExpiresAt = expiresAt;
             }
             else
             {
                 entityBuffs[key] = new BuffInfo
                 {
-                    CasterId = casterId,
+                    CasterId = effectiveCasterId,
                     StartedAt = now,
-                    ExpiresAt = now + TimeSpan.FromSeconds(durationSec),
+                    ExpiresAt = expiresAt,
                     AccumulatedSec = 0,
                 };
             }
@@ -165,6 +183,9 @@ internal sealed class BuffTracker
 
         return -1;
     }
+
+    private static int NormalizeBuffId(int buffId)
+        => BuffAliases.TryGetValue(buffId, out var normalized) ? normalized : buffId;
 
     private sealed class BuffInfo
     {
