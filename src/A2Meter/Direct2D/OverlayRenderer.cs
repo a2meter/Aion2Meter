@@ -1210,6 +1210,7 @@ internal sealed class OverlayRenderer : IDisposable
     private void DrawPartyRows(float startY, int width, int height)
     {
         var dc = _dc!;
+        var dw = _dwFactory!;
         float y = startY;
         float w = width - PadX * 2;
         float bottom = height - PadBottom;
@@ -1260,85 +1261,126 @@ internal sealed class OverlayRenderer : IDisposable
 
             // Name
             float textLeft = iconX + IconSize + 4f;
-            float numW = w - (textLeft - PadX) - 8f;
+
+            float rightCursor = PadX + w - 4f;
+            string tierText = "";
+            ID2D1Bitmap1? tierIcon = null;
+            IDWriteTextLayout? tierLayout = null;
+            float tierIconSize = 0f;
+            float tierX = rightCursor;
+            if (!string.IsNullOrWhiteSpace(row.Tier))
+            {
+                tierText = TierShortKo(row.Tier);
+                tierIcon = _tierIcons?.Get(row.Tier);
+                tierIconSize = Math.Max(1f, Math.Min(rowH - 2f, IconSize * 1.2f));
+                tierLayout = dw.CreateTextLayout(tierText, FCpScore, 120f, rowH);
+                tierLayout.ParagraphAlignment = ParagraphAlignment.Center;
+
+                float tierTextW = Math.Max(8f, tierLayout.Metrics.WidthIncludingTrailingWhitespace);
+                float tierIconW = tierIcon != null ? tierIconSize + 3f : 0f;
+                float tierGroupW = tierIconW + tierTextW;
+                tierX = Math.Max(textLeft, rightCursor - tierGroupW);
+                rightCursor = tierX - 6f;
+            }
+
+            IDWriteTextLayout? svrLayout = null;
+            float svrX = textLeft;
+            if (!string.IsNullOrEmpty(row.ServerName) && rightCursor > textLeft + 24f)
+            {
+                float svrLaneW = Math.Min(Math.Max(56f, rowH * 2.6f), rightCursor - textLeft);
+                svrX = rightCursor - svrLaneW;
+                svrLayout = dw.CreateTextLayout(row.ServerName, FSmall, svrLaneW, rowH);
+                svrLayout.TextAlignment = TextAlignment.Trailing;
+                svrLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                rightCursor = svrX - 6f;
+            }
+
+            float inlineW = Math.Max(32f, rightCursor - textLeft);
             var nameBrush = row.ServerId switch
             {
                 >= 1000 and < 2000 => _brushNameElyos!,
                 >= 2000 and < 3000 => _brushNameAsmo!,
                 _ => _brushTextBright!,
             };
-            var nameLayout = _dwFactory!.CreateTextLayout(row.Name, FName, numW, rowH);
+            var nameLayout = dw.CreateTextLayout(row.Name, FName, inlineW, rowH);
             nameLayout.ParagraphAlignment = ParagraphAlignment.Center;
             dc.DrawTextLayout(new Vector2(textLeft, y), nameLayout, nameBrush);
             float nameWidth = nameLayout.Metrics.WidthIncludingTrailingWhitespace;
             nameLayout.Dispose();
 
             // Level (right of name)
+            float inlineRight = textLeft + inlineW;
             float cpX = textLeft + nameWidth + 6f;
             if (row.IsPartyRequest)
             {
                 string requestText = row.PartyRequestOrder > 0 ? $"신청 {row.PartyRequestOrder}" : "신청";
                 _brushGold!.Color = new D2DColor(1f, 0.82f, 0.40f, 1f);
-                var reqLayout = _dwFactory.CreateTextLayout(requestText, FCpScore, 120f, rowH);
-                reqLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(cpX, y), reqLayout, _brushGold);
-                cpX += reqLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
-                reqLayout.Dispose();
+                if (cpX < inlineRight - 8f)
+                {
+                    var reqLayout = dw.CreateTextLayout(requestText, FCpScore, Math.Min(120f, inlineRight - cpX), rowH);
+                    reqLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                    dc.DrawTextLayout(new Vector2(cpX, y), reqLayout, _brushGold);
+                    cpX += reqLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
+                    reqLayout.Dispose();
+                }
             }
             if (row.Level > 0)
             {
                 _brushTextDim!.Color = new D2DColor(0.70f, 0.70f, 0.70f, 1f);
-                var lvLayout = _dwFactory.CreateTextLayout($"Lv.{row.Level}", FCpScore, 120f, rowH);
-                lvLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(cpX, y), lvLayout, _brushTextDim);
-                cpX += lvLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
-                lvLayout.Dispose();
+                if (cpX < inlineRight - 8f)
+                {
+                    var lvLayout = dw.CreateTextLayout($"Lv.{row.Level}", FCpScore, Math.Min(120f, inlineRight - cpX), rowH);
+                    lvLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                    dc.DrawTextLayout(new Vector2(cpX, y), lvLayout, _brushTextDim);
+                    cpX += lvLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
+                    lvLayout.Dispose();
+                }
             }
 
             // CP + Score
             if (row.CombatPower > 0)
             {
                 _brushBarFill!.Color = new D2DColor(0.39f, 0.71f, 1f, 1f);
-                var cpLayout = _dwFactory.CreateTextLayout(FormatAbbrev(row.CombatPower), FCpScore, 160f, rowH);
-                cpLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(cpX, y), cpLayout, _brushBarFill);
-                cpX += cpLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
-                cpLayout.Dispose();
+                if (cpX < inlineRight - 8f)
+                {
+                    var cpLayout = dw.CreateTextLayout(FormatAbbrev(row.CombatPower), FCpScore, Math.Min(160f, inlineRight - cpX), rowH);
+                    cpLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                    dc.DrawTextLayout(new Vector2(cpX, y), cpLayout, _brushBarFill);
+                    cpX += cpLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
+                    cpLayout.Dispose();
+                }
             }
             if (row.CombatScore > 0)
             {
                 _brushBarFill!.Color = new D2DColor(0.91f, 0.78f, 0.30f, 1f);
-                var scoreLayout = _dwFactory.CreateTextLayout(FormatAbbrev(row.CombatScore), FCpScore, 160f, rowH);
-                scoreLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(cpX, y), scoreLayout, _brushBarFill);
-                cpX += scoreLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
-                scoreLayout.Dispose();
+                if (cpX < inlineRight - 8f)
+                {
+                    var scoreLayout = dw.CreateTextLayout(FormatAbbrev(row.CombatScore), FCpScore, Math.Min(160f, inlineRight - cpX), rowH);
+                    scoreLayout.ParagraphAlignment = ParagraphAlignment.Center;
+                    dc.DrawTextLayout(new Vector2(cpX, y), scoreLayout, _brushBarFill);
+                    cpX += scoreLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
+                    scoreLayout.Dispose();
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(row.Tier))
+            if (tierLayout != null)
             {
-                float tierIconSize = Math.Min(20f, rowH * 0.68f);
-                var tierIcon = _tierIcons?.Get(row.Tier);
+                float tierTextX = tierX;
                 if (tierIcon != null)
                 {
-                    DrawBitmapScaled(dc, tierIcon, cpX, y + (rowH - tierIconSize) / 2f, tierIconSize);
-                    cpX += tierIconSize + 3f;
+                    DrawBitmapScaled(dc, tierIcon, tierX, y + (rowH - tierIconSize) / 2f, tierIconSize);
+                    tierTextX += tierIconSize + 3f;
                 }
 
                 _brushGold!.Color = TierTextColor(row.Tier);
-                var tierLayout = _dwFactory.CreateTextLayout(TierShortKo(row.Tier), FCpScore, 120f, rowH);
-                tierLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(cpX, y), tierLayout, _brushGold);
+                dc.DrawTextLayout(new Vector2(tierTextX, y), tierLayout!, _brushGold);
                 tierLayout.Dispose();
             }
 
             // Server name (right-aligned)
-            if (!string.IsNullOrEmpty(row.ServerName))
+            if (svrLayout != null)
             {
-                var svrLayout = _dwFactory.CreateTextLayout(row.ServerName, FSmall, numW, rowH);
-                svrLayout.TextAlignment = TextAlignment.Trailing;
-                svrLayout.ParagraphAlignment = ParagraphAlignment.Center;
-                dc.DrawTextLayout(new Vector2(textLeft, y), svrLayout, _brushTextDim!);
+                dc.DrawTextLayout(new Vector2(svrX, y), svrLayout, _brushTextDim!);
                 svrLayout.Dispose();
             }
 
