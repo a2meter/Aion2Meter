@@ -29,6 +29,8 @@ internal static class PlayerTierClient
     public static async Task<TierResponse?> FetchAsync(string playerName, int serverId)
     {
         if (string.IsNullOrWhiteSpace(playerName) || serverId <= 0) return null;
+        playerName = CleanPlayerName(playerName);
+        if (string.IsNullOrWhiteSpace(playerName)) return null;
         try
         {
             string url = BaseUrl
@@ -39,6 +41,13 @@ internal static class PlayerTierClient
             return await resp.Content.ReadFromJsonAsync<TierResponse>().ConfigureAwait(false);
         }
         catch { return null; }
+    }
+
+    public static string CleanPlayerName(string name)
+    {
+        name = name.Trim();
+        int bracket = name.LastIndexOf('[');
+        return bracket > 0 && name.EndsWith(']') ? name[..bracket] : name;
     }
 
     public sealed class TierResponse

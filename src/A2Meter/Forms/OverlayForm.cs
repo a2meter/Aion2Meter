@@ -286,7 +286,7 @@ internal sealed class OverlayForm : Form
     private string GetCachedTier(string nickname, int serverId)
     {
         if (string.IsNullOrWhiteSpace(nickname) || serverId <= 0) return "";
-        string key = TierKey(nickname, serverId);
+        string key = TierKey(Api.PlayerTierClient.CleanPlayerName(nickname), serverId);
         if (_partyTierCache.TryGetValue(key, out var tier)) return tier;
         EnsureTierLoaded(nickname, serverId, key);
         return "";
@@ -299,7 +299,7 @@ internal sealed class OverlayForm : Form
 
         _ = System.Threading.Tasks.Task.Run(async () =>
         {
-            string tier = "Unranked";
+            string? tier = null;
             try
             {
                 var resp = await Api.PlayerTierClient.FetchAsync(nickname, serverId).ConfigureAwait(false);
@@ -313,6 +313,10 @@ internal sealed class OverlayForm : Form
                     }
                     if (!string.IsNullOrWhiteSpace(pick.Tier)) tier = pick.Tier;
                 }
+                else if (resp != null)
+                {
+                    tier = "Unranked";
+                }
             }
             catch { }
 
@@ -321,8 +325,9 @@ internal sealed class OverlayForm : Form
             {
                 BeginInvoke(() =>
                 {
-                    _partyTierCache[key] = tier;
                     _partyTierLoading.Remove(key);
+                    if (tier != null)
+                        _partyTierCache[key] = tier;
                     _renderer?.SetPartyData(BuildPartyRows());
                     RequestRender();
                 });
