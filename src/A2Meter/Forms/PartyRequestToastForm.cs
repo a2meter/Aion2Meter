@@ -11,9 +11,7 @@ using A2Meter.Dps;
 namespace A2Meter.Forms;
 
 /// Floating toast shown at the bottom of the overlay when a 07 97 party
-/// request packet is observed. Renders the requester's display info
-/// (name / job / Lv / CP / server) and a tier badge that updates
-/// asynchronously once the web-side tier lookup returns.
+/// request packet is observed.
 internal sealed class PartyRequestToastForm : Form
 {
     private const int ToastWidth = 340;
@@ -24,6 +22,10 @@ internal sealed class PartyRequestToastForm : Form
     private readonly int? _currentDungeonId;
 
     private string _tierText = "티어 조회 중...";
+    private string _nTier = "";
+    private string _rTier = "";
+    private Image? _nTierIcon;
+    private Image? _rTierIcon;
     private Color  _tierColor = Color.FromArgb(140, 150, 170);
     private string _dungeonText = "";
     private System.Windows.Forms.Timer? _autoCloseTimer;
@@ -44,12 +46,10 @@ internal sealed class PartyRequestToastForm : Form
         Opacity = 0.97;
         DoubleBuffered = true;
 
-        // Close X (top-right corner, lightweight)
         var btnClose = new ToastCloseButton { Location = new Point(ToastWidth - 24, 4) };
         btnClose.Click += (_, _) => Close();
         Controls.Add(btnClose);
 
-        // Auto-dismiss after 15 seconds
         _autoCloseTimer = new System.Windows.Forms.Timer { Interval = 15_000 };
         _autoCloseTimer.Tick += (_, _) => Close();
         _autoCloseTimer.Start();
@@ -69,7 +69,6 @@ internal sealed class PartyRequestToastForm : Form
             _autoCloseTimer?.Dispose();
         };
 
-        // Kick off the async tier fetch.
         _ = LoadTierAsync();
     }
 
@@ -95,16 +94,13 @@ internal sealed class PartyRequestToastForm : Form
                 BeginInvoke(() =>
                 {
                     _tierText = "기록 없음";
+                    SetTierIcons("", "");
                     _tierColor = Color.FromArgb(120, 130, 150);
                     Invalidate();
                 });
                 return;
             }
 
-            // Prefer the tier for the dungeon the player is currently in
-            // (that's the one the requester wants to join). Fall back to the
-            // top-ranked dungeon when not in one, or when the requester has
-            // no record for it.
             PlayerTierClient.DungeonTier pick = resp.Dungeons[0];
             string prefix = "최고";
             if (_currentDungeonId is int dgId)
@@ -112,12 +108,16 @@ internal sealed class PartyRequestToastForm : Form
                 var match = resp.Dungeons.Find(d => d.DungeonId == dgId);
                 if (match != null) { pick = match; prefix = "현재 던전"; }
             }
+
             var chosen = pick;
-            var label  = prefix;
+            var label = prefix;
             BeginInvoke(() =>
             {
-                _tierText = $"{label}: {TierKo(chosen.Tier)} (n={chosen.SampleCount})";
-                _tierColor = TierColor(chosen.Tier);
+                string nTier = string.IsNullOrWhiteSpace(chosen.NDpsTier) ? chosen.Tier : chosen.NDpsTier;
+                string rTier = string.IsNullOrWhiteSpace(chosen.RDpsTier) ? chosen.Tier : chosen.RDpsTier;
+                _tierText = $"{label} (n={chosen.SampleCount})";
+                SetTierIcons(nTier, rTier);
+                _tierColor = TierColor(rTier);
                 Invalidate();
             });
         }
@@ -127,23 +127,20 @@ internal sealed class PartyRequestToastForm : Form
             BeginInvoke(() =>
             {
                 _tierText = "조회 실패";
+                SetTierIcons("", "");
                 _tierColor = Color.FromArgb(180, 90, 90);
                 Invalidate();
             });
         }
     }
 
-    private static string TierKo(string tier) => tier switch
+    private void SetTierIcons(string nTier, string rTier)
     {
-        "Grandmaster" => "그랜드마스터",
-        "Master"      => "마스터",
-        "Diamond"     => "다이아",
-        "Platinum"    => "플레티넘",
-        "Gold"        => "골드",
-        "Silver"      => "실버",
-        "Bronze"      => "브론즈",
-        _             => tier,
-    };
+        _nTier = nTier;
+        _rTier = rTier;
+        _nTierIcon = TierIconCache.Get(nTier);
+        _rTierIcon = TierIconCache.Get(rTier);
+    }
 
     private static Color TierColor(string tier) => tier switch
     {
@@ -186,26 +183,21 @@ internal sealed class PartyRequestToastForm : Form
         var fn = AppSettings.Instance.FontName;
         var fs = AppSettings.Instance.FontSize;
 
-        // Border
         using (var pen = new Pen(theme.BorderColor))
         using (var path = RoundRect(0, 0, Width - 1, Height - 1, 6))
             g.DrawPath(pen, path);
 
-        // Left accent bar (uses tier color)
         using (var accent = new SolidBrush(_tierColor))
             g.FillRectangle(accent, 0, 10, 4, Height - 20);
 
-        // Header: "파티 신청"
         using (var headerFont = new Font(fn, fs - 1f, FontStyle.Bold))
         using (var headerBrush = new SolidBrush(theme.TextDimColor))
-            g.DrawString("파티 신청", headerFont, headerBrush, 12, 8);
+            g.DrawString("파티 요청", headerFont, headerBrush, 12, 8);
 
-        // Requester name (big)
         using (var nameFont = new Font(fn, fs + 1.5f, FontStyle.Bold))
         using (var nameBrush = new SolidBrush(theme.TextColor))
             g.DrawString(_member.Nickname, nameFont, nameBrush, 12, 24);
 
-        // Sub-line: job / Lv / CP / server
         string sub = $"{_member.JobName} · Lv{_member.Level} · CP {_member.CombatPower:N0}";
         if (!string.IsNullOrEmpty(_member.ServerName))
             sub += $" · {_member.ServerName}";
@@ -225,16 +217,50 @@ internal sealed class PartyRequestToastForm : Form
             g.DrawString(_dungeonText, dgFont, dgBrush, new RectangleF(12, 68, Width - 24, 18), dgFormat);
         }
 
-        // Tier badge (bottom-right)
-        using (var tierFont = new Font(fn, fs + 0.5f, FontStyle.Bold))
+        using (var infoFont = new Font(fn, Math.Max(8f, fs - 2f)))
+        using (var infoBrush = new SolidBrush(theme.TextDimColor))
+        using (var infoFormat = new StringFormat
         {
-            var size = g.MeasureString(_tierText, tierFont);
-            float bx = Width - size.Width - 16;
-            float by = Height - size.Height - 10;
-            using var tierBrush = new SolidBrush(_tierColor);
-            g.DrawString(_tierText, tierFont, tierBrush, bx, by);
-        }
+            Trimming = StringTrimming.EllipsisCharacter,
+            FormatFlags = StringFormatFlags.NoWrap,
+        })
+            g.DrawString(_tierText, infoFont, infoBrush, new RectangleF(12, Height - 29, 88, 20), infoFormat);
+
+        using var tierFont = new Font(fn, Math.Max(8f, fs - 1.5f), FontStyle.Bold);
+        DrawTierBadge(g, tierFont, "n", _nTier, _nTierIcon, 106, Height - 33);
+        DrawTierBadge(g, tierFont, "r", _rTier, _rTierIcon, 218, Height - 33);
     }
+
+    private static void DrawTierBadge(Graphics g, Font font, string metric, string tier, Image? icon, float x, float y)
+    {
+        using var labelBrush = new SolidBrush(Color.FromArgb(170, 180, 200));
+        g.DrawString(metric, font, labelBrush, x, y + 5);
+
+        float iconX = x + 16;
+        if (icon != null)
+            g.DrawImage(icon, new RectangleF(iconX, y, 26, 26));
+        else
+        {
+            using var border = new Pen(Color.FromArgb(90, 100, 120));
+            g.DrawRectangle(border, iconX, y, 26, 26);
+        }
+
+        using var textBrush = new SolidBrush(TierColor(tier));
+        g.DrawString(TierShortKo(tier), font, textBrush, iconX + 29, y + 5);
+    }
+
+    private static string TierShortKo(string tier) => tier switch
+    {
+        "Grandmaster" => "그마",
+        "Master"      => "마스터",
+        "Diamond"     => "다이아",
+        "Platinum"    => "플래티넘",
+        "Gold"        => "골드",
+        "Silver"      => "실버",
+        "Bronze"      => "브론즈",
+        "Iron"        => "아이언",
+        _             => "없음",
+    };
 
     private static GraphicsPath RoundRect(int x, int y, int w, int h, int r)
     {

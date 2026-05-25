@@ -446,27 +446,7 @@ internal sealed class DpsPipeline : IDisposable
 
         // ── Timeline recording (A2Power Tick → _timeline) ──
         if (_sessionActive)
-        {
-            double tlElapsed = (DateTime.UtcNow - _sessionStartUtc).TotalSeconds;
-            int sec = (int)tlElapsed;
-            if (sec > _lastTimelineSec && sec > 0)
-            {
-                _lastTimelineSec = sec;
-                var te = new TimelineEntry { T = sec };
-                foreach (var p in snap.Players)
-                {
-                    if (p.TotalDamage > 0)
-                        te.Players.Add(new TimelinePlayer
-                        {
-                            EntityId = p.EntityId,
-                            Damage = p.TotalDamage,
-                            Dps = tlElapsed > 0 ? (long)(p.TotalDamage / tlElapsed) : 0,
-                        });
-                }
-                if (te.Players.Count > 0)
-                    _timeline.Add(te);
-            }
-        }
+            CaptureTimelineSnapshot(snap);
 
         // End-of-session detection:
         // 1) Boss killed (HP=0) → stop immediately, no idle wait.
@@ -540,6 +520,37 @@ internal sealed class DpsPipeline : IDisposable
             BossName:       _currentTarget?.Name);
     }
 
+    private void CaptureTimelineSnapshot(DpsSnapshot snap, bool force = false)
+    {
+        if (snap.Players.Count == 0) return;
+        double elapsed = snap.ElapsedSeconds > 0
+            ? snap.ElapsedSeconds
+            : (_sessionActive ? (DateTime.UtcNow - _sessionStartUtc).TotalSeconds : 0);
+        int sec = Math.Max(1, (int)Math.Floor(elapsed));
+        if (!force && sec <= _lastTimelineSec) return;
+
+        var te = new TimelineEntry { T = sec };
+        foreach (var p in snap.Players)
+        {
+            if (p.TotalDamage <= 0) continue;
+            te.Players.Add(new TimelinePlayer
+            {
+                EntityId = p.EntityId,
+                Damage = p.TotalDamage,
+                Dps = elapsed > 0 ? (long)(p.TotalDamage / elapsed) : 0,
+            });
+        }
+        if (te.Players.Count == 0) return;
+
+        int existing = _timeline.FindIndex(t => t.T == sec);
+        if (existing >= 0)
+            _timeline[existing] = te;
+        else
+            _timeline.Add(te);
+        if (sec > _lastTimelineSec)
+            _lastTimelineSec = sec;
+    }
+
     private void SaveRecord(DpsSnapshot snap)
     {
         if (snap.TotalPartyDamage <= 0) return;
@@ -548,6 +559,7 @@ internal sealed class DpsPipeline : IDisposable
         if (snap.ElapsedSeconds < 2.0) return;
         if (_combatRecordSaved) return;
         _combatRecordSaved = true;
+        CaptureTimelineSnapshot(snap, force: true);
 
         // Enrich snapshot players with CP/Score, skill levels, and server info before saving.
         foreach (var p in snap.Players)

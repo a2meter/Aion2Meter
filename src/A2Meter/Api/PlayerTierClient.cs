@@ -53,10 +53,18 @@ internal static class PlayerTierClient
         [JsonPropertyName("dungeonId")]    public int DungeonId { get; set; }
         [JsonPropertyName("sampleCount")]  public int SampleCount { get; set; }
         [JsonPropertyName("avgDps")]       public long AvgDps { get; set; }
+        [JsonPropertyName("avgNDps")]      public long AvgNDps { get; set; }
+        [JsonPropertyName("avgRDps")]      public long AvgRDps { get; set; }
         [JsonPropertyName("latestCp")]     public int LatestCp { get; set; }
         [JsonPropertyName("baselineDps")]  public long BaselineDps { get; set; }
+        [JsonPropertyName("baselineNDps")] public long BaselineNDps { get; set; }
+        [JsonPropertyName("baselineRDps")] public long BaselineRDps { get; set; }
         [JsonPropertyName("tierScore")]    public double TierScore { get; set; }
+        [JsonPropertyName("nDpsTierScore")] public double NDpsTierScore { get; set; }
+        [JsonPropertyName("rDpsTierScore")] public double RDpsTierScore { get; set; }
         [JsonPropertyName("zScore")]       public double ZScore { get; set; }
+        [JsonPropertyName("nDpsTier")]     public string NDpsTier { get; set; } = "";
+        [JsonPropertyName("rDpsTier")]     public string RDpsTier { get; set; } = "";
         [JsonPropertyName("tier")]         public string Tier { get; set; } = "";
     }
 }

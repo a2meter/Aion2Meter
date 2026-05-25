@@ -57,6 +57,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>PacketEngine.dll</Link>
     </Content>
+    <Content Include="..\Tier_Img\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Tier_Img\%(Filename)%(Extension)</Link>
+    </Content>
   </ItemGroup>
 
 </Project>
