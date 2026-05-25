@@ -166,6 +166,7 @@ internal sealed class AppSettings
     // ── Web upload ──
     public bool   WebUploadEnabled { get; set; } = true;
     public string WebUploadUrl     { get; set; } = "https://api.aion2meter.com";
+    public bool   LookupToastEnabled { get; set; } = true;
 
     // ── per-machine state stored in a sibling file ──
     [JsonIgnore]

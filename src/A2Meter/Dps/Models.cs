@@ -20,6 +20,7 @@ internal sealed class ActorDps
     public int    JobCode { get; set; } = -1;
     public int    ServerId { get; set; }
     public string ServerName { get; set; } = "";
+    public string? CharacterId { get; set; }
     public int    CombatScore { get; set; }
     public int    CombatPower { get; set; }
     public long   TotalDamage { get; set; }

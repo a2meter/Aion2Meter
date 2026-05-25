@@ -150,10 +150,14 @@ public class CombatScore
 		int combatPower = data.Profile.GetInt("combatPower");
 		return new CombatScoreResult
 		{
+			CharacterId = data.CharacterId,
+			ServerId = data.ServerId,
+			ServerName = data.ServerName,
 			Score = score,
 			CombatPower = combatPower,
 			ClassName = data.ClassName,
 			SkillLevels = skillLevels,
+			DpSkills = PlayncClient.ExtractEquippedDpSkills(data.SkillList),
 			HasJonggul = hasJonggul,
 			HasNaked = hasNaked
 		};

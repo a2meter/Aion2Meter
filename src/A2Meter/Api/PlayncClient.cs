@@ -6,12 +6,16 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using A2Meter.Dps.Protocol;
 
 namespace A2Meter.Api;
 
 /// Minimal Plaync API client for fetching character skill levels and combat power.
 internal static class PlayncClient
 {
+    private static readonly Regex ServerSuffixRegex =
+        new(@"^(?<name>.+?)\[(?<server>[^\]]+)\]$", RegexOptions.Compiled);
+
     private static readonly HttpClient Http = new()
     {
         BaseAddress = new Uri("https://aion2.plaync.com"),
@@ -52,22 +56,59 @@ internal static class PlayncClient
     /// The API might use the raw game ID or a stripped version.
     private static int[] GetApiServerIds(int gameServerId)
     {
+        if (gameServerId <= 0) return new[] { 0 };
         // Try: raw ID, stripped to 1-21, and 0 (meaning omit from query)
         int stripped = gameServerId % 1000;
         if (stripped == gameServerId) return new[] { gameServerId, 0 };
         return new[] { gameServerId, stripped, 0 };
     }
 
-    /// Search for a character by name and server, returns (race, characterId) or null.
-    public static async Task<(int Race, string CharId)?> SearchCharacter(string name, int serverId, int race = 1)
+    public readonly record struct CharacterQuery(string Name, int ServerId, string ServerName);
+
+    public static CharacterQuery NormalizeCharacterQuery(string name, int serverId, string serverName = "")
     {
-        foreach (var sid in GetApiServerIds(serverId))
+        string cleanName = (name ?? "").Trim();
+        string parsedServerName = "";
+        var match = ServerSuffixRegex.Match(cleanName);
+        if (match.Success)
+        {
+            cleanName = match.Groups["name"].Value.Trim();
+            parsedServerName = match.Groups["server"].Value.Trim();
+        }
+
+        if (serverId <= 0 && parsedServerName.Length > 0)
+        {
+            foreach (var (id, sn) in ServerMap.Servers)
+            {
+                if (string.Equals(sn, parsedServerName, StringComparison.Ordinal))
+                {
+                    serverId = id;
+                    break;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(serverName))
+            serverName = parsedServerName;
+        if (string.IsNullOrWhiteSpace(serverName) && serverId > 0)
+            serverName = ServerMap.GetName(serverId);
+
+        return new CharacterQuery(cleanName, serverId, serverName ?? "");
+    }
+
+    /// Search for a character by name and server, returns PlayNC identity or null.
+    public static async Task<(int Race, string CharId, int ServerId, string ServerName)?> SearchCharacter(string name, int serverId, int race = 0)
+    {
+        var queryInput = NormalizeCharacterQuery(name, serverId);
+        if (string.IsNullOrWhiteSpace(queryInput.Name)) return null;
+
+        foreach (var sid in GetApiServerIds(queryInput.ServerId))
         {
             try
             {
                 string query = sid > 0
-                    ? $"/ko-kr/api/search/aion2/search/v2/character?keyword={Uri.EscapeDataString(name)}&race={race}&serverId={sid}"
-                    : $"/ko-kr/api/search/aion2/search/v2/character?keyword={Uri.EscapeDataString(name)}&race={race}";
+                    ? $"/ko-kr/api/search/aion2/search/v2/character?keyword={Uri.EscapeDataString(queryInput.Name)}&serverId={sid}&page=1&size=30"
+                    : $"/ko-kr/api/search/aion2/search/v2/character?keyword={Uri.EscapeDataString(queryInput.Name)}&page=1&size=30";
                 var root = await GetJson(query);
 
                 if (!root.TryGetProperty("list", out var list)) continue;
@@ -78,14 +119,21 @@ internal static class PlayncClient
                     if (item.TryGetProperty("name", out var nameEl))
                         raw = nameEl.GetString() ?? "";
                     var clean = Regex.Replace(raw, "<[^>]+>", "");
-                    if (clean.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    if (clean.Equals(queryInput.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         if (!item.TryGetProperty("characterId", out var cid)) continue;
                         string id = cid.ValueKind == JsonValueKind.String
                             ? Uri.UnescapeDataString(cid.GetString() ?? "")
                             : cid.GetRawText();
-                        Log($"  Found character: {name} → charId={id} (sid={sid}, race={race})");
-                        return (race, id);
+                        int foundRace = GetInt(item, "race");
+                        if (foundRace == 0) foundRace = race;
+                        int foundServerId = GetInt(item, "serverId");
+                        if (foundServerId == 0) foundServerId = sid > 0 ? sid : queryInput.ServerId;
+                        string foundServerName = GetString(item, "serverName")
+                            ?? queryInput.ServerName
+                            ?? ServerMap.GetName(foundServerId);
+                        Log($"  Found character: {queryInput.Name} → charId={id} (sid={foundServerId}, race={foundRace})");
+                        return (foundRace, id, foundServerId, foundServerName);
                     }
                 }
             }
@@ -123,26 +171,17 @@ internal static class PlayncClient
     /// Fetch all character data needed for combat score calculation.
     public static async Task<CharacterData?> FetchAll(string name, int serverId, int race = 1)
     {
-        (int, string)? tuple;
-        if (race == 1)
-        {
-            var array = await Task.WhenAll(SearchCharacter(name, serverId), SearchCharacter(name, serverId, 2));
-            tuple = array[0].HasValue ? ((int, string)?)(array[0].Value.Race, array[0].Value.CharId)
-                  : array[1].HasValue ? ((int, string)?)(array[1].Value.Race, array[1].Value.CharId)
-                  : null;
-        }
-        else
-        {
-            var r = await SearchCharacter(name, serverId, race);
-            tuple = r.HasValue ? ((int, string)?)(r.Value.Race, r.Value.CharId) : null;
-        }
-        if (!tuple.HasValue)
+        var found = await SearchCharacter(name, serverId, race);
+        if (!found.HasValue && race == 1)
+            found = await SearchCharacter(name, serverId, 2);
+        if (!found.HasValue)
         {
             return null;
         }
-        string charId = tuple.Value.Item2;
-        var infoTask = FetchInfo(charId, serverId);
-        var equipTask = FetchEquipment(charId, serverId);
+        string charId = found.Value.CharId;
+        int apiServerId = found.Value.ServerId > 0 ? found.Value.ServerId : serverId;
+        var infoTask = FetchInfo(charId, apiServerId);
+        var equipTask = FetchEquipment(charId, apiServerId);
         await Task.WhenAll(infoTask, equipTask);
         JsonElement info = infoTask.Result;
         JsonElement equip = equipTask.Result;
@@ -187,7 +226,7 @@ internal static class PlayncClient
             {
                 try
                 {
-                    JsonElement detail = await FetchItem(capturedIid, capturedEnc, charId, serverId, capturedSlot, capturedExc);
+                    JsonElement detail = await FetchItem(capturedIid, capturedEnc, charId, apiServerId, capturedSlot, capturedExc);
                     return ((int slot, JsonElement detail)?)(capturedSlot, detail);
                 }
                 catch
@@ -200,7 +239,7 @@ internal static class PlayncClient
         {
             try
             {
-                JsonElement data = await FetchDaevanion(charId, serverId, bid);
+                JsonElement data = await FetchDaevanion(charId, apiServerId, bid);
                 return ((int bid, JsonElement data)?)(bid, data);
             }
             catch
@@ -232,6 +271,9 @@ internal static class PlayncClient
         }
         return new CharacterData
         {
+            CharacterId = charId,
+            ServerId = apiServerId,
+            ServerName = found.Value.ServerName,
             Profile = profile,
             StatData = statData,
             TitleList = titleList,
@@ -251,18 +293,15 @@ internal static class PlayncClient
         Log($"FetchCharacterData: name={name}, serverId={serverId}");
         try
         {
-            // Search both races in parallel.
-            var t1 = SearchCharacter(name, serverId, 1);
-            var t2 = SearchCharacter(name, serverId, 2);
-            await Task.WhenAll(t1, t2);
-            var found = t1.Result ?? t2.Result;
+            var found = await SearchCharacter(name, serverId, 0);
             if (found is null) { Log($"  Character not found: {name}"); return null; }
 
             var charId = found.Value.CharId;
+            var apiServerId = found.Value.ServerId > 0 ? found.Value.ServerId : serverId;
 
             // Fetch info + equipment in parallel.
-            var infoTask = FetchInfo(charId, serverId);
-            var equipTask = FetchEquipment(charId, serverId);
+            var infoTask = FetchInfo(charId, apiServerId);
+            var equipTask = FetchEquipment(charId, apiServerId);
             await Task.WhenAll(infoTask, equipTask);
 
             var info = infoTask.Result;
@@ -301,6 +340,7 @@ internal static class PlayncClient
             // Extract skill list from equipment response.
             var skills = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var skillArray = GetNestedArray(equip, "skill", "skillList");
+            var dpSkills = ExtractEquippedDpSkills(skillArray);
             foreach (var s in skillArray)
             {
                 string skillName = GetString(s, "skillName") ?? GetString(s, "name") ?? "";
@@ -316,9 +356,13 @@ internal static class PlayncClient
 
             return new CharacterSkillData
             {
+                CharacterId = charId,
+                ServerId = apiServerId,
+                ServerName = found.Value.ServerName,
                 CombatPower = combatPower,
                 CombatScore = combatScore,
                 SkillLevels = skills,
+                DpSkills = dpSkills,
             };
         }
         catch (Exception ex)
@@ -358,11 +402,49 @@ internal static class PlayncClient
                 result.Add(item);
         return result;
     }
+
+    public static List<CharacterDpSkill> ExtractEquippedDpSkills(IEnumerable<JsonElement> skillArray)
+    {
+        var result = new List<CharacterDpSkill>();
+        foreach (var s in skillArray)
+        {
+            string category = GetString(s, "category") ?? "";
+            if (!string.Equals(category, "Dp", StringComparison.OrdinalIgnoreCase)) continue;
+            if (GetInt(s, "acquired") != 1 || GetInt(s, "equip") != 1) continue;
+
+            string skillName = GetString(s, "skillName") ?? GetString(s, "name") ?? "";
+            if (string.IsNullOrWhiteSpace(skillName)) continue;
+            int level = GetInt(s, "skillLevel");
+            if (level == 0) level = GetInt(s, "level_int");
+
+            result.Add(new CharacterDpSkill
+            {
+                Id = GetInt(s, "id"),
+                Name = skillName,
+                SkillLevel = level,
+                Icon = GetString(s, "icon") ?? "",
+            });
+        }
+
+        return result;
+    }
 }
 
 internal sealed class CharacterSkillData
 {
+    public string CharacterId { get; set; } = "";
+    public int ServerId { get; set; }
+    public string ServerName { get; set; } = "";
     public int CombatPower { get; set; }
     public int CombatScore { get; set; }
     public Dictionary<string, int> SkillLevels { get; set; } = new();
+    public List<CharacterDpSkill> DpSkills { get; set; } = new();
+}
+
+public sealed class CharacterDpSkill
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public int SkillLevel { get; set; }
+    public string Icon { get; set; } = "";
 }

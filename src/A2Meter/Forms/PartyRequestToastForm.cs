@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Windows.Forms;
 using A2Meter.Api;
 using A2Meter.Core;
@@ -14,8 +17,9 @@ namespace A2Meter.Forms;
 /// request packet is observed.
 internal sealed class PartyRequestToastForm : Form
 {
-    private const int ToastWidth = 340;
-    private const int ToastHeight = 112;
+    private const int ToastWidth = 420;
+    private const int ToastHeight = 176;
+    private static readonly HttpClient ImageHttp = new() { Timeout = TimeSpan.FromSeconds(5) };
 
     private readonly Form _parent;
     private readonly PartyMember _member;
@@ -26,6 +30,9 @@ internal sealed class PartyRequestToastForm : Form
     private Image? _tierIcon;
     private Color  _tierColor = Color.FromArgb(140, 150, 170);
     private string _dungeonText = "";
+    private string _dpStatusText = "DP 스킬 조회 중...";
+    private List<CharacterDpSkill> _dpSkills = new();
+    private readonly Dictionary<string, Image> _dpIcons = new(StringComparer.Ordinal);
     private System.Windows.Forms.Timer? _autoCloseTimer;
 
     public PartyRequestToastForm(Form parent, PartyMember member, int? currentDungeonId = null)
@@ -65,9 +72,13 @@ internal sealed class PartyRequestToastForm : Form
             parent.Resize -= OnParentMoved;
             _autoCloseTimer?.Stop();
             _autoCloseTimer?.Dispose();
+            foreach (var icon in _dpIcons.Values)
+                icon.Dispose();
+            _dpIcons.Clear();
         };
 
         _ = LoadTierAsync();
+        _ = LoadDpSkillsAsync();
     }
 
     private void OnParentMoved(object? sender, EventArgs e) => PlaceAtBottom();
@@ -128,6 +139,71 @@ internal sealed class PartyRequestToastForm : Form
                 _tierColor = Color.FromArgb(180, 90, 90);
                 Invalidate();
             });
+        }
+    }
+
+    private async System.Threading.Tasks.Task LoadDpSkillsAsync()
+    {
+        try
+        {
+            var data = await PlayncClient.FetchCharacterData(_member.Nickname, _member.ServerId).ConfigureAwait(false);
+            var skills = (data?.DpSkills ?? new List<CharacterDpSkill>())
+                .Where(s => !string.IsNullOrWhiteSpace(s.Name))
+                .Take(4)
+                .ToList();
+            if (data != null)
+                SkillLevelCache.Instance.Store(_member.Nickname, _member.ServerId, data);
+
+            var icons = new Dictionary<string, Image>(StringComparer.Ordinal);
+            foreach (var skill in skills)
+            {
+                if (string.IsNullOrWhiteSpace(skill.Icon) || icons.ContainsKey(skill.Icon)) continue;
+                var image = await LoadImageAsync(skill.Icon).ConfigureAwait(false);
+                if (image != null)
+                    icons[skill.Icon] = image;
+            }
+
+            if (IsDisposed) return;
+            BeginInvoke(() =>
+            {
+                foreach (var icon in _dpIcons.Values)
+                    icon.Dispose();
+                _dpIcons.Clear();
+                foreach (var (key, icon) in icons)
+                    _dpIcons[key] = icon;
+                _dpSkills = skills;
+                _dpStatusText = skills.Count == 0 ? "장착 DP 없음" : "";
+                Invalidate();
+            });
+        }
+        catch
+        {
+            if (IsDisposed) return;
+            BeginInvoke(() =>
+            {
+                _dpSkills = new List<CharacterDpSkill>();
+                _dpStatusText = "DP 조회 실패";
+                Invalidate();
+            });
+        }
+    }
+
+    private static async System.Threading.Tasks.Task<Image?> LoadImageAsync(string url)
+    {
+        try
+        {
+            using var resp = await ImageHttp.GetAsync(url).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) return null;
+            await using var stream = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms).ConfigureAwait(false);
+            ms.Position = 0;
+            using var raw = Image.FromStream(ms);
+            return new Bitmap(raw);
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -223,10 +299,55 @@ internal sealed class PartyRequestToastForm : Form
             Trimming = StringTrimming.EllipsisCharacter,
             FormatFlags = StringFormatFlags.NoWrap,
         })
-            g.DrawString(_tierText, infoFont, infoBrush, new RectangleF(12, Height - 29, 88, 20), infoFormat);
+            g.DrawString(_tierText, infoFont, infoBrush, new RectangleF(12, 91, 112, 20), infoFormat);
 
         using var tierFont = new Font(fn, Math.Max(8f, fs - 1.5f), FontStyle.Bold);
-        DrawTierBadge(g, tierFont, "종합", _tier, _tierIcon, 106, Height - 33);
+        DrawTierBadge(g, tierFont, "종합", _tier, _tierIcon, 130, 87);
+        DrawDpSkills(g, fn, fs, theme, 116);
+    }
+
+    private void DrawDpSkills(Graphics g, string fontName, float fontSize, AppSettings.ThemeColors theme, float y)
+    {
+        using var titleFont = new Font(fontName, Math.Max(8f, fontSize - 2f), FontStyle.Bold);
+        using var titleBrush = new SolidBrush(theme.TextDimColor);
+        g.DrawString("장착 DP", titleFont, titleBrush, 12, y);
+
+        if (_dpSkills.Count == 0)
+        {
+            using var statusFont = new Font(fontName, Math.Max(8f, fontSize - 1.5f));
+            using var statusBrush = new SolidBrush(theme.TextDimColor);
+            g.DrawString(_dpStatusText, statusFont, statusBrush, 68, y);
+            return;
+        }
+
+        using var nameFont = new Font(fontName, Math.Max(7.5f, fontSize - 2.2f), FontStyle.Bold);
+        using var lvFont = new Font(fontName, Math.Max(7.2f, fontSize - 2.5f));
+        using var nameBrush = new SolidBrush(theme.TextColor);
+        using var lvBrush = new SolidBrush(theme.TextDimColor);
+        using var textFormat = new StringFormat
+        {
+            Trimming = StringTrimming.EllipsisCharacter,
+            FormatFlags = StringFormatFlags.NoWrap,
+        };
+
+        const int iconSize = 28;
+        const int cellWidth = 99;
+        float x = 12;
+        float rowY = y + 17;
+        foreach (var skill in _dpSkills)
+        {
+            if (!string.IsNullOrWhiteSpace(skill.Icon) && _dpIcons.TryGetValue(skill.Icon, out var icon))
+                g.DrawImage(icon, new RectangleF(x, rowY, iconSize, iconSize));
+            else
+            {
+                using var border = new Pen(Color.FromArgb(80, 90, 110));
+                g.DrawRectangle(border, x, rowY, iconSize, iconSize);
+            }
+
+            g.DrawString(skill.Name, nameFont, nameBrush, new RectangleF(x + iconSize + 5, rowY - 1, cellWidth - iconSize - 7, 15), textFormat);
+            g.DrawString($"Lv{skill.SkillLevel}", lvFont, lvBrush, new RectangleF(x + iconSize + 5, rowY + 14, cellWidth - iconSize - 7, 14), textFormat);
+            x += cellWidth;
+        }
     }
 
     private static void DrawTierBadge(Graphics g, Font font, string label, string tier, Image? icon, float x, float y)

@@ -571,6 +571,10 @@ internal sealed class DpsPipeline : IDisposable
             string sname = p.ServerName;
             int cp = p.CombatPower;
             int score = p.CombatScore;
+            var identity = Api.PlayncClient.NormalizeCharacterQuery(p.Name, sid, sname);
+            cleanName = identity.Name;
+            if (sid <= 0 && identity.ServerId > 0) sid = identity.ServerId;
+            if (string.IsNullOrEmpty(sname)) sname = identity.ServerName;
 
             foreach (var pm in _party.SnapshotMembers())
             {
@@ -589,6 +593,10 @@ internal sealed class DpsPipeline : IDisposable
             {
                 if (cp == 0 && apiData.CombatPower > 0) cp = apiData.CombatPower;
                 if (score == 0 && apiData.CombatScore > 0) score = apiData.CombatScore;
+                if (!string.IsNullOrWhiteSpace(apiData.CharacterId))
+                    p.CharacterId = apiData.CharacterId;
+                if (sid <= 0 && apiData.ServerId > 0) sid = apiData.ServerId;
+                if (string.IsNullOrEmpty(sname)) sname = apiData.ServerName;
                 if (apiData.SkillLevels is { Count: > 0 })
                     p.SkillLevels = apiData.SkillLevels;
             }

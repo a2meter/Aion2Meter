@@ -199,8 +199,14 @@ internal sealed class OverlayForm : Form
     private void OnPartyRequestReceived(PartyMember member)
     {
         if (!IsHandleCreated || IsDisposed) return;
+        if (!AppSettings.Instance.LookupToastEnabled) return;
         // Only show toasts for requests with enough identity to look up.
-        if (string.IsNullOrEmpty(member.Nickname) || member.ServerId <= 0) return;
+        if (string.IsNullOrEmpty(member.Nickname)) return;
+        var identity = Api.PlayncClient.NormalizeCharacterQuery(member.Nickname, member.ServerId, member.ServerName);
+        if (identity.ServerId <= 0) return;
+        member.Nickname = identity.Name;
+        member.ServerId = identity.ServerId;
+        member.ServerName = identity.ServerName;
         try
         {
             BeginInvoke(() =>
@@ -232,10 +238,14 @@ internal sealed class OverlayForm : Form
             int score = 0;
             int sid = pm.ServerId;
             string sname = pm.ServerName;
+            var identity = Api.PlayncClient.NormalizeCharacterQuery(pm.Nickname, sid, sname);
+            string lookupName = identity.Name;
+            sid = identity.ServerId;
+            sname = identity.ServerName;
             if (string.IsNullOrEmpty(sname) && sid > 0)
                 sname = Dps.Protocol.ServerMap.GetName(sid);
 
-            var api = Api.SkillLevelCache.Instance.Get(pm.Nickname, sid);
+            var api = Api.SkillLevelCache.Instance.Get(lookupName, sid);
             if (api != null)
             {
                 if (cp == 0 && api.CombatPower > 0) cp = api.CombatPower;
@@ -243,12 +253,12 @@ internal sealed class OverlayForm : Form
             }
             else if (sid > 0)
             {
-                Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, sid);
+                Api.SkillLevelCache.Instance.EnsureLoaded(lookupName, sid);
             }
 
-            string tier = GetCachedTier(pm.Nickname, sid);
+            string tier = GetCachedTier(lookupName, sid);
 
-            string displayName = !string.IsNullOrEmpty(sname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{sname}]" : pm.Nickname;
+            string displayName = !string.IsNullOrEmpty(sname) && !lookupName.Contains('[') ? $"{lookupName}[{sname}]" : lookupName;
             if (!seen.Add(displayName)) continue;
 
             list.Add(new OverlayRenderer.PartyRow(

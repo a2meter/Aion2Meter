@@ -245,6 +245,19 @@ internal sealed class SettingsPanelForm : Form
             tab.Add(SectionLabel("통계 웹"), sH);
 
             {
+                var row = new HLayout();
+                row.Add(FieldLabel("파티 신청 조회 토스트"));
+                var chk = StyledCheckBox(settings.LookupToastEnabled);
+                chk.CheckedChanged += (_, _) =>
+                {
+                    settings.LookupToastEnabled = chk.Checked;
+                    settings.SaveDebounced();
+                };
+                row.Add(chk);
+                tab.Add(row, rH);
+            }
+
+            {
                 var row = new HLayout { Spread = false, FillWidth = true };
                 var btnMyRecords = StyledButton("내 기록 보기");
                 btnMyRecords.Click += (_, _) => OpenMyRecordsInBrowser();
@@ -845,6 +858,7 @@ internal sealed class SettingsPanelForm : Form
             settings.NumberFormat = imported.NumberFormat;
             settings.ShowCombatPower = imported.ShowCombatPower;
             settings.ShowCombatScore = imported.ShowCombatScore;
+            settings.LookupToastEnabled = imported.LookupToastEnabled;
             settings.SnapEnabled = imported.SnapEnabled;
             settings.SnapDistance = imported.SnapDistance;
             settings.JobBarColors = imported.JobBarColors ?? new AppSettings.JobBarColorSettings();
@@ -877,6 +891,7 @@ internal sealed class SettingsPanelForm : Form
         settings.NumberFormat = def.NumberFormat;
         settings.ShowCombatPower = def.ShowCombatPower;
         settings.ShowCombatScore = def.ShowCombatScore;
+        settings.LookupToastEnabled = def.LookupToastEnabled;
         settings.SnapEnabled = def.SnapEnabled;
         settings.SnapDistance = def.SnapDistance;
         settings.JobBarColors = def.JobBarColors;

@@ -5,6 +5,12 @@ namespace A2Meter.Api;
 
 public class CharacterData
 {
+	public string CharacterId { get; set; } = "";
+
+	public int ServerId { get; set; }
+
+	public string ServerName { get; set; } = "";
+
 	public JsonElement Profile { get; set; }
 
 	public JsonElement StatData { get; set; }

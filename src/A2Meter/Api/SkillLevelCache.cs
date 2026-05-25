@@ -26,7 +26,9 @@ internal sealed class SkillLevelCache
     /// Try get cached skill data for a character.
     public CharacterSkillData? Get(string nickname, int serverId)
     {
-        string key = BuildKey(StripServerSuffix(nickname), serverId);
+        var identity = PlayncClient.NormalizeCharacterQuery(nickname, serverId);
+        if (identity.ServerId <= 0 || string.IsNullOrWhiteSpace(identity.Name)) return null;
+        string key = BuildKey(identity.Name, identity.ServerId);
         return _cache.TryGetValue(key, out var data) ? data : null;
     }
 
@@ -38,17 +40,30 @@ internal sealed class SkillLevelCache
         return data.SkillLevels.TryGetValue(skillName, out var lv) ? lv : 0;
     }
 
+    public void Store(string nickname, int serverId, CharacterSkillData data)
+    {
+        if (data == null || string.IsNullOrWhiteSpace(nickname)) return;
+        int sid = data.ServerId > 0 ? data.ServerId : serverId;
+        var identity = PlayncClient.NormalizeCharacterQuery(nickname, sid, data.ServerName);
+        if (identity.ServerId <= 0 || string.IsNullOrWhiteSpace(identity.Name)) return;
+        string key = BuildKey(identity.Name, identity.ServerId);
+        _cache[key] = data;
+        _lastAttempt.TryRemove(key, out _);
+        _pending.TryRemove(key, out _);
+    }
+
     /// Trigger an async fetch if not already cached or in-flight.
     /// Uses the full CombatScore calculation engine (same as original A2Viewer).
     public void EnsureLoaded(string nickname, int serverId)
     {
-        if (serverId <= 0 || string.IsNullOrWhiteSpace(nickname)) return;
+        if (string.IsNullOrWhiteSpace(nickname)) return;
 
-        // Strip [서버명] suffix if present (e.g. "남힐[네자칸]" → "남힐")
-        string cleanName = StripServerSuffix(nickname);
+        var identity = PlayncClient.NormalizeCharacterQuery(nickname, serverId);
+        if (identity.ServerId <= 0) return;
+        string cleanName = identity.Name;
         if (string.IsNullOrWhiteSpace(cleanName)) return;
 
-        string key = BuildKey(cleanName, serverId);
+        string key = BuildKey(cleanName, identity.ServerId);
         if (_cache.ContainsKey(key)) return;
         var now = DateTime.UtcNow;
         if (_lastAttempt.TryGetValue(key, out var lastAttempt) && now - lastAttempt < RetryDelay)
@@ -63,14 +78,18 @@ internal sealed class SkillLevelCache
                 await FetchGate.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    var scoreResult = await Calc.CombatScore.QueryCombatScore(serverId, cleanName).ConfigureAwait(false);
+                    var scoreResult = await Calc.CombatScore.QueryCombatScore(identity.ServerId, cleanName).ConfigureAwait(false);
                     if (scoreResult != null)
                     {
                         _cache[key] = new CharacterSkillData
                         {
+                            CharacterId = scoreResult.CharacterId,
+                            ServerId = scoreResult.ServerId,
+                            ServerName = scoreResult.ServerName,
                             CombatPower = scoreResult.CombatPower,
                             CombatScore = scoreResult.Score,
                             SkillLevels = scoreResult.SkillLevels,
+                            DpSkills = scoreResult.DpSkills,
                         };
                         _lastAttempt.TryRemove(key, out _);
                     }
@@ -89,12 +108,6 @@ internal sealed class SkillLevelCache
                 _pending.TryRemove(key, out _);
             }
         });
-    }
-
-    private static string StripServerSuffix(string name)
-    {
-        int idx = name.IndexOf('[');
-        return idx > 0 ? name[..idx] : name;
     }
 
     private static string BuildKey(string nickname, int serverId) => $"{nickname}:{serverId}";
