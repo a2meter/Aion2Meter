@@ -75,6 +75,7 @@ internal sealed class DpsPipeline : IDisposable
     private IReadOnlyList<DpsCanvas.PlayerRow>? _lastRows;
     private long   _lastTotal;
     private string _lastTimer = "";
+    private int _lookupRefreshQueued;
 
     /// Per-actor running peak DPS this session (resets when session ends).
     private readonly Dictionary<int, long> _peakByActor = new();
@@ -707,6 +708,25 @@ internal sealed class DpsPipeline : IDisposable
 
     /// Trigger API fetch for party members not yet enriched (A2Power RequestMissingActorLookups).
     private void RequestMissingActorLookups()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _lookupRefreshQueued, 1) != 0)
+            return;
+
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(250).ConfigureAwait(false);
+                RequestMissingActorLookupsNow();
+            }
+            finally
+            {
+                System.Threading.Volatile.Write(ref _lookupRefreshQueued, 0);
+            }
+        });
+    }
+
+    private void RequestMissingActorLookupsNow()
     {
         foreach (var pm in _party.SnapshotMembers())
         {

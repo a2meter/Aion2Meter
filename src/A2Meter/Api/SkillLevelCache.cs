@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace A2Meter.Api;
@@ -11,6 +12,7 @@ internal sealed class SkillLevelCache
     private static readonly Lazy<SkillLevelCache> _instance = new(() => new());
     public static SkillLevelCache Instance => _instance.Value;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(15);
+    private static readonly SemaphoreSlim FetchGate = new(2, 2);
 
     /// Key: "nickname:serverId" → fetched data.
     private readonly ConcurrentDictionary<string, CharacterSkillData> _cache = new();
@@ -58,16 +60,24 @@ internal sealed class SkillLevelCache
         {
             try
             {
-                var scoreResult = await Calc.CombatScore.QueryCombatScore(serverId, cleanName);
-                if (scoreResult != null)
+                await FetchGate.WaitAsync().ConfigureAwait(false);
+                try
                 {
-                    _cache[key] = new CharacterSkillData
+                    var scoreResult = await Calc.CombatScore.QueryCombatScore(serverId, cleanName).ConfigureAwait(false);
+                    if (scoreResult != null)
                     {
-                        CombatPower = scoreResult.CombatPower,
-                        CombatScore = scoreResult.Score,
-                        SkillLevels = scoreResult.SkillLevels,
-                    };
-                    _lastAttempt.TryRemove(key, out _);
+                        _cache[key] = new CharacterSkillData
+                        {
+                            CombatPower = scoreResult.CombatPower,
+                            CombatScore = scoreResult.Score,
+                            SkillLevels = scoreResult.SkillLevels,
+                        };
+                        _lastAttempt.TryRemove(key, out _);
+                    }
+                }
+                finally
+                {
+                    FetchGate.Release();
                 }
             }
             catch (Exception ex)

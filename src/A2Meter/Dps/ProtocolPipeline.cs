@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using A2Meter.Dps.Protocol;
 
 namespace A2Meter.Dps;
@@ -22,6 +25,10 @@ internal sealed class ProtocolPipeline : IDisposable
     private readonly NativePacketEngine? _native;
     private readonly PacketProcessor _processor;
     private readonly PartyStreamParser _party;
+    private readonly Channel<TcpSegment> _segments;
+    private readonly CancellationTokenSource _segmentCts = new();
+    private readonly Task _segmentConsumer;
+    private readonly Action<string>? _log;
 
     /// entityId → (nickname, jobCode) populated by UserInfo packets.
     /// Damage events arrive before/after name packets in any order, so we
@@ -55,6 +62,7 @@ internal sealed class ProtocolPipeline : IDisposable
     public ProtocolPipeline(IPacketSource source, SkillDatabase? skills = null, Action<string>? log = null)
     {
         _source = source;
+        _log = log;
         _skills = skills ?? SkillDatabase.Shared;
 
         _dispatcher = new PacketDispatcher(_skills, log);
@@ -77,7 +85,21 @@ internal sealed class ProtocolPipeline : IDisposable
             },
             logSink: log);
 
-        _source.SegmentReceived += OnSegment;
+        _segments = Channel.CreateUnbounded<TcpSegment>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false,
+        });
+        _segmentConsumer = Task.Factory
+            .StartNew(
+                () => ProcessSegmentsAsync(_segmentCts.Token),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default)
+            .Unwrap();
+
+        _source.SegmentReceived += EnqueueSegment;
 
         // Wire events from whichever engine is active.
         if (_native != null)
@@ -121,11 +143,41 @@ internal sealed class ProtocolPipeline : IDisposable
 
     public void Dispose()
     {
-        _source.SegmentReceived -= OnSegment;
+        _source.SegmentReceived -= EnqueueSegment;
+        _segments.Writer.TryComplete();
+        _segmentCts.Cancel();
+        try { _segmentConsumer.Wait(TimeSpan.FromMilliseconds(500)); } catch { }
+        _segmentCts.Dispose();
         _native?.Dispose();
     }
 
     private void OnSegment(TcpSegment seg) => _processor.Feed(seg);
+
+    private void EnqueueSegment(TcpSegment seg)
+    {
+        _segments.Writer.TryWrite(seg);
+    }
+
+    private async Task ProcessSegmentsAsync(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var seg in _segments.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+            {
+                try
+                {
+                    OnSegment(seg);
+                }
+                catch (Exception ex)
+                {
+                    _log?.Invoke($"[Pipeline] segment dispatch failed: {ex.Message}");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
 
     private void OnDamage(int actorId, int targetId, int skillCode, byte damageType,
                           int damage, uint specialFlags, int multiHitCount, int multiHitDamage,
