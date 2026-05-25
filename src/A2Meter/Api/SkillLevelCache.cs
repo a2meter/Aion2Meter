@@ -10,12 +10,16 @@ internal sealed class SkillLevelCache
 {
     private static readonly Lazy<SkillLevelCache> _instance = new(() => new());
     public static SkillLevelCache Instance => _instance.Value;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(15);
 
     /// Key: "nickname:serverId" → fetched data.
     private readonly ConcurrentDictionary<string, CharacterSkillData> _cache = new();
 
     /// Prevents duplicate in-flight fetches for the same character.
     private readonly ConcurrentDictionary<string, byte> _pending = new();
+
+    /// Last attempted fetch time. Lets visible party rows retry without flooding the API.
+    private readonly ConcurrentDictionary<string, DateTime> _lastAttempt = new();
 
     /// Try get cached skill data for a character.
     public CharacterSkillData? Get(string nickname, int serverId)
@@ -44,7 +48,11 @@ internal sealed class SkillLevelCache
 
         string key = BuildKey(cleanName, serverId);
         if (_cache.ContainsKey(key)) return;
+        var now = DateTime.UtcNow;
+        if (_lastAttempt.TryGetValue(key, out var lastAttempt) && now - lastAttempt < RetryDelay)
+            return;
         if (!_pending.TryAdd(key, 0)) return; // already fetching
+        _lastAttempt[key] = now;
 
         _ = Task.Run(async () =>
         {
@@ -59,6 +67,7 @@ internal sealed class SkillLevelCache
                         CombatScore = scoreResult.Score,
                         SkillLevels = scoreResult.SkillLevels,
                     };
+                    _lastAttempt.TryRemove(key, out _);
                 }
             }
             catch (Exception ex)

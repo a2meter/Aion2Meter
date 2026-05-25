@@ -239,6 +239,10 @@ internal sealed class OverlayForm : Form
                 if (cp == 0 && api.CombatPower > 0) cp = api.CombatPower;
                 if (score == 0 && api.CombatScore > 0) score = api.CombatScore;
             }
+            else if (sid > 0)
+            {
+                Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, sid);
+            }
 
             string displayName = !string.IsNullOrEmpty(sname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{sname}]" : pm.Nickname;
             if (!seen.Add(displayName)) continue;

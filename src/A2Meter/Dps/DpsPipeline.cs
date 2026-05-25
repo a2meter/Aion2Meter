@@ -786,6 +786,10 @@ internal sealed class DpsPipeline : IDisposable
                 if (cp == 0 && apiData.CombatPower > 0) cp = apiData.CombatPower;
                 if (score == 0 && apiData.CombatScore > 0) score = apiData.CombatScore;
             }
+            else if (sid > 0)
+            {
+                Api.SkillLevelCache.Instance.EnsureLoaded(cleanName, sid);
+            }
             long peak = _peakByActor.TryGetValue(p.EntityId, out var pk) ? pk : p.Dps;
             long avg  = elapsedSec > 0 ? (long)(p.TotalDamage / elapsedSec) : p.Dps;
 
@@ -887,6 +891,10 @@ internal sealed class DpsPipeline : IDisposable
             {
                 if (pmCp == 0 && pmApi.CombatPower > 0) pmCp = pmApi.CombatPower;
                 if (pmScore == 0 && pmApi.CombatScore > 0) pmScore = pmApi.CombatScore;
+            }
+            else if (pmSid > 0)
+            {
+                Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, pmSid);
             }
 
             string pmDisplayName = !string.IsNullOrEmpty(pmSname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{pmSname}]" : pm.Nickname;

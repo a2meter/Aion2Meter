@@ -186,6 +186,8 @@ internal sealed class ProtocolPipeline : IDisposable
     private void OnUserInfo(int entityId, string nickname, int serverId, int jobCode, int isSelf)
     {
         _identities[entityId] = (nickname, jobCode);
+        if (serverId > 0)
+            _serverIds[entityId] = serverId;
         // Replay any buffered CombatPower so it's never lost regardless of packet order.
         int cp = _combatPowers.TryGetValue(entityId, out var c) ? c : 0;
         TriggerPartyMemberSeen(new PartyMember
@@ -265,6 +267,8 @@ internal sealed class ProtocolPipeline : IDisposable
         if (m.CharacterId != 0)
         {
             _identities[(int)m.CharacterId] = (m.Nickname, m.JobCode);
+            if (m.ServerId > 0)
+                _serverIds[(int)m.CharacterId] = m.ServerId;
         }
         TriggerPartyMemberSeen(m);
     }
@@ -274,6 +278,8 @@ internal sealed class ProtocolPipeline : IDisposable
         m.IsPartyRequest = true;
         m.IsLookup = true;
         m.IsPartyMember = false;
+        if (m.CharacterId != 0 && m.ServerId > 0)
+            _serverIds[(int)m.CharacterId] = m.ServerId;
         TriggerPartyMemberSeen(m);
     }
 
@@ -303,10 +309,13 @@ internal sealed class ProtocolPipeline : IDisposable
         _combatPowers[entityId] = combatPower;
 
         if (!_identities.TryGetValue(entityId, out var id)) return;
+        int serverId = _serverIds.GetValueOrDefault(entityId, 0);
         TriggerPartyMemberSeen(new PartyMember
         {
             CharacterId = (uint)entityId,
             Nickname    = id.Name,
+            ServerId    = serverId,
+            ServerName  = serverId > 0 ? ServerMap.GetName(serverId) : "",
             JobCode     = id.JobCode,
             CombatPower = combatPower,
         });
