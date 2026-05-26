@@ -159,3 +159,22 @@ internal sealed class HitLogEntry
     public long    Damage { get; set; }
     public uint    Flags { get; set; }
 }
+
+/// Full skill-use log for combat replay. Unlike HitLogEntry, this also carries
+/// non-damage buff/debuff applications such as taunts and party auras.
+internal sealed class SkillLogEntry
+{
+    public double  T { get; set; }
+    public string  Kind { get; set; } = "hit";
+    public int     EntityId { get; set; }
+    public int     ActorEntityId { get; set; }
+    public int     TargetEntityId { get; set; }
+    public int     SkillId { get; set; }
+    public string  SkillName { get; set; } = "";
+    public int     BuffId { get; set; }
+    public string? BuffName { get; set; }
+    public long    Damage { get; set; }
+    public uint    Flags { get; set; }
+    public int     BuffType { get; set; }
+    public uint    DurationMs { get; set; }
+}

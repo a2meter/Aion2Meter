@@ -64,9 +64,14 @@ internal sealed class DpsPipeline : IDisposable
     private readonly List<TimelineEntry> _timeline = new();
     private int        _lastTimelineSec = -1;
     private readonly List<HitLogEntry> _hitLog = new();
+    private readonly List<SkillLogEntry> _skillLog = new();
+    private readonly List<PendingSkillLogEntry> _pendingSkillLog = new();
+    private const double PendingSkillLogSeconds = 5.0;
 
     // ── Session start tracking ──
     private DateTime   _sessionStartUtc;
+
+    private readonly record struct PendingSkillLogEntry(DateTime RecordedAtUtc, SkillLogEntry Entry);
 
     // ── Network / performance monitors ──
     public PingMonitor Ping { get; } = new();
@@ -102,7 +107,7 @@ internal sealed class DpsPipeline : IDisposable
         _source.PartyMemberSeen += OnPartyMemberSeen;
         _source.PartyLeft       += () => _party.ClearPartyFlags();
         _source.DungeonChanged  += id => { _dungeonId = id > 0 ? id : (int?)null; _inDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id); };
-        _source.BuffEvent       += (eid, bid, type, dur, ts, casterId) => _buffTracker.OnBuff(eid, bid, type, dur, ts, casterId);
+        _source.BuffEvent       += OnBuffEvent;
         _source.SegmentReceived += seg => Ping.Feed(seg);
 
         _pushTimer = new System.Threading.Timer(_ => Push(), null,
@@ -157,6 +162,8 @@ internal sealed class DpsPipeline : IDisposable
         _timeline.Clear();
         _lastTimelineSec = -1;
         _hitLog.Clear();
+        _skillLog.Clear();
+        _pendingSkillLog.Clear();
         _lastSummary = null;
         _lastRows = null;
         _sessionActive = false;
@@ -264,6 +271,89 @@ internal sealed class DpsPipeline : IDisposable
         }
     }
 
+    private void OnBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
+    {
+        _buffTracker.OnBuff(entityId, buffId, type, durationMs, timestamp, casterId);
+
+        if (!_buffTracker.TryResolveTrackableBuff(buffId, durationMs, out int resolvedBuffId, out string buffName))
+            return;
+        if (!IsRelevantSkillLogBuff(entityId, casterId))
+            return;
+
+        int actorId = casterId > 0 ? casterId : 0;
+        var entry = new SkillLogEntry
+        {
+            T = _sessionActive ? Math.Round((DateTime.UtcNow - _sessionStartUtc).TotalSeconds, 2) : 0,
+            Kind = "buff",
+            EntityId = actorId,
+            ActorEntityId = actorId,
+            TargetEntityId = entityId,
+            SkillId = resolvedBuffId,
+            SkillName = buffName,
+            BuffId = resolvedBuffId,
+            BuffName = buffName,
+            BuffType = type,
+            DurationMs = durationMs,
+        };
+
+        if (_sessionActive)
+            AddSkillLog(entry);
+        else
+            AddPendingSkillLog(entry);
+    }
+
+    private bool IsRelevantSkillLogBuff(int entityId, int casterId)
+    {
+        if (_currentTargetId != 0 && entityId == _currentTargetId)
+            return true;
+        if (_currentTarget != null && entityId == _currentTarget.EntityId)
+            return true;
+        if (IsPartyOrSelfEntity(casterId))
+            return true;
+        if (IsPartyOrSelfEntity(entityId))
+            return true;
+        return false;
+    }
+
+    private bool IsPartyOrSelfEntity(int entityId)
+    {
+        if (entityId <= 0) return false;
+        if (_party.SelfEntityId == entityId) return true;
+        return _party.IsInParty((uint)entityId);
+    }
+
+    private void AddPendingSkillLog(SkillLogEntry entry)
+    {
+        var now = DateTime.UtcNow;
+        _pendingSkillLog.RemoveAll(e => (now - e.RecordedAtUtc).TotalSeconds > PendingSkillLogSeconds);
+        _pendingSkillLog.Add(new PendingSkillLogEntry(now, entry));
+    }
+
+    private void FlushPendingSkillLog(DateTime startedAt, int targetEntityId)
+    {
+        if (_pendingSkillLog.Count == 0) return;
+
+        for (int i = 0; i < _pendingSkillLog.Count; i++)
+        {
+            var pending = _pendingSkillLog[i];
+            if ((startedAt - pending.RecordedAtUtc).TotalSeconds > PendingSkillLogSeconds)
+                continue;
+            var entry = pending.Entry;
+            if (entry.TargetEntityId != targetEntityId && !IsPartyOrSelfEntity(entry.ActorEntityId))
+                continue;
+            entry.T = Math.Round(Math.Max(0, (pending.RecordedAtUtc - startedAt).TotalSeconds), 2);
+            _buffTracker.OnBuff(entry.TargetEntityId, entry.BuffId, entry.BuffType, entry.DurationMs, 0, entry.ActorEntityId);
+            AddSkillLog(entry);
+        }
+
+        _pendingSkillLog.Clear();
+    }
+
+    private void AddSkillLog(SkillLogEntry entry)
+    {
+        _skillLog.Add(entry);
+    }
+
     private void OnCombatHit(CombatHitArgs e)
     {
         // ── Matches A2Power OnDamageCore → TryAccumulateDamage ──
@@ -352,15 +442,17 @@ internal sealed class DpsPipeline : IDisposable
         // ── Combat start ──
         if (!_sessionActive)
         {
+            var startedAt = DateTime.UtcNow;
             _sessionId = Guid.NewGuid().ToString();
             _combatRecordSaved = false;
             _party.PurgeNonParty();
             _buffTracker.Reset();
             _buffTracker.Start();
             if (_countdownSec > 0)
-                _countdownStart = DateTime.UtcNow;
+                _countdownStart = startedAt;
             _sessionActive = true;
-            _sessionStartUtc = DateTime.UtcNow;
+            _sessionStartUtc = startedAt;
+            FlushPendingSkillLog(startedAt, e.TargetId);
             CombatStarted?.Invoke();
         }
 
@@ -373,6 +465,17 @@ internal sealed class DpsPipeline : IDisposable
         {
             T = Math.Round(hitTime, 2),
             EntityId = e.ActorId,
+            SkillName = e.Skill ?? "",
+            Damage = e.Damage,
+            Flags = e.HitFlags,
+        });
+        AddSkillLog(new SkillLogEntry
+        {
+            T = Math.Round(hitTime, 2),
+            Kind = "hit",
+            EntityId = e.ActorId,
+            ActorEntityId = e.ActorId,
+            TargetEntityId = e.TargetId,
             SkillName = e.Skill ?? "",
             Damage = e.Damage,
             Flags = e.HitFlags,
@@ -645,6 +748,7 @@ internal sealed class DpsPipeline : IDisposable
             Snapshot    = snap,
             Timeline    = _timeline.Count > 0 ? new List<TimelineEntry>(_timeline) : null,
             HitLog      = _hitLog.Count > 0 ? new List<HitLogEntry>(_hitLog) : null,
+            SkillLog    = _skillLog.Count > 0 ? new List<SkillLogEntry>(_skillLog) : null,
             TargetBuffs = targetBuffs,
             DungeonId   = isDummyTarget ? null : _dungeonId,
         };
@@ -680,6 +784,8 @@ internal sealed class DpsPipeline : IDisposable
         _timeline.Clear();
         _lastTimelineSec = -1;
         _hitLog.Clear();
+        _skillLog.Clear();
+        _pendingSkillLog.Clear();
         // Reset per-mob encounter state (A2Power: ResetMobEncounterState).
         foreach (var mob in _knownBosses.Values)
         {

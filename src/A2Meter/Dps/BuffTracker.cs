@@ -44,16 +44,7 @@ internal sealed class BuffTracker
     /// Record a buff event.
     public void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
     {
-        // Resolve buff to a known skill code.
-        int resolved = ResolveSkillCode(NormalizeBuffId(buffId));
-        if (resolved < 0) return;
-
-        bool isPermanentTracked = durationMs == uint.MaxValue && PermanentTrackableBuffIds.Contains(resolved);
-
-        // Filter: zero-length, permanent, and unreasonably long buffs are ignored
-        // unless they are known DPS-relevant toggle auras.
-        if (durationMs == 0 || (!isPermanentTracked && durationMs == uint.MaxValue) ||
-            (!isPermanentTracked && durationMs > MAX_REASONABLE_DURATION_MS))
+        if (!TryResolveTrackableBuff(buffId, durationMs, out int resolved, out _))
             return;
 
         lock (_lock)
@@ -65,6 +56,7 @@ internal sealed class BuffTracker
             }
 
             var now = DateTime.UtcNow;
+            bool isPermanentTracked = IsPermanentTracked(resolved, durationMs);
             var expiresAt = isPermanentTracked
                 ? DateTime.MaxValue
                 : now + TimeSpan.FromMilliseconds(durationMs);
@@ -93,6 +85,19 @@ internal sealed class BuffTracker
                 };
             }
         }
+    }
+
+    public bool TryResolveTrackableBuff(int buffId, uint durationMs, out int resolved, out string name)
+    {
+        resolved = ResolveSkillCode(NormalizeBuffId(buffId));
+        if (resolved < 0 || !IsTrackableDuration(resolved, durationMs))
+        {
+            name = "";
+            return false;
+        }
+
+        name = _skills.GetSkillName(resolved) ?? $"Buff#{resolved}";
+        return true;
     }
 
     /// Build uptime snapshot for a given entity.
@@ -182,6 +187,17 @@ internal sealed class BuffTracker
             return buffId;
 
         return -1;
+    }
+
+    private static bool IsPermanentTracked(int resolved, uint durationMs)
+        => durationMs == uint.MaxValue && PermanentTrackableBuffIds.Contains(resolved);
+
+    private static bool IsTrackableDuration(int resolved, uint durationMs)
+    {
+        bool isPermanentTracked = IsPermanentTracked(resolved, durationMs);
+        return durationMs != 0
+            && (isPermanentTracked || durationMs != uint.MaxValue)
+            && (isPermanentTracked || durationMs <= MAX_REASONABLE_DURATION_MS);
     }
 
     private static int NormalizeBuffId(int buffId)

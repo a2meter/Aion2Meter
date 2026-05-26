@@ -20,6 +20,7 @@ internal sealed class CombatRecord
     public DpsSnapshot Snapshot { get; set; } = new();
     public List<TimelineEntry>? Timeline { get; set; }
     public List<HitLogEntry>? HitLog { get; set; }
+    public List<SkillLogEntry>? SkillLog { get; set; }
     public List<BuffUptimeDto>? TargetBuffs { get; set; }
     public int? DungeonId { get; set; }
 }
