@@ -167,6 +167,18 @@ internal sealed class AppSettings
     public bool   WebUploadEnabled { get; set; } = true;
     public string WebUploadUrl     { get; set; } = "https://api.aion2meter.com";
     public bool   LookupToastEnabled { get; set; } = true;
+    public bool?  PartyRequestToastEnabled { get; set; }
+
+    [JsonIgnore]
+    public bool EffectivePartyRequestToastEnabled
+    {
+        get => PartyRequestToastEnabled ?? LookupToastEnabled;
+        set
+        {
+            PartyRequestToastEnabled = value;
+            LookupToastEnabled = value;
+        }
+    }
 
     // ── per-machine state stored in a sibling file ──
     [JsonIgnore]

@@ -59,31 +59,37 @@ internal sealed class ProtocolPipeline : IDisposable
     /// path can promote one of them to _currentTarget when hits arrive.
     private readonly System.Collections.Generic.Dictionary<int, MobTarget> _knownBosses = new();
 
-    public ProtocolPipeline(IPacketSource source, SkillDatabase? skills = null, Action<string>? log = null)
+    public ProtocolPipeline(IPacketSource source, SkillDatabase? skills = null, Action<string>? log = null, int initialServerPort = 0, bool forceManagedParser = false)
     {
         _source = source;
         _log = log;
         _skills = skills ?? SkillDatabase.Shared;
 
         _dispatcher = new PacketDispatcher(_skills, log);
-        _native = NativePacketEngine.TryCreate(_skills, log);
+        _native = forceManagedParser ? null : NativePacketEngine.TryCreate(_skills, log);
         log?.Invoke(_native != null
             ? "[Pipeline] using NATIVE PacketEngine"
-            : "[Pipeline] using C# PacketDispatcher fallback");
+            : forceManagedParser
+                ? "[Pipeline] using C# PacketDispatcher fallback (forced)"
+                : "[Pipeline] using C# PacketDispatcher fallback");
         _party = new PartyStreamParser();
 
         _processor  = new PacketProcessor(
             messageHook: (data, off, len) =>
             {
                 if (_native != null)
+                {
                     _native.Dispatch(data, off, len);
-                // Always run C# dispatcher — it handles packet types the native
-                // engine doesn't support (e.g. CharacterLookup). Events wired
-                // only once per type, so no double-fire.
-                _dispatcher.Dispatch(data, off, len);
+                    _dispatcher.DispatchSupplemental(data, off, len);
+                }
+                else
+                {
+                    _dispatcher.Dispatch(data, off, len);
+                }
                 _party.Feed(new ReadOnlySpan<byte>(data, off, len));
             },
-            logSink: log);
+            logSink: log,
+            initialServerPort: initialServerPort);
 
         _segments = Channel.CreateUnbounded<TcpSegment>(new UnboundedChannelOptions
         {
@@ -111,6 +117,14 @@ internal sealed class ProtocolPipeline : IDisposable
             _native.CombatPower   += OnCombatPower;
             _native.Summon        += OnSummon;
             _native.Buff          += OnBuff;
+            _native.BuffRefresh   += OnBuffRefresh;
+            _native.CombatState   += OnCombatState;
+            _native.RemainHp      += OnRemainHp;
+            _native.NpcGroggy     += OnNpcGroggy;
+            _native.TargetOn      += OnTargetOn;
+            _native.TargetOff     += OnTargetOff;
+            _native.ZoneMove      += OnZoneMove;
+            _native.PartyEvent    += OnNativePartyEvent;
             _native.EntityRemoved += OnEntityRemoved;
         }
         else
@@ -120,6 +134,13 @@ internal sealed class ProtocolPipeline : IDisposable
             _dispatcher.MobSpawn      += OnMobSpawn;
             _dispatcher.BossHp        += OnBossHp;
             _dispatcher.Buff          += OnBuff;
+            _dispatcher.BuffRefresh   += OnBuffRefresh;
+            _dispatcher.CombatState   += OnCombatState;
+            _dispatcher.RemainHp      += OnRemainHp;
+            _dispatcher.NpcGroggy     += OnNpcGroggy;
+            _dispatcher.TargetOn      += OnTargetOn;
+            _dispatcher.TargetOff     += OnTargetOff;
+            _dispatcher.ZoneMove      += OnZoneMove;
             _dispatcher.EntityRemoved += OnEntityRemoved;
         }
 
@@ -133,7 +154,7 @@ internal sealed class ProtocolPipeline : IDisposable
         _party.PartyAccept  += OnPartyMember;
         _party.PartyRequest += OnPartyRequestMember;
         // Party-request packets (07 97) also raise a distinct event for the
-        // UI toast that shows the requester's web-side tier.
+        // UI toast for incoming party requests.
         _party.PartyRequest += OnPartyRequestReceived;
         _party.PartyLeft    += OnPartyLeft;
         _party.PartyEjected += OnPartyLeft;
@@ -341,6 +362,40 @@ internal sealed class ProtocolPipeline : IDisposable
         (_source as IInternalEventRaise)?.RaisePartyLeft();
     }
 
+    private void OnNativePartyEvent(int eventType, int memberIndex, int totalMembers,
+        uint characterId, int serverId, string nickname, int jobCode, int level,
+        int combatPower, int itemLevel)
+    {
+        if (eventType == 29)
+        {
+            OnPartyLeft();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(nickname)) return;
+
+        var member = new PartyMember
+        {
+            CharacterId = characterId,
+            ServerId = serverId,
+            ServerName = ServerMap.GetName(serverId),
+            Nickname = nickname,
+            JobCode = jobCode,
+            JobName = JobMapping.GameToJobName(jobCode),
+            Level = level,
+            CombatPower = combatPower,
+        };
+
+        if (eventType == 7 || eventType == 100)
+        {
+            OnPartyRequestMember(member);
+            OnPartyRequestReceived(member);
+            return;
+        }
+
+        OnPartyMember(member);
+    }
+
     /// CP-by-name doesn't carry an entityId. Best we can do is enrich any future
     /// member with the same nickname+server via the existing hint cache, which
     /// PartyStreamParser already maintains internally.
@@ -377,7 +432,11 @@ internal sealed class ProtocolPipeline : IDisposable
     {
         // A2Power: _mobs에 없거나 IsBoss가 아니면 무시.
         if (!_knownBosses.TryGetValue(entityId, out var t) || !t.IsBoss) return;
+        ApplyBossHpSample(t, currentHp);
+    }
 
+    private void ApplyBossHpSample(MobTarget t, long currentHp)
+    {
         // Track HP samples for cumulative damage death detection (A2Power).
         if (currentHp > 0)
         {
@@ -403,7 +462,65 @@ internal sealed class ProtocolPipeline : IDisposable
 
         t.CurrentHp = Math.Max(0, currentHp);
         if (currentHp > t.MaxHp) t.MaxHp = currentHp;
+        if (t.EntityId == _currentTargetEntityId) TriggerTargetChanged(t);
+    }
+
+    private void OnRemainHp(int targetId, uint remainHp)
+    {
+        (_source as IInternalEventRaise)?.RaiseRemainHpChanged(targetId, remainHp);
+        if (!_knownBosses.TryGetValue(targetId, out var t) || !t.IsBoss) return;
+
+        if (t.HpAtLastSample == remainHp && t.CurrentHp == remainHp)
+            return;
+
+        ApplyBossHpSample(t, remainHp);
+    }
+
+    private void OnNpcGroggy(int targetId, uint maxGroggy, uint currentGroggy, int groggyStatus)
+    {
+        (_source as IInternalEventRaise)?.RaiseNpcGroggyChanged(targetId, maxGroggy, currentGroggy, groggyStatus);
+        if (!_knownBosses.TryGetValue(targetId, out var t)) return;
+
+        t.MaxGroggy = maxGroggy;
+        t.CurrentGroggy = currentGroggy;
+        t.GroggyStatus = groggyStatus;
+        if (targetId == _currentTargetEntityId) TriggerTargetChanged(t);
+    }
+
+    private void OnTargetOn(int targetId, int aggroId, int targetingMode)
+    {
+        (_source as IInternalEventRaise)?.RaiseTargetOn(targetId, aggroId, targetingMode);
+        if (!_knownBosses.TryGetValue(targetId, out var t)) return;
+
+        t.AggroEntityId = aggroId;
+        t.TargetingMode = targetingMode;
+        if (targetId == _currentTargetEntityId) TriggerTargetChanged(t);
+    }
+
+    private void OnTargetOff(int targetId, int offMode)
+    {
+        (_source as IInternalEventRaise)?.RaiseTargetOff(targetId, offMode);
+        if (!_knownBosses.TryGetValue(targetId, out var t)) return;
+
+        t.AggroEntityId = 0;
+        t.TargetingMode = 0;
+        if (targetId == _currentTargetEntityId) TriggerTargetChanged(t);
+    }
+
+    private void OnCombatState(int entityId, int state)
+    {
+        (_source as IInternalEventRaise)?.RaiseCombatStateChanged(entityId, state);
+        if (!_knownBosses.TryGetValue(entityId, out var t)) return;
+
+        t.CombatState = state;
         if (entityId == _currentTargetEntityId) TriggerTargetChanged(t);
+    }
+
+    private void OnZoneMove(uint zoneId)
+    {
+        (_source as IInternalEventRaise)?.RaiseZoneMoved(zoneId);
+        if (zoneId <= int.MaxValue && _skills.IsDungeon((int)zoneId))
+            (_source as IInternalEventRaise)?.RaiseDungeonChanged((int)zoneId);
     }
 
     private void OnEntityRemoved(int entityId)
@@ -446,10 +563,21 @@ internal sealed class ProtocolPipeline : IDisposable
         => (_source as IInternalEventRaise)?.RaisePartyRequestReceived(member);
 
     private void OnDungeonDetected(int dungeonId, int stage)
-        => (_source as IInternalEventRaise)?.RaiseDungeonChanged(dungeonId);
+    {
+        if (dungeonId > 0)
+            (_source as IInternalEventRaise)?.RaiseZoneMoved((uint)dungeonId);
+        (_source as IInternalEventRaise)?.RaiseDungeonChanged(dungeonId);
+    }
 
     private void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
         => (_source as IInternalEventRaise)?.RaiseBuffEvent(entityId, buffId, type, durationMs, timestamp, casterId);
+
+    private void OnBuffRefresh(int entityId, int buffId, uint durationMs, long timestamp, int casterId)
+    {
+        var source = _source as IInternalEventRaise;
+        source?.RaiseBuffRefreshEvent(entityId, buffId, durationMs, timestamp, casterId);
+        source?.RaiseBuffEvent(entityId, buffId, 0, durationMs, timestamp, casterId);
+    }
 
     private void OnCharacterLookup(int entityId, string nickname, int serverId, int jobCode, int level, int combatPower)
     {
@@ -489,4 +617,11 @@ internal interface IInternalEventRaise
     void RaisePartyLeft();
     void RaiseDungeonChanged(int dungeonId);
     void RaiseBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId);
+    void RaiseBuffRefreshEvent(int entityId, int buffId, uint durationMs, long timestamp, int casterId);
+    void RaiseCombatStateChanged(int entityId, int state);
+    void RaiseRemainHpChanged(int targetId, uint remainHp);
+    void RaiseNpcGroggyChanged(int targetId, uint maxGroggy, uint currentGroggy, int groggyStatus);
+    void RaiseTargetOn(int targetId, int aggroId, int targetingMode);
+    void RaiseTargetOff(int targetId, int offMode);
+    void RaiseZoneMoved(uint zoneId);
 }

@@ -22,8 +22,6 @@ internal sealed class OverlayForm : Form
     private IPacketSource? _source;
     private readonly DpsMeter      _meter   = new();
     private readonly PartyTracker  _party   = new();
-    private readonly Dictionary<string, string> _partyTierCache = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _partyTierLoading = new(StringComparer.Ordinal);
     private DpsPipeline? _pipeline;
     private ProtocolPipeline? _protocol;
     private ForegroundWatcher? _fgWatcher;
@@ -31,6 +29,11 @@ internal sealed class OverlayForm : Form
     /// Optional override: when set before Load fires, OverlayForm uses this packet source
     /// instead of constructing a live PacketSniffer. Used for replay mode.
     public IPacketSource? PacketSourceOverride { get; set; }
+    public int InitialServerPortOverride { get; set; }
+    public bool ForceManagedPacketParser { get; set; }
+    public bool DisableForegroundWatcherForDebug { get; set; }
+    public bool SuppressExternalServicesForDebug { get; set; }
+    public bool ForceWebUpload { get; set; }
 
     private bool _locked;
     private bool _anonymous;
@@ -136,11 +139,18 @@ internal sealed class OverlayForm : Form
         _renderer.Init();
 
         _source ??= PacketSourceOverride ?? new PacketSniffer();
-        _protocol = new ProtocolPipeline(_source, log: msg => Console.Error.WriteLine(msg));
+        _protocol = new ProtocolPipeline(
+            _source,
+            log: msg => Console.Error.WriteLine(msg),
+            initialServerPort: InitialServerPortOverride,
+            forceManagedParser: ForceManagedPacketParser);
         _pipeline = new DpsPipeline(_source, _meter, _party);
+        _pipeline.SuppressExternalServices = SuppressExternalServicesForDebug;
+        _pipeline.ForceWebUpload = ForceWebUpload;
         _pipeline.DataPushed += OnDataPushed;
         _pipeline.CombatStarted += OnCombatStarted;
         _source.PartyRequestReceived += OnPartyRequestReceived;
+        Api.SkillLevelCache.Instance.DataUpdated += OnSkillLevelDataUpdated;
         try { _pipeline.Start(); }
         catch (Exception ex)
         {
@@ -150,7 +160,7 @@ internal sealed class OverlayForm : Form
         // Foreground watcher: hide overlay when Aion 2 is not active.
         _fgWatcher = new ForegroundWatcher("aion2");
         _fgWatcher.ActiveChanged += OnAionActiveChanged;
-        if (AppSettings.Instance.OverlayOnlyWhenAion)
+        if (AppSettings.Instance.OverlayOnlyWhenAion && !DisableForegroundWatcherForDebug)
             _fgWatcher.Start();
 
         RequestRender();
@@ -177,6 +187,22 @@ internal sealed class OverlayForm : Form
         catch { }
     }
 
+    private void OnSkillLevelDataUpdated()
+    {
+        if (!IsHandleCreated || IsDisposed) return;
+        try
+        {
+            BeginInvoke(() =>
+            {
+                if (_renderer == null || IsDisposed) return;
+                _renderer.SetPartyData(BuildPartyRows());
+                _pipeline?.RefreshCachedData();
+                RequestRender();
+            });
+        }
+        catch { }
+    }
+
     private void OnCombatStarted()
     {
         if (_renderer == null || !IsHandleCreated || IsDisposed) return;
@@ -194,12 +220,11 @@ internal sealed class OverlayForm : Form
         catch { }
     }
 
-    /// 07 97 party-request packet → pop a toast with the requester's tier
-    /// (fetched async from /api/players/tier on the web side).
+    /// 07 97 party-request packet → pop a toast for the requester.
     private void OnPartyRequestReceived(PartyMember member)
     {
         if (!IsHandleCreated || IsDisposed) return;
-        if (!AppSettings.Instance.LookupToastEnabled) return;
+        if (!AppSettings.Instance.EffectivePartyRequestToastEnabled) return;
         // Only show toasts for requests with enough identity to look up.
         if (string.IsNullOrEmpty(member.Nickname)) return;
         var identity = Api.PlayncClient.NormalizeCharacterQuery(member.Nickname, member.ServerId, member.ServerName);
@@ -229,6 +254,7 @@ internal sealed class OverlayForm : Form
         var list = new List<OverlayRenderer.PartyRow>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         PartyMember[] snapshot = _party.SnapshotMembers();
+        bool allowExternalLookups = _pipeline?.ExternalLookupsAllowed ?? true;
         foreach (var pm in snapshot)
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
@@ -251,12 +277,10 @@ internal sealed class OverlayForm : Form
                 if (cp == 0 && api.CombatPower > 0) cp = api.CombatPower;
                 if (score == 0 && api.CombatScore > 0) score = api.CombatScore;
             }
-            else if (sid > 0)
+            else if (sid > 0 && allowExternalLookups)
             {
                 Api.SkillLevelCache.Instance.EnsureLoaded(lookupName, sid);
             }
-
-            string tier = GetCachedTier(lookupName, sid);
 
             string displayName = !string.IsNullOrEmpty(sname) && !lookupName.Contains('[') ? $"{lookupName}[{sname}]" : lookupName;
             if (!seen.Add(displayName)) continue;
@@ -270,7 +294,6 @@ internal sealed class OverlayForm : Form
                 ServerName: sname,
                 IsSelf: pm.IsSelf,
                 Level: pm.Level,
-                Tier: tier,
                 IsPartyRequest: pm.IsPartyRequest,
                 PartyRequestOrder: pm.PartyRequestOrder));
         }
@@ -292,62 +315,6 @@ internal sealed class OverlayForm : Form
         int cp = b.CombatPower.CompareTo(a.CombatPower);
         return cp != 0 ? cp : string.Compare(a.Name, b.Name, StringComparison.Ordinal);
     }
-
-    private string GetCachedTier(string nickname, int serverId)
-    {
-        if (string.IsNullOrWhiteSpace(nickname) || serverId <= 0) return "";
-        string key = TierKey(Api.PlayerTierClient.CleanPlayerName(nickname), serverId);
-        if (_partyTierCache.TryGetValue(key, out var tier)) return tier;
-        EnsureTierLoaded(nickname, serverId, key);
-        return "";
-    }
-
-    private void EnsureTierLoaded(string nickname, int serverId, string key)
-    {
-        if (_partyTierLoading.Contains(key)) return;
-        _partyTierLoading.Add(key);
-
-        _ = System.Threading.Tasks.Task.Run(async () =>
-        {
-            string? tier = null;
-            try
-            {
-                var resp = await Api.PlayerTierClient.FetchAsync(nickname, serverId).ConfigureAwait(false);
-                if (resp?.Dungeons is { Count: > 0 })
-                {
-                    var pick = resp.Dungeons[0];
-                    if (_pipeline?.CurrentDungeonId is int dgId)
-                    {
-                        var current = resp.Dungeons.Find(d => d.DungeonId == dgId);
-                        if (current != null) pick = current;
-                    }
-                    if (!string.IsNullOrWhiteSpace(pick.Tier)) tier = pick.Tier;
-                }
-                else if (resp != null)
-                {
-                    tier = "Unranked";
-                }
-            }
-            catch { }
-
-            if (IsDisposed) return;
-            try
-            {
-                BeginInvoke(() =>
-                {
-                    _partyTierLoading.Remove(key);
-                    if (tier != null)
-                        _partyTierCache[key] = tier;
-                    _renderer?.SetPartyData(BuildPartyRows());
-                    RequestRender();
-                });
-            }
-            catch { }
-        });
-    }
-
-    private static string TierKey(string nickname, int serverId)
-        => $"{serverId}\u001f{nickname.Trim()}";
 
     /// Render the D2D frame and present via UpdateLayeredWindow.
     private void RequestRender()
@@ -383,6 +350,7 @@ internal sealed class OverlayForm : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        Api.SkillLevelCache.Instance.DataUpdated -= OnSkillLevelDataUpdated;
         _fgWatcher?.Dispose();
         _lockBtn?.Close();
         _pipeline?.Dispose();

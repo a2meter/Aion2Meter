@@ -12,7 +12,9 @@ internal sealed class SkillLevelCache
     private static readonly Lazy<SkillLevelCache> _instance = new(() => new());
     public static SkillLevelCache Instance => _instance.Value;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(15);
-    private static readonly SemaphoreSlim FetchGate = new(2, 2);
+    private static readonly SemaphoreSlim FetchGate = new(1, 1);
+
+    public event Action? DataUpdated;
 
     /// Key: "nickname:serverId" → fetched data.
     private readonly ConcurrentDictionary<string, CharacterSkillData> _cache = new();
@@ -50,6 +52,7 @@ internal sealed class SkillLevelCache
         _cache[key] = data;
         _lastAttempt.TryRemove(key, out _);
         _pending.TryRemove(key, out _);
+        RaiseDataUpdated();
     }
 
     /// Trigger an async fetch if not already cached or in-flight.
@@ -81,7 +84,7 @@ internal sealed class SkillLevelCache
                     var scoreResult = await Calc.CombatScore.QueryCombatScore(identity.ServerId, cleanName).ConfigureAwait(false);
                     if (scoreResult != null)
                     {
-                        _cache[key] = new CharacterSkillData
+                        Store(cleanName, identity.ServerId, new CharacterSkillData
                         {
                             CharacterId = scoreResult.CharacterId,
                             ServerId = scoreResult.ServerId,
@@ -90,8 +93,7 @@ internal sealed class SkillLevelCache
                             CombatScore = scoreResult.Score,
                             SkillLevels = scoreResult.SkillLevels,
                             DpSkills = scoreResult.DpSkills,
-                        };
-                        _lastAttempt.TryRemove(key, out _);
+                        });
                     }
                 }
                 finally
@@ -108,6 +110,12 @@ internal sealed class SkillLevelCache
                 _pending.TryRemove(key, out _);
             }
         });
+    }
+
+    private void RaiseDataUpdated()
+    {
+        try { DataUpdated?.Invoke(); }
+        catch { }
     }
 
     private static string BuildKey(string nickname, int serverId) => $"{nickname}:{serverId}";

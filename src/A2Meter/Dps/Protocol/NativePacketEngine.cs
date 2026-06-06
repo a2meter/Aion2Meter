@@ -27,6 +27,14 @@ internal sealed unsafe class NativePacketEngine : IDisposable
     [DllImport(DLL)] private static extern void PE_SetOnEntityRemoved(int handle, nint ctx, nint cb);
     [DllImport(DLL)] private static extern void PE_SetOnBossHp(int handle, nint ctx, nint cb);
     [DllImport(DLL)] private static extern void PE_SetOnBuff(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnBuffRefresh(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnCombatState(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnRemainHP(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnNpcGroggy(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnTargetOn(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnTargetOff(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnZoneMove(int handle, nint ctx, nint cb);
+    [DllImport(DLL)] private static extern void PE_SetOnPartyEvent(int handle, nint ctx, nint cb);
     [DllImport(DLL)] private static extern void PE_SetOnLog(int handle, nint ctx, nint cb);
     [DllImport(DLL)] private static extern void PE_SetResolveSkill(int handle, nint ctx, nint cb);
     [DllImport(DLL)] private static extern void PE_SetIsMobBoss(int handle, nint ctx, nint cb);
@@ -44,6 +52,14 @@ internal sealed unsafe class NativePacketEngine : IDisposable
     public event Action<int>? EntityRemoved;
     public event Action<int, int>? BossHp;
     public event Action<int, int, int, uint, long, int>? Buff;
+    public event Action<int, int, uint, long, int>? BuffRefresh;
+    public event Action<int, int>? CombatState;
+    public event Action<int, uint>? RemainHp;
+    public event Action<int, uint, uint, int>? NpcGroggy;
+    public event Action<int, int, int>? TargetOn;
+    public event Action<int, int>? TargetOff;
+    public event Action<uint>? ZoneMove;
+    public event Action<int, int, int, uint, int, string, int, int, int, int>? PartyEvent;
 
     // ─── State ──────────────────────────────────────────────────────────
 
@@ -96,6 +112,22 @@ internal sealed unsafe class NativePacketEngine : IDisposable
                 (nint)(delegate* unmanaged<nint, int, int, void>)(&OnBossHp));
             PE_SetOnBuff(engine._handle, ctx,
                 (nint)(delegate* unmanaged<nint, int, int, int, uint, long, int, void>)(&OnBuff));
+            PE_SetOnBuffRefresh(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, int, uint, long, int, void>)(&OnBuffRefresh));
+            PE_SetOnCombatState(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, int, void>)(&OnCombatState));
+            PE_SetOnRemainHP(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, uint, void>)(&OnRemainHp));
+            PE_SetOnNpcGroggy(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, uint, uint, int, void>)(&OnNpcGroggy));
+            PE_SetOnTargetOn(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, int, int, void>)(&OnTargetOn));
+            PE_SetOnTargetOff(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, int, void>)(&OnTargetOff));
+            PE_SetOnZoneMove(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, uint, void>)(&OnZoneMove));
+            PE_SetOnPartyEvent(engine._handle, ctx,
+                (nint)(delegate* unmanaged<nint, int, int, int, uint, int, nint, int, int, int, int, int, void>)(&OnPartyEvent));
             PE_SetOnLog(engine._handle, ctx,
                 (nint)(delegate* unmanaged<nint, int, nint, int, void>)(&OnLog));
             PE_SetResolveSkill(engine._handle, ctx,
@@ -218,6 +250,62 @@ internal sealed unsafe class NativePacketEngine : IDisposable
         uint durationMs, long timestamp, int casterId)
     {
         Resolve(ctx)?.Buff?.Invoke(entityId, buffId, type, durationMs, timestamp, casterId);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnBuffRefresh(nint ctx, int entityId, int buffId,
+        uint durationMs, long timestamp, int casterId)
+    {
+        Resolve(ctx)?.BuffRefresh?.Invoke(entityId, buffId, durationMs, timestamp, casterId);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnCombatState(nint ctx, int entityId, int state)
+    {
+        Resolve(ctx)?.CombatState?.Invoke(entityId, state);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnRemainHp(nint ctx, int targetId, uint remainHp)
+    {
+        Resolve(ctx)?.RemainHp?.Invoke(targetId, remainHp);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnNpcGroggy(nint ctx, int targetId, uint maxGroggy,
+        uint currentGroggy, int groggyStatus)
+    {
+        Resolve(ctx)?.NpcGroggy?.Invoke(targetId, maxGroggy, currentGroggy, groggyStatus);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnTargetOn(nint ctx, int targetId, int aggroId, int targetingMode)
+    {
+        Resolve(ctx)?.TargetOn?.Invoke(targetId, aggroId, targetingMode);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnTargetOff(nint ctx, int targetId, int offMode)
+    {
+        Resolve(ctx)?.TargetOff?.Invoke(targetId, offMode);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnZoneMove(nint ctx, uint zoneId)
+    {
+        Resolve(ctx)?.ZoneMove?.Invoke(zoneId);
+    }
+
+    [UnmanagedCallersOnly]
+    private static void OnPartyEvent(nint ctx, int eventType, int memberIndex, int totalMembers,
+        uint characterId, int serverId, nint nickPtr, int nickLen, int jobCode, int level,
+        int combatPower, int itemLevel)
+    {
+        var engine = Resolve(ctx);
+        if (engine == null) return;
+        string nick = nickLen > 0 ? Encoding.UTF8.GetString((byte*)nickPtr, nickLen) : "";
+        engine.PartyEvent?.Invoke(eventType, memberIndex, totalMembers, characterId,
+            serverId, nick, jobCode, level, combatPower, itemLevel);
     }
 
     [UnmanagedCallersOnly]

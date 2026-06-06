@@ -35,13 +35,20 @@ internal interface IPacketSource : IDisposable
     event Action<int>? EntityRemoved;
     event Action<PartyMember>? PartyMemberSeen;
     /// Fired specifically when a party-request packet arrives (07 97). Distinct
-    /// from PartyMemberSeen — used to trigger the tier lookup popup in the UI.
+    /// from PartyMemberSeen — used to trigger the party-request toast in the UI.
     event Action<PartyMember>? PartyRequestReceived;
     event Action? PartyLeft;
     /// Dungeon enter/exit. Arg = dungeonId (>0 = entered, 0 = left).
     event Action<int>? DungeonChanged;
     /// Buff apply/remove. Args: (entityId, buffId, type, durationMs, timestamp, casterId).
     event Action<int, int, int, uint, long, int>? BuffEvent;
+    event Action<int, int, uint, long, int>? BuffRefreshEvent;
+    event Action<int, int>? CombatStateChanged;
+    event Action<int, uint>? RemainHpChanged;
+    event Action<int, uint, uint, int>? NpcGroggyChanged;
+    event Action<int, int, int>? TargetOn;
+    event Action<int, int>? TargetOff;
+    event Action<uint>? ZoneMoved;
 
     void Start();
     void Stop();

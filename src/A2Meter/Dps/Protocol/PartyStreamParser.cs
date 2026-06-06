@@ -20,7 +20,7 @@ internal sealed class PartyStreamParser
         public int  CombatPower;
     }
 
-    private static readonly byte[] Magic = new byte[] { 0x06, 0x00, 0x36 };
+    private static byte[] Magic => ProtocolOpcodeConfig.PacketMagic;
 
     private readonly List<byte> _buffer = new();
     private readonly Dictionary<string, MemberHint> _memberHints = new(StringComparer.Ordinal);
@@ -145,7 +145,7 @@ internal sealed class PartyStreamParser
     {
         for (int i = 0; i < packet.Length - 10; i++)
         {
-            if (packet[i] != 2 || packet[i + 1] != 151) continue;
+            if (packet[i] != ProtocolOpcodeConfig.PartyUpdate || packet[i + 1] != ProtocolOpcodeConfig.PartyMarker) continue;
 
             int p = i + 2;
             if (p + 4 >= packet.Length || packet[p + 3] != 0) continue;
@@ -175,7 +175,7 @@ internal sealed class PartyStreamParser
     {
         for (int i = 0; i < packet.Length - 4; i++)
         {
-            if (packet[i] != 2 || packet[i + 1] != 151) continue;
+            if (packet[i] != ProtocolOpcodeConfig.PartyUpdate || packet[i + 1] != ProtocolOpcodeConfig.PartyMarker) continue;
 
             int blockStart = -1;
             int blockLen = 0;
@@ -279,8 +279,8 @@ internal sealed class PartyStreamParser
     {
         for (int i = 0; i < packet.Length - 1; i++)
         {
-            if (packet[i] == 42 && packet[i + 1] == 151) { ArmBoardRefresh(); break; }
-            if (packet[i] == 19 && packet[i + 1] == 151 && i + 3 < packet.Length && packet[i + 2] == 0 && packet[i + 3] == 0)
+            if (packet[i] == ProtocolOpcodeConfig.PartyBoardRefresh && packet[i + 1] == ProtocolOpcodeConfig.PartyMarker) { ArmBoardRefresh(); break; }
+            if (packet[i] == ProtocolOpcodeConfig.PartyBoardControl && packet[i + 1] == ProtocolOpcodeConfig.PartyMarker && i + 3 < packet.Length && packet[i + 2] == 0 && packet[i + 3] == 0)
             { ArmBoardRefresh(); break; }
         }
     }
@@ -289,7 +289,7 @@ internal sealed class PartyStreamParser
     {
         for (int i = 0; i < packet.Length - 1; i++)
         {
-            if (packet[i] == 29 && packet[i + 1] == 151 && i + 3 < packet.Length && packet[i + 2] == 0 && packet[i + 3] == 0)
+            if (packet[i] == ProtocolOpcodeConfig.PartyLeave && packet[i + 1] == ProtocolOpcodeConfig.PartyMarker && i + 3 < packet.Length && packet[i + 2] == 0 && packet[i + 3] == 0)
             { ArmPendingPartyLeft(); break; }
         }
     }
@@ -306,12 +306,14 @@ internal sealed class PartyStreamParser
         if (p + 1 >= packet.Length) return false;
 
         byte op = packet[p];
-        if (packet[p + 1] != 151) return false;
+        if (packet[p + 1] != ProtocolOpcodeConfig.PartyMarker) return false;
 
         int dataOff = p + 2;
 
         // Opcodes other than 0x2A advance the grace counters on every frame.
-        if (op != 42) { AdvanceBoardRefresh(); AdvancePendingPartyLeft(); }
+        if (op != ProtocolOpcodeConfig.PartyBoardRefresh) { AdvanceBoardRefresh(); AdvancePendingPartyLeft(); }
+
+        op = NormalizePartyOpcode(op);
 
         switch (op)
         {
@@ -450,6 +452,19 @@ internal sealed class PartyStreamParser
                 return false;
             }
         }
+    }
+
+    private static byte NormalizePartyOpcode(byte op)
+    {
+        if (op == ProtocolOpcodeConfig.PartyBoardControl) return 19;
+        if (op == ProtocolOpcodeConfig.PartyList) return 1;
+        if (op == ProtocolOpcodeConfig.PartyUpdate) return 2;
+        if (op == ProtocolOpcodeConfig.PartyRequest) return 7;
+        if (op == ProtocolOpcodeConfig.PartyAccept) return 11;
+        if (op == ProtocolOpcodeConfig.PartyDungeonExit) return 4;
+        if (op == ProtocolOpcodeConfig.PartyLeave) return 29;
+        if (op == ProtocolOpcodeConfig.PartyBoardRefresh) return 42;
+        return op;
     }
 
     private void TryParseDungeonId(ReadOnlySpan<byte> packet, int dataOffset)

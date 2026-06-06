@@ -8,7 +8,6 @@ using System.Net.Http;
 using System.Windows.Forms;
 using A2Meter.Api;
 using A2Meter.Core;
-using A2Meter.Data;
 using A2Meter.Dps;
 
 namespace A2Meter.Forms;
@@ -19,16 +18,16 @@ internal sealed class PartyRequestToastForm : Form
 {
     private const int ToastWidth = 420;
     private const int ToastHeight = 176;
+    private const int ToastBottomMargin = 6;
+    private const int ToastGap = 8;
+
+    private static readonly object ActiveToastsLock = new();
+    private static readonly Dictionary<Form, List<PartyRequestToastForm>> ActiveToasts = new();
     private static readonly HttpClient ImageHttp = new() { Timeout = TimeSpan.FromSeconds(5) };
 
     private readonly Form _parent;
     private readonly PartyMember _member;
-    private readonly int? _currentDungeonId;
 
-    private string _tierText = "티어 조회 중...";
-    private string _tier = "";
-    private Image? _tierIcon;
-    private Color  _tierColor = Color.FromArgb(140, 150, 170);
     private string _dungeonText = "";
     private string _dpStatusText = "DP 스킬 조회 중...";
     private List<CharacterDpSkill> _dpSkills = new();
@@ -39,7 +38,6 @@ internal sealed class PartyRequestToastForm : Form
     {
         _parent = parent;
         _member = member;
-        _currentDungeonId = currentDungeonId;
 
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -62,7 +60,7 @@ internal sealed class PartyRequestToastForm : Form
         Paint += OnPaint;
         _dungeonText = BuildDungeonHint(currentDungeonId);
 
-        PlaceAtBottom();
+        RegisterToast();
         parent.Move += OnParentMoved;
         parent.Resize += OnParentMoved;
 
@@ -70,6 +68,7 @@ internal sealed class PartyRequestToastForm : Form
         {
             parent.Move -= OnParentMoved;
             parent.Resize -= OnParentMoved;
+            UnregisterToast();
             _autoCloseTimer?.Stop();
             _autoCloseTimer?.Dispose();
             foreach (var icon in _dpIcons.Values)
@@ -77,69 +76,66 @@ internal sealed class PartyRequestToastForm : Form
             _dpIcons.Clear();
         };
 
-        _ = LoadTierAsync();
         _ = LoadDpSkillsAsync();
     }
 
-    private void OnParentMoved(object? sender, EventArgs e) => PlaceAtBottom();
+    private void OnParentMoved(object? sender, EventArgs e) => RepositionActiveToasts(_parent);
 
-    private void PlaceAtBottom()
+    private void RegisterToast()
     {
-        if (_parent.IsDisposed) return;
-        int x = _parent.Left + (_parent.Width - Width) / 2;
-        int y = _parent.Bottom - Height - 6;
-        Location = new Point(x, y);
+        lock (ActiveToastsLock)
+        {
+            if (!ActiveToasts.TryGetValue(_parent, out var toasts))
+            {
+                toasts = new List<PartyRequestToastForm>();
+                ActiveToasts[_parent] = toasts;
+            }
+
+            toasts.RemoveAll(t => t.IsDisposed);
+            toasts.Add(this);
+        }
+
+        RepositionActiveToasts(_parent);
     }
 
-    private async System.Threading.Tasks.Task LoadTierAsync()
+    private void UnregisterToast()
     {
-        try
+        lock (ActiveToastsLock)
         {
-            var resp = await PlayerTierClient.FetchAsync(_member.Nickname, _member.ServerId).ConfigureAwait(false);
-            if (IsDisposed) return;
-
-            if (resp == null || resp.Dungeons.Count == 0)
+            if (ActiveToasts.TryGetValue(_parent, out var toasts))
             {
-                BeginInvoke(() =>
-                {
-                    _tierText = "기록 없음";
-                    SetTierIcon("");
-                    _tierColor = Color.FromArgb(120, 130, 150);
-                    Invalidate();
-                });
-                return;
+                toasts.Remove(this);
+                toasts.RemoveAll(t => t.IsDisposed);
+                if (toasts.Count == 0)
+                    ActiveToasts.Remove(_parent);
             }
-
-            PlayerTierClient.DungeonTier pick = resp.Dungeons[0];
-            string prefix = "최고";
-            if (_currentDungeonId is int dgId)
-            {
-                var match = resp.Dungeons.Find(d => d.DungeonId == dgId);
-                if (match != null) { pick = match; prefix = "현재 던전"; }
-            }
-
-            var chosen = pick;
-            var label = prefix;
-            BeginInvoke(() =>
-            {
-                string tier = chosen.Tier;
-                _tierText = $"{label} · 표본 {chosen.SampleCount}";
-                SetTierIcon(tier);
-                _tierColor = TierColor(tier);
-                Invalidate();
-            });
         }
-        catch
+
+        RepositionActiveToasts(_parent);
+    }
+
+    private static void RepositionActiveToasts(Form parent)
+    {
+        if (parent.IsDisposed) return;
+
+        List<PartyRequestToastForm> toasts;
+        lock (ActiveToastsLock)
         {
-            if (IsDisposed) return;
-            BeginInvoke(() =>
-            {
-                _tierText = "조회 실패";
-                SetTierIcon("");
-                _tierColor = Color.FromArgb(180, 90, 90);
-                Invalidate();
-            });
+            if (!ActiveToasts.TryGetValue(parent, out var active)) return;
+            active.RemoveAll(t => t.IsDisposed);
+            toasts = active.ToList();
         }
+
+        for (int i = 0; i < toasts.Count; i++)
+            toasts[i].PlaceAtBottom(i);
+    }
+
+    private void PlaceAtBottom(int stackOrder)
+    {
+        if (_parent.IsDisposed || IsDisposed) return;
+        int x = _parent.Left + (_parent.Width - Width) / 2;
+        int y = _parent.Bottom - Height - ToastBottomMargin + stackOrder * (Height + ToastGap);
+        Location = new Point(x, y);
     }
 
     private async System.Threading.Tasks.Task LoadDpSkillsAsync()
@@ -207,28 +203,6 @@ internal sealed class PartyRequestToastForm : Form
         }
     }
 
-    private void SetTierIcon(string tier)
-    {
-        _tier = tier;
-        _tierIcon = TierIconCache.Get(tier);
-    }
-
-    private static Color TierColor(string tier) => tier switch
-    {
-        "Challenger1" => Color.FromArgb(255, 120, 80),
-        "Challenger2" => Color.FromArgb(255, 120, 80),
-        "Challenger3" => Color.FromArgb(255, 120, 80),
-        "Challenger"  => Color.FromArgb(255, 120, 80),
-        "Grandmaster" => Color.FromArgb(255, 90, 90),
-        "Master"      => Color.FromArgb(220, 80, 220),
-        "Diamond"     => Color.FromArgb(110, 200, 240),
-        "Platinum"    => Color.FromArgb(140, 200, 180),
-        "Gold"        => Color.FromArgb(230, 200, 100),
-        "Silver"      => Color.FromArgb(180, 190, 200),
-        "Bronze"      => Color.FromArgb(180, 130, 80),
-        _             => Color.FromArgb(140, 150, 170),
-    };
-
     protected override CreateParams CreateParams
     {
         get
@@ -262,7 +236,7 @@ internal sealed class PartyRequestToastForm : Form
         using (var path = RoundRect(0, 0, Width - 1, Height - 1, 6))
             g.DrawPath(pen, path);
 
-        using (var accent = new SolidBrush(_tierColor))
+        using (var accent = new SolidBrush(theme.AccentColor))
             g.FillRectangle(accent, 0, 10, 4, Height - 20);
 
         using (var headerFont = new Font(fn, fs - 1f, FontStyle.Bold))
@@ -292,18 +266,7 @@ internal sealed class PartyRequestToastForm : Form
             g.DrawString(_dungeonText, dgFont, dgBrush, new RectangleF(12, 68, Width - 24, 18), dgFormat);
         }
 
-        using (var infoFont = new Font(fn, Math.Max(8f, fs - 2f)))
-        using (var infoBrush = new SolidBrush(theme.TextDimColor))
-        using (var infoFormat = new StringFormat
-        {
-            Trimming = StringTrimming.EllipsisCharacter,
-            FormatFlags = StringFormatFlags.NoWrap,
-        })
-            g.DrawString(_tierText, infoFont, infoBrush, new RectangleF(12, 91, 112, 20), infoFormat);
-
-        using var tierFont = new Font(fn, Math.Max(8f, fs - 1.5f), FontStyle.Bold);
-        DrawTierBadge(g, tierFont, "종합", _tier, _tierIcon, 130, 87);
-        DrawDpSkills(g, fn, fs, theme, 116);
+        DrawDpSkills(g, fn, fs, theme, 94);
     }
 
     private void DrawDpSkills(Graphics g, string fontName, float fontSize, AppSettings.ThemeColors theme, float y)
@@ -350,42 +313,6 @@ internal sealed class PartyRequestToastForm : Form
         }
     }
 
-    private static void DrawTierBadge(Graphics g, Font font, string label, string tier, Image? icon, float x, float y)
-    {
-        using var labelBrush = new SolidBrush(Color.FromArgb(170, 180, 200));
-        g.DrawString(label, font, labelBrush, x, y + 5);
-
-        float iconX = x + 36;
-        if (icon != null)
-            g.DrawImage(icon, new RectangleF(iconX, y, 26, 26));
-        else
-        {
-            using var border = new Pen(Color.FromArgb(90, 100, 120));
-            g.DrawRectangle(border, iconX, y, 26, 26);
-        }
-
-        using var textBrush = new SolidBrush(TierColor(tier));
-        g.DrawString(TierShortKo(tier), font, textBrush, iconX + 29, y + 5);
-    }
-
-    private static string TierShortKo(string tier) => tier switch
-    {
-        "Challenger1" => "챌린저 1위",
-        "Challenger2" => "챌린저 2위",
-        "Challenger3" => "챌린저 3위",
-        "Challenger"  => "챌린저",
-        "Grandmaster" => "그마",
-        "Master"      => "마스터",
-        "Diamond"     => "다이아",
-        "Platinum"    => "플래티넘",
-        "Gold"        => "골드",
-        "Silver"      => "실버",
-        "Bronze"      => "브론즈",
-        "Iron"        => "아이언",
-        "Unranked"    => "언랭크",
-        _             => "언랭크",
-    };
-
     private static GraphicsPath RoundRect(int x, int y, int w, int h, int r)
     {
         var p = new GraphicsPath();
@@ -402,9 +329,12 @@ internal sealed class PartyRequestToastForm : Form
         if (dungeonId is not int dgId) return "";
         try
         {
-            var db = GameDatabase.Instance;
-            var info = db.GetDungeonInfo(dgId);
-            var bosses = db.GetDungeonBosses(dgId);
+            var snapshot = GameDataClient.Snapshot;
+            var info = snapshot.Dungeons.FirstOrDefault(d => d.Id == dgId);
+            var bosses = snapshot.DungeonBosses
+                .Where(b => b.DungeonId == dgId)
+                .OrderBy(b => b.Ord)
+                .ToList();
             if (info == null && bosses.Count == 0) return $"현재 던전 #{dgId}";
 
             var dungeonName = info == null
@@ -412,7 +342,7 @@ internal sealed class PartyRequestToastForm : Form
                 : $"{info.BaseName} {info.Tier}".Trim();
             if (bosses.Count == 0) return $"현재 던전: {dungeonName}";
 
-            var bossText = string.Join(" / ", bosses.OrderBy(b => b.Order).Select(b => $"{b.Order}N {b.Name}"));
+            var bossText = string.Join(" / ", bosses.Select(b => $"{b.Ord}N {b.BossName}"));
             return $"현재 던전: {dungeonName} · {bossText}";
         }
         catch

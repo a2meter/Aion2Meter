@@ -124,6 +124,70 @@ internal static unsafe class Exports
         s.OnBuff = (delegate* unmanaged<nint, int, int, int, uint, long, int, void>)cb;
     }
 
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnBuffRefresh")]
+    public static void PE_SetOnBuffRefresh(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnBuffRefresh = (delegate* unmanaged<nint, int, int, uint, long, int, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnCombatState")]
+    public static void PE_SetOnCombatState(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnCombatState = (delegate* unmanaged<nint, int, int, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnRemainHP")]
+    public static void PE_SetOnRemainHP(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnRemainHp = (delegate* unmanaged<nint, int, uint, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnNpcGroggy")]
+    public static void PE_SetOnNpcGroggy(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnNpcGroggy = (delegate* unmanaged<nint, int, uint, uint, int, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnTargetOn")]
+    public static void PE_SetOnTargetOn(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnTargetOn = (delegate* unmanaged<nint, int, int, int, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnTargetOff")]
+    public static void PE_SetOnTargetOff(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnTargetOff = (delegate* unmanaged<nint, int, int, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnZoneMove")]
+    public static void PE_SetOnZoneMove(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnZoneMove = (delegate* unmanaged<nint, uint, void>)cb;
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "PE_SetOnPartyEvent")]
+    public static void PE_SetOnPartyEvent(int handle, nint ctx, nint cb)
+    {
+        var s = EngineState.Get(handle); if (s == null) return;
+        s.Ctx = ctx;
+        s.OnPartyEvent = (delegate* unmanaged<nint, int, int, int, uint, int, nint, int, int, int, int, int, void>)cb;
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "PE_SetOnLog")]
     public static void PE_SetOnLog(int handle, nint ctx, nint cb)
     {

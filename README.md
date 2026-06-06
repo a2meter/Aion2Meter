@@ -151,6 +151,7 @@ A2Meter.exe --replay ./captures/<세션ID> --fast
 |---|---|
 | `app_settings.json` | 투명도, 테마, 단축키, 패널 크기, 동의 버전 등 |
 | `window_state.json` | 오버레이 창의 좌표/크기 (해상도/모니터 변경 시 자동 보정) |
+| `gamedata\meter-bootstrap.json` | A2Web 장애 시에도 DPS 인식에 쓰는 opcode/스킬/던전 bootstrap 캐시 |
 | `*.bak` | 원자적 쓰기 실패 시 복구용 백업본 |
 
 쓰기는 [AppSettings.SaveDebounced](src/A2Meter/Core/AppSettings.cs)로 약 400ms 디바운스되며,

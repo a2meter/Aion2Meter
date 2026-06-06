@@ -1,7 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/A2Capture/A2Capture.csproj" />
+    <Project Path="src/A2DebugPacketTool/A2DebugPacketTool.csproj" />
     <Project Path="src/A2Inspect/A2Inspect.csproj" />
     <Project Path="src/A2Meter/A2Meter.csproj" />
+    <Project Path="src/A2Updater/A2Updater.csproj" />
+    <Project Path="src/A2Uninstaller/A2Uninstaller.csproj" />
   </Folder>
 </Solution>

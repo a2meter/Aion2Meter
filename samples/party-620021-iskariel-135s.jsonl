@@ -1,0 +1,1230 @@
+{"deltaTime":0,"Opcode":"SelfInfo","EntityId":1001,"Name":"\uB0A8\uD790","JobCode":29,"ServerId":1002,"Level":55,"CombatPower":464812}
+{"deltaTime":0,"Opcode":"CombatPower","EntityId":1001,"CombatPower":464812}
+{"deltaTime":270,"Opcode":"PartyRequest","EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137}
+{"deltaTime":440,"Opcode":"PartyRequest","EntityId":2002,"Name":"\uC790\uD53C","JobCode":33,"ServerId":1003,"Level":55,"CombatPower":465174}
+{"deltaTime":480,"Opcode":"PartyAccept","EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137}
+{"deltaTime":510,"Opcode":"PartyUpdate","DungeonId":620021,"Stage":0,"Members":[{"EntityId":1001,"Name":"\uB0A8\uD790","JobCode":29,"ServerId":1002,"Level":55,"CombatPower":464812},{"EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137}]}
+{"deltaTime":610,"Opcode":"PartyRequest","EntityId":2003,"Name":"\uAE40\uC0B4\uC131","JobCode":17,"ServerId":2001,"Level":55,"CombatPower":537321}
+{"deltaTime":660,"Opcode":"PartyAccept","EntityId":2002,"Name":"\uC790\uD53C","JobCode":33,"ServerId":1003,"Level":55,"CombatPower":465174}
+{"deltaTime":690,"Opcode":"PartyUpdate","DungeonId":620021,"Stage":0,"Members":[{"EntityId":1001,"Name":"\uB0A8\uD790","JobCode":29,"ServerId":1002,"Level":55,"CombatPower":464812},{"EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137},{"EntityId":2002,"Name":"\uC790\uD53C","JobCode":33,"ServerId":1003,"Level":55,"CombatPower":465174}]}
+{"deltaTime":840,"Opcode":"PartyAccept","EntityId":2003,"Name":"\uAE40\uC0B4\uC131","JobCode":17,"ServerId":2001,"Level":55,"CombatPower":537321}
+{"deltaTime":870,"Opcode":"PartyUpdate","DungeonId":620021,"Stage":0,"Members":[{"EntityId":1001,"Name":"\uB0A8\uD790","JobCode":29,"ServerId":1002,"Level":55,"CombatPower":464812},{"EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137},{"EntityId":2002,"Name":"\uC790\uD53C","JobCode":33,"ServerId":1003,"Level":55,"CombatPower":465174},{"EntityId":2003,"Name":"\uAE40\uC0B4\uC131","JobCode":17,"ServerId":2001,"Level":55,"CombatPower":537321}]}
+{"deltaTime":1000,"Opcode":"DungeonEnter","DungeonId":620021,"Stage":0}
+{"deltaTime":1100,"Opcode":"PartyUpdate","DungeonId":620021,"Stage":0,"Members":[{"EntityId":1001,"Name":"\uB0A8\uD790","JobCode":29,"ServerId":1002,"Level":55,"CombatPower":464812},{"EntityId":2001,"Name":"\uAE40\uCC0D","JobCode":9,"ServerId":1002,"Level":55,"CombatPower":552137},{"EntityId":2002,"Name":"\uC790\uD53C","JobCode":33,"ServerId":1003,"Level":55,"CombatPower":465174},{"EntityId":2003,"Name":"\uAE40\uC0B4\uC131","JobCode":17,"ServerId":2001,"Level":55,"CombatPower":537321}]}
+{"deltaTime":1200,"Opcode":"MobSpawn","EntityId":9001,"BossCode":2301059,"Hp":100000000}
+{"deltaTime":1210,"Opcode":"BossHp","EntityId":9001,"Hp":100000000}
+{"deltaTime":1452,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1457,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":1471,"Opcode":"Buff","EntityId":2002,"BuffId":183300071,"BuffName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","DurationMs":10000,"CasterId":2002}
+{"deltaTime":1478,"Opcode":"Buff","EntityId":9001,"BuffId":174000201,"BuffName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","DurationMs":20000,"CasterId":1001}
+{"deltaTime":1551,"Opcode":"Buff","EntityId":9001,"BuffId":170800201,"BuffName":"\uC57D\uD654\uC758 \uB099\uC778","DurationMs":10000,"CasterId":1001}
+{"deltaTime":1556,"Opcode":"Buff","EntityId":2002,"BuffId":181600001,"BuffName":"\uC9C8\uC8FC\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":1557,"Opcode":"Buff","EntityId":2001,"BuffId":12156211,"BuffName":"\uBC00\uB824\uB0A8","DurationMs":7000,"CasterId":2001}
+{"deltaTime":1563,"Opcode":"Buff","EntityId":2003,"BuffId":137300071,"BuffName":"\uC911\uB3C5","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1620,"Opcode":"Buff","EntityId":2003,"BuffId":130700271,"BuffName":"\uC554\uC2B5","DurationMs":5000,"CasterId":2003}
+{"deltaTime":1634,"Opcode":"Buff","EntityId":9001,"BuffId":170700001,"BuffName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","DurationMs":13000,"CasterId":1001}
+{"deltaTime":1635,"Opcode":"Buff","EntityId":2001,"BuffId":120900101,"BuffName":"\uC9D5\uBC8C","DurationMs":2500,"CasterId":2001}
+{"deltaTime":1635,"Opcode":"Buff","EntityId":2002,"BuffId":181900011,"BuffName":"\uBD88\uD328\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":1710,"Opcode":"Buff","EntityId":2001,"BuffId":120700003,"BuffName":"\uD30C\uBA78\uC758 \uBC29\uD328","DurationMs":5000,"CasterId":2001}
+{"deltaTime":1716,"Opcode":"Buff","EntityId":2003,"BuffId":133500171,"BuffName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","DurationMs":3000,"CasterId":2003}
+{"deltaTime":1717,"Opcode":"Buff","EntityId":2002,"BuffId":180800004,"BuffName":"\uD30C\uB3D9\uACA9","DurationMs":10000,"CasterId":2002}
+{"deltaTime":1724,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":1794,"Opcode":"Buff","EntityId":2003,"BuffId":132700371,"BuffName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1800,"Opcode":"Buff","EntityId":2003,"BuffId":137300071,"BuffName":"\uC911\uB3C5","DurationMs":10000,"CasterId":2003}
+{"deltaTime":1801,"Opcode":"Buff","EntityId":2001,"BuffId":121100001,"BuffName":"\uBCF4\uD638\uC758 \uBC29\uD328","DurationMs":2000,"CasterId":2001}
+{"deltaTime":1814,"Opcode":"Buff","EntityId":1001,"BuffId":174300201,"BuffName":"\uC99D\uD3ED\uC758 \uAE30\uB3C4","DurationMs":20000,"CasterId":1001}
+{"deltaTime":1879,"Opcode":"Buff","EntityId":1001,"BuffId":170900001,"BuffName":"\uC7AC\uC0DD\uC758 \uBE5B","DurationMs":30000,"CasterId":1001}
+{"deltaTime":1881,"Opcode":"Buff","EntityId":2001,"BuffId":1001,"BuffName":"\uBC29\uD328\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":1885,"Opcode":"Buff","EntityId":2003,"BuffId":1006,"BuffName":"\uD68C\uD53C \uC0C1\uD0DC","DurationMs":5000,"CasterId":2003}
+{"deltaTime":1938,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":35528,"Crit":false}
+{"deltaTime":1960,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":21226,"Crit":true}
+{"deltaTime":1977,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":216504,"Crit":false}
+{"deltaTime":1979,"Opcode":"Buff","EntityId":2001,"BuffId":1000,"BuffName":"\uBB34\uAE30\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":1994,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12562,"Crit":false}
+{"deltaTime":2059,"Opcode":"Buff","EntityId":2001,"BuffId":123000001,"BuffName":"\uC12C\uBA78","DurationMs":3000,"CasterId":2001}
+{"deltaTime":2138,"Opcode":"Buff","EntityId":2001,"BuffId":122400001,"BuffName":"\uC2EC\uD310","DurationMs":3000,"CasterId":2001}
+{"deltaTime":2228,"Opcode":"Buff","EntityId":2001,"BuffId":120900001,"BuffName":"\uC9D1\uD589\uC790","DurationMs":10000,"CasterId":2001}
+{"deltaTime":2326,"Opcode":"Buff","EntityId":2001,"BuffId":1006,"BuffName":"\uD68C\uD53C \uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":2342,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":166353,"Crit":false}
+{"deltaTime":2366,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12470,"Crit":false}
+{"deltaTime":2388,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":211379,"Crit":true}
+{"deltaTime":2510,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":62154,"Crit":false}
+{"deltaTime":2616,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":15621,"Crit":false}
+{"deltaTime":2643,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":112993,"Crit":true}
+{"deltaTime":2694,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":28986,"Crit":true}
+{"deltaTime":2700,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":2700,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":2700,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":2701,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":31021,"Crit":true}
+{"deltaTime":2797,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":398652,"Crit":true}
+{"deltaTime":2944,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":102553,"Crit":false}
+{"deltaTime":3116,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":97474,"Crit":false}
+{"deltaTime":3174,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13673,"Crit":false}
+{"deltaTime":3300,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":81228,"Crit":false}
+{"deltaTime":3350,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":22318,"Crit":false}
+{"deltaTime":3368,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":138166,"Crit":false}
+{"deltaTime":3372,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":60696,"Crit":false}
+{"deltaTime":3396,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":156314,"Crit":false}
+{"deltaTime":3514,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":90640,"Crit":false}
+{"deltaTime":3640,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":19313,"Crit":false}
+{"deltaTime":3650,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":3720,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":40984,"Crit":true}
+{"deltaTime":3796,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":16859,"Crit":false}
+{"deltaTime":4002,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":38497,"Crit":false}
+{"deltaTime":4017,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":399790,"Crit":false}
+{"deltaTime":4047,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12070000,"SkillName":"\uD30C\uBA78\uC758 \uBC29\uD328","Damage":162560,"Crit":false}
+{"deltaTime":4051,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":33469,"Crit":false}
+{"deltaTime":4084,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":83106,"Crit":false}
+{"deltaTime":4087,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":39073,"Crit":false}
+{"deltaTime":4322,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":149422,"Crit":false}
+{"deltaTime":4419,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":33751,"Crit":false}
+{"deltaTime":4446,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":18574,"Crit":false}
+{"deltaTime":4601,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":81740,"Crit":false}
+{"deltaTime":4695,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":37255,"Crit":false}
+{"deltaTime":4706,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18330000,"SkillName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","Damage":203976,"Crit":false}
+{"deltaTime":4733,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12120000,"SkillName":"\uB3C4\uBC1C","Damage":68148,"Crit":false}
+{"deltaTime":4738,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":156641,"Crit":true}
+{"deltaTime":4738,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":43373,"Crit":true}
+{"deltaTime":4749,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34242,"Crit":false}
+{"deltaTime":4847,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":34248,"Crit":false}
+{"deltaTime":5020,"Opcode":"BossHp","EntityId":9001,"Hp":96216468}
+{"deltaTime":5055,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":110254,"Crit":false}
+{"deltaTime":5247,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":490961,"Crit":true}
+{"deltaTime":5355,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":45082,"Crit":true}
+{"deltaTime":5362,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18093450,"SkillName":"\uB3CC\uC9C4 \uACA9\uD30C","Damage":154402,"Crit":false}
+{"deltaTime":5402,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":199702,"Crit":false}
+{"deltaTime":5405,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":112361,"Crit":false}
+{"deltaTime":5406,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12133450,"SkillName":"\uD3EC\uD68D","Damage":40883,"Crit":false}
+{"deltaTime":5562,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":25999,"Crit":false}
+{"deltaTime":5671,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":133932,"Crit":false}
+{"deltaTime":5706,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":50524,"Crit":true}
+{"deltaTime":5932,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":200070,"Crit":false}
+{"deltaTime":6075,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":39315,"Crit":false}
+{"deltaTime":6085,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":17495,"Crit":false}
+{"deltaTime":6089,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":89059,"Crit":false}
+{"deltaTime":6128,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":155640,"Crit":false}
+{"deltaTime":6133,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":182891,"Crit":false}
+{"deltaTime":6158,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18130000,"SkillName":"\uBD84\uC1C4\uACA9","Damage":216947,"Crit":false}
+{"deltaTime":6295,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":72687,"Crit":false}
+{"deltaTime":6525,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13402,"Crit":true}
+{"deltaTime":6618,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":57355,"Crit":true}
+{"deltaTime":6754,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":37683,"Crit":true}
+{"deltaTime":6825,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":201677,"Crit":false}
+{"deltaTime":6835,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":39858,"Crit":false}
+{"deltaTime":6840,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":277897,"Crit":false}
+{"deltaTime":6844,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17033450,"SkillName":"\uBC29\uC804","Damage":168698,"Crit":false}
+{"deltaTime":6850,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":15473,"Crit":false}
+{"deltaTime":6879,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":110984,"Crit":false}
+{"deltaTime":7075,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":16682,"Crit":false}
+{"deltaTime":7255,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":107129,"Crit":false}
+{"deltaTime":7349,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":22970,"Crit":false}
+{"deltaTime":7383,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":30701,"Crit":false}
+{"deltaTime":7437,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13053450,"SkillName":"\uC12C\uAD11 \uBCA0\uAE30","Damage":87171,"Crit":false}
+{"deltaTime":7441,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":44248,"Crit":false}
+{"deltaTime":7500,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":86401,"Crit":true}
+{"deltaTime":7539,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":18504,"Crit":false}
+{"deltaTime":7694,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7355,"Crit":false}
+{"deltaTime":7728,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":221039,"Crit":false}
+{"deltaTime":7778,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":93823,"Crit":false}
+{"deltaTime":8008,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":27051,"Crit":true}
+{"deltaTime":8106,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12092,"Crit":false}
+{"deltaTime":8116,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":43880,"Crit":false}
+{"deltaTime":8119,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":67337,"Crit":true}
+{"deltaTime":8121,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":190781,"Crit":false}
+{"deltaTime":8137,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":38472,"Crit":false}
+{"deltaTime":8460,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":123987,"Crit":false}
+{"deltaTime":8486,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":11834,"Crit":false}
+{"deltaTime":8648,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":84315,"Crit":false}
+{"deltaTime":8801,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":68718,"Crit":false}
+{"deltaTime":8809,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18063450,"SkillName":"\uD0C0\uACA9\uC1C4","Damage":104963,"Crit":false}
+{"deltaTime":8836,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12063450,"SkillName":"\uC751\uC9D5\uC758 \uC77C\uACA9","Damage":94982,"Crit":true}
+{"deltaTime":8854,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10076,"Crit":false}
+{"deltaTime":8917,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":46715,"Crit":false}
+{"deltaTime":9083,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":33779,"Crit":false}
+{"deltaTime":9232,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":17076,"Crit":false}
+{"deltaTime":9252,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":96172,"Crit":false}
+{"deltaTime":9416,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":426825,"Crit":false}
+{"deltaTime":9531,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":70289,"Crit":false}
+{"deltaTime":9547,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17063450,"SkillName":"\uBCBD\uB825","Damage":741349,"Crit":false}
+{"deltaTime":9560,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":45278,"Crit":true}
+{"deltaTime":9572,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":138333,"Crit":false}
+{"deltaTime":9656,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":36590,"Crit":false}
+{"deltaTime":9797,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":41722,"Crit":false}
+{"deltaTime":9865,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":71649,"Crit":false}
+{"deltaTime":10020,"Opcode":"BossHp","EntityId":9001,"Hp":89574949}
+{"deltaTime":10137,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":157016,"Crit":true}
+{"deltaTime":10233,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":248223,"Crit":false}
+{"deltaTime":10256,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":86505,"Crit":false}
+{"deltaTime":10277,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18073450,"SkillName":"\uD30C\uC0B0\uACA9","Damage":188292,"Crit":false}
+{"deltaTime":10346,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":12256,"Crit":false}
+{"deltaTime":10405,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":22415,"Crit":false}
+{"deltaTime":10466,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":135228,"Crit":false}
+{"deltaTime":10554,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28074,"Crit":false}
+{"deltaTime":10915,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18043450,"SkillName":"\uBC31\uC5F4\uACA9","Damage":44910,"Crit":true}
+{"deltaTime":10962,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":29230,"Crit":false}
+{"deltaTime":11064,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":49656,"Crit":true}
+{"deltaTime":11205,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12070000,"SkillName":"\uD30C\uBA78\uC758 \uBC29\uD328","Damage":110749,"Crit":false}
+{"deltaTime":11219,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":33785,"Crit":true}
+{"deltaTime":11418,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":244124,"Crit":false}
+{"deltaTime":11494,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":157670,"Crit":false}
+{"deltaTime":11628,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18053450,"SkillName":"\uD30C\uC5F4\uACA9","Damage":90952,"Crit":true}
+{"deltaTime":11660,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":47746,"Crit":false}
+{"deltaTime":11740,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":22534,"Crit":true}
+{"deltaTime":11763,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":85280,"Crit":false}
+{"deltaTime":12082,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":190924,"Crit":false}
+{"deltaTime":12094,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":118401,"Crit":false}
+{"deltaTime":12214,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":25944,"Crit":false}
+{"deltaTime":12320,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18213450,"SkillName":"\uC9C4\uB3D9\uC1C4","Damage":155328,"Crit":true}
+{"deltaTime":12359,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":18865,"Crit":false}
+{"deltaTime":12733,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":35801,"Crit":true}
+{"deltaTime":12739,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":42055,"Crit":true}
+{"deltaTime":12812,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":109326,"Crit":false}
+{"deltaTime":12820,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":51260,"Crit":true}
+{"deltaTime":13054,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":39858,"Crit":false}
+{"deltaTime":13174,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":106078,"Crit":false}
+{"deltaTime":13323,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":13348,"Crit":false}
+{"deltaTime":13344,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11911,"Crit":false}
+{"deltaTime":13568,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":126109,"Crit":false}
+{"deltaTime":13720,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":44510,"Crit":false}
+{"deltaTime":13783,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34187,"Crit":false}
+{"deltaTime":13899,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":75181,"Crit":false}
+{"deltaTime":13993,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":169570,"Crit":false}
+{"deltaTime":14199,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":571259,"Crit":true}
+{"deltaTime":14265,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":35336,"Crit":false}
+{"deltaTime":14561,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16998,"Crit":false}
+{"deltaTime":14626,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":88503,"Crit":false}
+{"deltaTime":14632,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":62594,"Crit":true}
+{"deltaTime":14924,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":27997,"Crit":false}
+{"deltaTime":15020,"Opcode":"BossHp","EntityId":9001,"Hp":85608961}
+{"deltaTime":15130,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":54918,"Crit":false}
+{"deltaTime":15160,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":435606,"Crit":false}
+{"deltaTime":15262,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":22542,"Crit":true}
+{"deltaTime":15383,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":127278,"Crit":true}
+{"deltaTime":15561,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":282701,"Crit":true}
+{"deltaTime":15756,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13417,"Crit":false}
+{"deltaTime":15802,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":71542,"Crit":false}
+{"deltaTime":15874,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12120000,"SkillName":"\uB3C4\uBC1C","Damage":91451,"Crit":false}
+{"deltaTime":15946,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":26554,"Crit":false}
+{"deltaTime":16231,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":18115,"Crit":true}
+{"deltaTime":16305,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":18659,"Crit":true}
+{"deltaTime":16426,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":20054,"Crit":false}
+{"deltaTime":16602,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":160590,"Crit":true}
+{"deltaTime":16807,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":37846,"Crit":false}
+{"deltaTime":16892,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18330000,"SkillName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","Damage":225177,"Crit":false}
+{"deltaTime":17121,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":61445,"Crit":false}
+{"deltaTime":17130,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":87618,"Crit":false}
+{"deltaTime":17144,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":124477,"Crit":false}
+{"deltaTime":17430,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":72213,"Crit":true}
+{"deltaTime":17457,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":196161,"Crit":false}
+{"deltaTime":17538,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":39600,"Crit":true}
+{"deltaTime":17624,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":43685,"Crit":true}
+{"deltaTime":17883,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":53482,"Crit":false}
+{"deltaTime":17917,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":22487,"Crit":true}
+{"deltaTime":18044,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":124155,"Crit":false}
+{"deltaTime":18246,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":35305,"Crit":true}
+{"deltaTime":18336,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":13708,"Crit":false}
+{"deltaTime":18598,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":14758,"Crit":true}
+{"deltaTime":18744,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":144791,"Crit":true}
+{"deltaTime":18799,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":144746,"Crit":true}
+{"deltaTime":18958,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":16367,"Crit":false}
+{"deltaTime":19076,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12337,"Crit":true}
+{"deltaTime":19140,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":36116,"Crit":false}
+{"deltaTime":19247,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":24461,"Crit":false}
+{"deltaTime":19493,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":45969,"Crit":false}
+{"deltaTime":19613,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11410,"Crit":false}
+{"deltaTime":19682,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":50841,"Crit":false}
+{"deltaTime":19721,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":445007,"Crit":false}
+{"deltaTime":19800,"Opcode":"Buff","EntityId":9001,"BuffId":174000201,"BuffName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","DurationMs":20000,"CasterId":1001}
+{"deltaTime":19800,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":19996,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":42371,"Crit":false}
+{"deltaTime":20007,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":186253,"Crit":true}
+{"deltaTime":20020,"Opcode":"BossHp","EntityId":9001,"Hp":82139001}
+{"deltaTime":20255,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13577,"Crit":false}
+{"deltaTime":20365,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":36216,"Crit":false}
+{"deltaTime":20420,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":309583,"Crit":true}
+{"deltaTime":20580,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":54279,"Crit":false}
+{"deltaTime":20799,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":211722,"Crit":false}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20800,"Opcode":"Buff","EntityId":2003,"BuffId":137300071,"BuffName":"\uC911\uB3C5","DurationMs":10000,"CasterId":2003}
+{"deltaTime":20810,"Opcode":"Buff","EntityId":9001,"BuffId":170800201,"BuffName":"\uC57D\uD654\uC758 \uB099\uC778","DurationMs":10000,"CasterId":1001}
+{"deltaTime":20810,"Opcode":"Buff","EntityId":2001,"BuffId":12156211,"BuffName":"\uBC00\uB824\uB0A8","DurationMs":7000,"CasterId":2001}
+{"deltaTime":20863,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":74948,"Crit":false}
+{"deltaTime":20958,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12063450,"SkillName":"\uC751\uC9D5\uC758 \uC77C\uACA9","Damage":113605,"Crit":true}
+{"deltaTime":21212,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":12376,"Crit":false}
+{"deltaTime":21348,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":53867,"Crit":false}
+{"deltaTime":21501,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":70687,"Crit":false}
+{"deltaTime":21518,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10553,"Crit":false}
+{"deltaTime":21598,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":25736,"Crit":false}
+{"deltaTime":21740,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":21740,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":21740,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":21782,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":157832,"Crit":false}
+{"deltaTime":21819,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":75712,"Crit":false}
+{"deltaTime":22003,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13782,"Crit":false}
+{"deltaTime":22101,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":26456,"Crit":false}
+{"deltaTime":22364,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":44832,"Crit":false}
+{"deltaTime":22428,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":22053,"Crit":false}
+{"deltaTime":22543,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":29445,"Crit":false}
+{"deltaTime":22554,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":15362,"Crit":true}
+{"deltaTime":22640,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":22953,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":42712,"Crit":true}
+{"deltaTime":22957,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":73286,"Crit":false}
+{"deltaTime":22967,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":17244,"Crit":false}
+{"deltaTime":23149,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":39354,"Crit":true}
+{"deltaTime":23356,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":28301,"Crit":false}
+{"deltaTime":23596,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":544532,"Crit":true}
+{"deltaTime":23623,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":10463,"Crit":false}
+{"deltaTime":23631,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":54505,"Crit":false}
+{"deltaTime":23639,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":98799,"Crit":false}
+{"deltaTime":24061,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":99652,"Crit":false}
+{"deltaTime":24091,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":192124,"Crit":true}
+{"deltaTime":24191,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13446,"Crit":false}
+{"deltaTime":24232,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":24066,"Crit":true}
+{"deltaTime":24490,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":209504,"Crit":false}
+{"deltaTime":24531,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":27017,"Crit":false}
+{"deltaTime":24884,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":26847,"Crit":true}
+{"deltaTime":24890,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":24579,"Crit":false}
+{"deltaTime":24949,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":231641,"Crit":false}
+{"deltaTime":25020,"Opcode":"BossHp","EntityId":9001,"Hp":78822053}
+{"deltaTime":25112,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":131146,"Crit":false}
+{"deltaTime":25356,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":115761,"Crit":true}
+{"deltaTime":25391,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":189404,"Crit":false}
+{"deltaTime":25424,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":74777,"Crit":false}
+{"deltaTime":25592,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":71420,"Crit":false}
+{"deltaTime":25662,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":36090,"Crit":true}
+{"deltaTime":25934,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":37537,"Crit":true}
+{"deltaTime":26147,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":58729,"Crit":false}
+{"deltaTime":26208,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":324658,"Crit":false}
+{"deltaTime":26254,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":32801,"Crit":true}
+{"deltaTime":26661,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":119870,"Crit":false}
+{"deltaTime":26670,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7493,"Crit":false}
+{"deltaTime":26715,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":42422,"Crit":false}
+{"deltaTime":26852,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":325223,"Crit":false}
+{"deltaTime":26927,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":25955,"Crit":false}
+{"deltaTime":27094,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":50586,"Crit":false}
+{"deltaTime":27292,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":78187,"Crit":false}
+{"deltaTime":27355,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":101842,"Crit":true}
+{"deltaTime":27380,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":66067,"Crit":false}
+{"deltaTime":27648,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12872,"Crit":false}
+{"deltaTime":27883,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":174769,"Crit":true}
+{"deltaTime":27886,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":136231,"Crit":false}
+{"deltaTime":27902,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":11400,"Crit":false}
+{"deltaTime":28178,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12952,"Crit":false}
+{"deltaTime":28185,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":429830,"Crit":false}
+{"deltaTime":28386,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":90672,"Crit":false}
+{"deltaTime":28414,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":21612,"Crit":true}
+{"deltaTime":28573,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":355711,"Crit":false}
+{"deltaTime":28960,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":204241,"Crit":false}
+{"deltaTime":28997,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":155166,"Crit":false}
+{"deltaTime":29045,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":115659,"Crit":false}
+{"deltaTime":29271,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":37200,"Crit":false}
+{"deltaTime":29376,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":150387,"Crit":false}
+{"deltaTime":29412,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18063450,"SkillName":"\uD0C0\uACA9\uC1C4","Damage":92829,"Crit":false}
+{"deltaTime":29575,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":115506,"Crit":false}
+{"deltaTime":29861,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":598417,"Crit":true}
+{"deltaTime":29878,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":34810,"Crit":false}
+{"deltaTime":29953,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":140081,"Crit":true}
+{"deltaTime":30020,"Opcode":"BossHp","EntityId":9001,"Hp":74041740}
+{"deltaTime":30128,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":29960,"Crit":false}
+{"deltaTime":30313,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":235507,"Crit":false}
+{"deltaTime":30403,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":19138,"Crit":false}
+{"deltaTime":30468,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":34760,"Crit":false}
+{"deltaTime":30603,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9249,"Crit":false}
+{"deltaTime":30645,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":22208,"Crit":false}
+{"deltaTime":31045,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":25262,"Crit":true}
+{"deltaTime":31136,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":425926,"Crit":false}
+{"deltaTime":31137,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":72142,"Crit":false}
+{"deltaTime":31293,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8565,"Crit":false}
+{"deltaTime":31428,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":49155,"Crit":false}
+{"deltaTime":31601,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":10551,"Crit":false}
+{"deltaTime":31620,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":94846,"Crit":false}
+{"deltaTime":31753,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":34770,"Crit":true}
+{"deltaTime":31801,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":38901,"Crit":false}
+{"deltaTime":32104,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":87168,"Crit":false}
+{"deltaTime":32125,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":103213,"Crit":false}
+{"deltaTime":32182,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":173292,"Crit":false}
+{"deltaTime":32283,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8968,"Crit":false}
+{"deltaTime":32683,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":170001,"Crit":false}
+{"deltaTime":32689,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":100124,"Crit":false}
+{"deltaTime":32725,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":114285,"Crit":true}
+{"deltaTime":32847,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":17023,"Crit":true}
+{"deltaTime":33027,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":186919,"Crit":true}
+{"deltaTime":33246,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":40037,"Crit":false}
+{"deltaTime":33331,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":17080,"Crit":false}
+{"deltaTime":33432,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8738,"Crit":false}
+{"deltaTime":33519,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34087,"Crit":false}
+{"deltaTime":33851,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":67491,"Crit":true}
+{"deltaTime":33868,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":66846,"Crit":false}
+{"deltaTime":34016,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":183592,"Crit":false}
+{"deltaTime":34116,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10562,"Crit":false}
+{"deltaTime":34434,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":48129,"Crit":true}
+{"deltaTime":34455,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":114757,"Crit":false}
+{"deltaTime":34541,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":16127,"Crit":false}
+{"deltaTime":34691,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":23709,"Crit":false}
+{"deltaTime":34744,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":189451,"Crit":false}
+{"deltaTime":35020,"Opcode":"BossHp","EntityId":9001,"Hp":71149201}
+{"deltaTime":35032,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":55861,"Crit":true}
+{"deltaTime":35171,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":183493,"Crit":false}
+{"deltaTime":35197,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13338,"Crit":false}
+{"deltaTime":35267,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":12466,"Crit":false}
+{"deltaTime":35346,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":135163,"Crit":false}
+{"deltaTime":35452,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32930,"Crit":true}
+{"deltaTime":35755,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":131151,"Crit":true}
+{"deltaTime":35846,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":196902,"Crit":false}
+{"deltaTime":35899,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":35673,"Crit":false}
+{"deltaTime":36047,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":63172,"Crit":false}
+{"deltaTime":36346,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":25148,"Crit":true}
+{"deltaTime":36365,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":182279,"Crit":false}
+{"deltaTime":36449,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":40888,"Crit":true}
+{"deltaTime":36612,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12133450,"SkillName":"\uD3EC\uD68D","Damage":49080,"Crit":false}
+{"deltaTime":36730,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":71705,"Crit":true}
+{"deltaTime":36904,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":38068,"Crit":true}
+{"deltaTime":37142,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":66848,"Crit":false}
+{"deltaTime":37168,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":136248,"Crit":false}
+{"deltaTime":37273,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":111097,"Crit":false}
+{"deltaTime":37491,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":83287,"Crit":false}
+{"deltaTime":37500,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":100460,"Crit":true}
+{"deltaTime":37519,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":25154,"Crit":false}
+{"deltaTime":37739,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":17655,"Crit":false}
+{"deltaTime":37923,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":223427,"Crit":false}
+{"deltaTime":37994,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8520,"Crit":false}
+{"deltaTime":38123,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":19492,"Crit":false}
+{"deltaTime":38262,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":44678,"Crit":false}
+{"deltaTime":38459,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":153873,"Crit":true}
+{"deltaTime":38606,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":174330,"Crit":true}
+{"deltaTime":38811,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":120470,"Crit":false}
+{"deltaTime":38898,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":42821,"Crit":true}
+{"deltaTime":38914,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":13837,"Crit":false}
+{"deltaTime":39121,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":101887,"Crit":true}
+{"deltaTime":39124,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":143864,"Crit":false}
+{"deltaTime":39208,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":179646,"Crit":true}
+{"deltaTime":39351,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":93956,"Crit":true}
+{"deltaTime":39698,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":48352,"Crit":false}
+{"deltaTime":39699,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":239679,"Crit":true}
+{"deltaTime":39895,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":234621,"Crit":true}
+{"deltaTime":39963,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":25537,"Crit":true}
+{"deltaTime":40020,"Opcode":"BossHp","EntityId":9001,"Hp":67472145}
+{"deltaTime":40144,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":32956,"Crit":false}
+{"deltaTime":40198,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":150432,"Crit":true}
+{"deltaTime":40255,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":39584,"Crit":true}
+{"deltaTime":40480,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":21328,"Crit":false}
+{"deltaTime":40752,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17033450,"SkillName":"\uBC29\uC804","Damage":193128,"Crit":false}
+{"deltaTime":40805,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7817,"Crit":false}
+{"deltaTime":40913,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":110729,"Crit":false}
+{"deltaTime":40983,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":214475,"Crit":false}
+{"deltaTime":41208,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":209442,"Crit":true}
+{"deltaTime":41338,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":86280,"Crit":false}
+{"deltaTime":41411,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":89392,"Crit":false}
+{"deltaTime":41543,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":86734,"Crit":false}
+{"deltaTime":41637,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":151931,"Crit":false}
+{"deltaTime":41842,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":23858,"Crit":false}
+{"deltaTime":41936,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":12343,"Crit":false}
+{"deltaTime":41984,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12394,"Crit":false}
+{"deltaTime":42134,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":504244,"Crit":true}
+{"deltaTime":42386,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":125122,"Crit":false}
+{"deltaTime":42405,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":72160,"Crit":false}
+{"deltaTime":42529,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":22462,"Crit":false}
+{"deltaTime":42713,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":242741,"Crit":false}
+{"deltaTime":42981,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":42177,"Crit":true}
+{"deltaTime":43059,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":18850,"Crit":false}
+{"deltaTime":43096,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":94589,"Crit":true}
+{"deltaTime":43332,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":145287,"Crit":false}
+{"deltaTime":43381,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":30876,"Crit":false}
+{"deltaTime":43641,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":43070,"Crit":true}
+{"deltaTime":43706,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":36867,"Crit":false}
+{"deltaTime":43710,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":16007,"Crit":true}
+{"deltaTime":43804,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":14521,"Crit":true}
+{"deltaTime":44050,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":78834,"Crit":false}
+{"deltaTime":44185,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":208500,"Crit":false}
+{"deltaTime":44343,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":134243,"Crit":false}
+{"deltaTime":44404,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":30462,"Crit":false}
+{"deltaTime":44480,"Opcode":"Buff","EntityId":2002,"BuffId":183300071,"BuffName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","DurationMs":10000,"CasterId":2002}
+{"deltaTime":44480,"Opcode":"Buff","EntityId":2002,"BuffId":183300071,"BuffName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","DurationMs":7000,"CasterId":2002}
+{"deltaTime":44501,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34943,"Crit":true}
+{"deltaTime":44775,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":36699,"Crit":false}
+{"deltaTime":44879,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":377971,"Crit":true}
+{"deltaTime":44895,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":187676,"Crit":false}
+{"deltaTime":45020,"Opcode":"BossHp","EntityId":9001,"Hp":63531021}
+{"deltaTime":45042,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":82710,"Crit":false}
+{"deltaTime":45218,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12063450,"SkillName":"\uC751\uC9D5\uC758 \uC77C\uACA9","Damage":76682,"Crit":false}
+{"deltaTime":45296,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":35636,"Crit":false}
+{"deltaTime":45441,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":90918,"Crit":true}
+{"deltaTime":45453,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":19370,"Crit":false}
+{"deltaTime":45687,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":23242,"Crit":false}
+{"deltaTime":45831,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":164726,"Crit":false}
+{"deltaTime":46154,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":17933,"Crit":false}
+{"deltaTime":46156,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":283185,"Crit":true}
+{"deltaTime":46301,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":37882,"Crit":true}
+{"deltaTime":46338,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":87844,"Crit":false}
+{"deltaTime":46518,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":46536,"Crit":false}
+{"deltaTime":46580,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":13792,"Crit":false}
+{"deltaTime":46654,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":94024,"Crit":false}
+{"deltaTime":46878,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":43307,"Crit":false}
+{"deltaTime":47024,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":29514,"Crit":true}
+{"deltaTime":47149,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7365,"Crit":false}
+{"deltaTime":47225,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":92631,"Crit":false}
+{"deltaTime":47333,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":158912,"Crit":false}
+{"deltaTime":47423,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":16607,"Crit":false}
+{"deltaTime":47814,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7748,"Crit":false}
+{"deltaTime":47841,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":27573,"Crit":false}
+{"deltaTime":47895,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":54299,"Crit":false}
+{"deltaTime":47895,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":23073,"Crit":false}
+{"deltaTime":48295,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":22732,"Crit":false}
+{"deltaTime":48362,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":230476,"Crit":false}
+{"deltaTime":48490,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":105803,"Crit":false}
+{"deltaTime":48526,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":17449,"Crit":false}
+{"deltaTime":48784,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32484,"Crit":false}
+{"deltaTime":48957,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":131606,"Crit":false}
+{"deltaTime":48957,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10941,"Crit":false}
+{"deltaTime":49079,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":90439,"Crit":false}
+{"deltaTime":49145,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16707,"Crit":false}
+{"deltaTime":49361,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":48795,"Crit":false}
+{"deltaTime":49558,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":30615,"Crit":false}
+{"deltaTime":49631,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":22604,"Crit":true}
+{"deltaTime":49641,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":133327,"Crit":false}
+{"deltaTime":49830,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":147062,"Crit":true}
+{"deltaTime":50020,"Opcode":"BossHp","EntityId":9001,"Hp":60954472}
+{"deltaTime":50162,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18093450,"SkillName":"\uB3CC\uC9C4 \uACA9\uD30C","Damage":157573,"Crit":false}
+{"deltaTime":50176,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":105490,"Crit":true}
+{"deltaTime":50254,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":24252,"Crit":false}
+{"deltaTime":50421,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":20256,"Crit":true}
+{"deltaTime":50467,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":123913,"Crit":false}
+{"deltaTime":50619,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":133479,"Crit":false}
+{"deltaTime":50702,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":268396,"Crit":true}
+{"deltaTime":50853,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":11921,"Crit":false}
+{"deltaTime":51094,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":30968,"Crit":false}
+{"deltaTime":51130,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":115536,"Crit":false}
+{"deltaTime":51337,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":155096,"Crit":true}
+{"deltaTime":51418,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28834,"Crit":true}
+{"deltaTime":51565,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":50653,"Crit":true}
+{"deltaTime":51737,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":39448,"Crit":true}
+{"deltaTime":51960,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":84604,"Crit":false}
+{"deltaTime":51963,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":136686,"Crit":false}
+{"deltaTime":52134,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":231371,"Crit":false}
+{"deltaTime":52178,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":107722,"Crit":false}
+{"deltaTime":52390,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":285277,"Crit":true}
+{"deltaTime":52478,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":229802,"Crit":true}
+{"deltaTime":52649,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16097,"Crit":false}
+{"deltaTime":52779,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32029,"Crit":false}
+{"deltaTime":52816,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":98909,"Crit":false}
+{"deltaTime":52937,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":15372,"Crit":true}
+{"deltaTime":53257,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":99959,"Crit":false}
+{"deltaTime":53273,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":263749,"Crit":false}
+{"deltaTime":53396,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":84868,"Crit":false}
+{"deltaTime":53477,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":199361,"Crit":true}
+{"deltaTime":53619,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":31038,"Crit":false}
+{"deltaTime":53808,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":132817,"Crit":false}
+{"deltaTime":53862,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":210238,"Crit":false}
+{"deltaTime":53936,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":49352,"Crit":false}
+{"deltaTime":54150,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8848,"Crit":false}
+{"deltaTime":54443,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":162898,"Crit":true}
+{"deltaTime":54454,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":18287,"Crit":false}
+{"deltaTime":54457,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":147061,"Crit":false}
+{"deltaTime":54733,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":169967,"Crit":false}
+{"deltaTime":54757,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":236622,"Crit":false}
+{"deltaTime":54989,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":86895,"Crit":false}
+{"deltaTime":55020,"Opcode":"BossHp","EntityId":9001,"Hp":56548828}
+{"deltaTime":55089,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":19620,"Crit":false}
+{"deltaTime":55242,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":202836,"Crit":false}
+{"deltaTime":55254,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12514,"Crit":false}
+{"deltaTime":55348,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":169728,"Crit":true}
+{"deltaTime":55690,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":28012,"Crit":false}
+{"deltaTime":55722,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":89395,"Crit":false}
+{"deltaTime":55800,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":55800,"Opcode":"Buff","EntityId":2001,"BuffId":120900101,"BuffName":"\uC9D5\uBC8C","DurationMs":2500,"CasterId":2001}
+{"deltaTime":55841,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9510,"Crit":false}
+{"deltaTime":55970,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":31356,"Crit":false}
+{"deltaTime":56007,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":31104,"Crit":true}
+{"deltaTime":56473,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":14523,"Crit":false}
+{"deltaTime":56481,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":31247,"Crit":false}
+{"deltaTime":56494,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":79931,"Crit":false}
+{"deltaTime":56552,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":34508,"Crit":true}
+{"deltaTime":56778,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":67374,"Crit":true}
+{"deltaTime":57059,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":37823,"Crit":false}
+{"deltaTime":57082,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":157579,"Crit":false}
+{"deltaTime":57116,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":39875,"Crit":false}
+{"deltaTime":57227,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":40953,"Crit":false}
+{"deltaTime":57604,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":13287,"Crit":false}
+{"deltaTime":57654,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12426,"Crit":false}
+{"deltaTime":57696,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":146171,"Crit":false}
+{"deltaTime":57708,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":56638,"Crit":true}
+{"deltaTime":57981,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":574620,"Crit":true}
+{"deltaTime":58199,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8090,"Crit":false}
+{"deltaTime":58201,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":107963,"Crit":false}
+{"deltaTime":58280,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":14931,"Crit":true}
+{"deltaTime":58514,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":369923,"Crit":false}
+{"deltaTime":58714,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":57016,"Crit":false}
+{"deltaTime":58739,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":126969,"Crit":true}
+{"deltaTime":58751,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":11487,"Crit":false}
+{"deltaTime":58972,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":29078,"Crit":false}
+{"deltaTime":59297,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10817,"Crit":true}
+{"deltaTime":59329,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":141179,"Crit":false}
+{"deltaTime":59336,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":96421,"Crit":false}
+{"deltaTime":59408,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":253044,"Crit":true}
+{"deltaTime":59779,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":38919,"Crit":false}
+{"deltaTime":59786,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":28336,"Crit":false}
+{"deltaTime":59808,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":415939,"Crit":true}
+{"deltaTime":59940,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":14405,"Crit":false}
+{"deltaTime":60020,"Opcode":"BossHp","EntityId":9001,"Hp":52923281}
+{"deltaTime":60247,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":37032,"Crit":false}
+{"deltaTime":60404,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":94966,"Crit":false}
+{"deltaTime":60487,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7434,"Crit":false}
+{"deltaTime":60501,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":46514,"Crit":false}
+{"deltaTime":60595,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":13533,"Crit":false}
+{"deltaTime":60802,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":23388,"Crit":false}
+{"deltaTime":60905,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18093450,"SkillName":"\uB3CC\uC9C4 \uACA9\uD30C","Damage":160776,"Crit":true}
+{"deltaTime":60920,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":32213,"Crit":false}
+{"deltaTime":61280,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":228047,"Crit":false}
+{"deltaTime":61476,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":42696,"Crit":true}
+{"deltaTime":61482,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":159195,"Crit":true}
+{"deltaTime":61502,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":198009,"Crit":false}
+{"deltaTime":61677,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":48722,"Crit":true}
+{"deltaTime":61820,"Opcode":"Buff","EntityId":2001,"BuffId":12156211,"BuffName":"\uBC00\uB824\uB0A8","DurationMs":7000,"CasterId":2001}
+{"deltaTime":61850,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":160222,"Crit":false}
+{"deltaTime":61856,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":86829,"Crit":false}
+{"deltaTime":62042,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28890,"Crit":true}
+{"deltaTime":62131,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":35018,"Crit":true}
+{"deltaTime":62527,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":89659,"Crit":false}
+{"deltaTime":62555,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":26016,"Crit":false}
+{"deltaTime":62703,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":26835,"Crit":true}
+{"deltaTime":62818,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":52469,"Crit":false}
+{"deltaTime":62964,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":90414,"Crit":false}
+{"deltaTime":63027,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":112383,"Crit":false}
+{"deltaTime":63109,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":17538,"Crit":false}
+{"deltaTime":63279,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10743,"Crit":true}
+{"deltaTime":63459,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":525643,"Crit":true}
+{"deltaTime":63690,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":58581,"Crit":false}
+{"deltaTime":63700,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":19088,"Crit":false}
+{"deltaTime":63718,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28813,"Crit":true}
+{"deltaTime":63857,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":181181,"Crit":false}
+{"deltaTime":64110,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":33720,"Crit":false}
+{"deltaTime":64156,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":31712,"Crit":false}
+{"deltaTime":64183,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":33767,"Crit":false}
+{"deltaTime":64380,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13663,"Crit":false}
+{"deltaTime":64532,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":225186,"Crit":false}
+{"deltaTime":64583,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":170279,"Crit":true}
+{"deltaTime":64935,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":53557,"Crit":false}
+{"deltaTime":65020,"Opcode":"BossHp","EntityId":9001,"Hp":49718550}
+{"deltaTime":65062,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10308,"Crit":false}
+{"deltaTime":65150,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":172150,"Crit":true}
+{"deltaTime":65276,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":114919,"Crit":true}
+{"deltaTime":65375,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":20393,"Crit":false}
+{"deltaTime":65553,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":47019,"Crit":true}
+{"deltaTime":65574,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":231000,"Crit":false}
+{"deltaTime":65743,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":111182,"Crit":true}
+{"deltaTime":65798,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":127878,"Crit":true}
+{"deltaTime":66098,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":10726,"Crit":false}
+{"deltaTime":66256,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":25814,"Crit":false}
+{"deltaTime":66327,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":77153,"Crit":false}
+{"deltaTime":66369,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":52253,"Crit":true}
+{"deltaTime":66692,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10558,"Crit":false}
+{"deltaTime":66772,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":260296,"Crit":true}
+{"deltaTime":66787,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":101290,"Crit":false}
+{"deltaTime":66789,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":19923,"Crit":false}
+{"deltaTime":66979,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":20450,"Crit":false}
+{"deltaTime":67189,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":87415,"Crit":false}
+{"deltaTime":67317,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":182861,"Crit":true}
+{"deltaTime":67381,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":577772,"Crit":true}
+{"deltaTime":67441,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":113825,"Crit":false}
+{"deltaTime":67838,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":126200,"Crit":true}
+{"deltaTime":67889,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":45673,"Crit":true}
+{"deltaTime":67934,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":157169,"Crit":false}
+{"deltaTime":67946,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":23248,"Crit":false}
+{"deltaTime":68318,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":43392,"Crit":true}
+{"deltaTime":68358,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":35768,"Crit":false}
+{"deltaTime":68507,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":29775,"Crit":false}
+{"deltaTime":68533,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":170551,"Crit":false}
+{"deltaTime":68667,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":34709,"Crit":false}
+{"deltaTime":68929,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":90345,"Crit":false}
+{"deltaTime":69038,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":12036,"Crit":false}
+{"deltaTime":69038,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":43902,"Crit":true}
+{"deltaTime":69126,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11386,"Crit":false}
+{"deltaTime":69481,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":81485,"Crit":false}
+{"deltaTime":69484,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34228,"Crit":false}
+{"deltaTime":69600,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":15850,"Crit":true}
+{"deltaTime":69785,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":25172,"Crit":true}
+{"deltaTime":69953,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":24381,"Crit":false}
+{"deltaTime":70020,"Opcode":"BossHp","EntityId":9001,"Hp":46338095}
+{"deltaTime":70027,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":31839,"Crit":false}
+{"deltaTime":70124,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":215789,"Crit":false}
+{"deltaTime":70294,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":17298,"Crit":false}
+{"deltaTime":70459,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":156333,"Crit":false}
+{"deltaTime":70481,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":112018,"Crit":false}
+{"deltaTime":70676,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":16848,"Crit":true}
+{"deltaTime":70722,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":83091,"Crit":false}
+{"deltaTime":70914,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":20834,"Crit":false}
+{"deltaTime":71108,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":148366,"Crit":false}
+{"deltaTime":71176,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":32344,"Crit":true}
+{"deltaTime":71324,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9850,"Crit":false}
+{"deltaTime":71551,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":18100,"Crit":false}
+{"deltaTime":71613,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":30725,"Crit":true}
+{"deltaTime":71622,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":107657,"Crit":false}
+{"deltaTime":71795,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":264045,"Crit":true}
+{"deltaTime":71913,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":24185,"Crit":false}
+{"deltaTime":72146,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":63467,"Crit":false}
+{"deltaTime":72231,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":83409,"Crit":false}
+{"deltaTime":72438,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":54998,"Crit":false}
+{"deltaTime":72448,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":302892,"Crit":false}
+{"deltaTime":72657,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":79970,"Crit":false}
+{"deltaTime":72691,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":214835,"Crit":true}
+{"deltaTime":72743,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":267711,"Crit":true}
+{"deltaTime":73039,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":242940,"Crit":true}
+{"deltaTime":73189,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":80144,"Crit":false}
+{"deltaTime":73288,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":45968,"Crit":true}
+{"deltaTime":73330,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":295249,"Crit":false}
+{"deltaTime":73514,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7469,"Crit":false}
+{"deltaTime":73616,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":308635,"Crit":true}
+{"deltaTime":73800,"Opcode":"Buff","EntityId":9001,"BuffId":170700001,"BuffName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","DurationMs":13000,"CasterId":1001}
+{"deltaTime":73800,"Opcode":"Buff","EntityId":2002,"BuffId":181600001,"BuffName":"\uC9C8\uC8FC\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":73800,"Opcode":"Buff","EntityId":2002,"BuffId":181900011,"BuffName":"\uBD88\uD328\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":73925,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":34643,"Crit":true}
+{"deltaTime":73997,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":43491,"Crit":true}
+{"deltaTime":74015,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":22513,"Crit":false}
+{"deltaTime":74126,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":17418,"Crit":true}
+{"deltaTime":74383,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":166080,"Crit":true}
+{"deltaTime":74456,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":26150,"Crit":false}
+{"deltaTime":74461,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":18263,"Crit":true}
+{"deltaTime":74695,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":212780,"Crit":false}
+{"deltaTime":74810,"Opcode":"Buff","EntityId":2002,"BuffId":183300071,"BuffName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","DurationMs":10000,"CasterId":2002}
+{"deltaTime":74810,"Opcode":"Buff","EntityId":2002,"BuffId":183300071,"BuffName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","DurationMs":7000,"CasterId":2002}
+{"deltaTime":74945,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":24975,"Crit":false}
+{"deltaTime":75015,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":78381,"Crit":false}
+{"deltaTime":75020,"Opcode":"BossHp","EntityId":9001,"Hp":42434773}
+{"deltaTime":75135,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":14718,"Crit":false}
+{"deltaTime":75252,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10143,"Crit":false}
+{"deltaTime":75375,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":24212,"Crit":false}
+{"deltaTime":75585,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":119159,"Crit":false}
+{"deltaTime":75709,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":73178,"Crit":true}
+{"deltaTime":75810,"Opcode":"Buff","EntityId":9001,"BuffId":174000201,"BuffName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","DurationMs":20000,"CasterId":1001}
+{"deltaTime":75810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":75810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":75830,"Opcode":"Buff","EntityId":2002,"BuffId":181600001,"BuffName":"\uC9C8\uC8FC\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":75830,"Opcode":"Buff","EntityId":2002,"BuffId":181900011,"BuffName":"\uBD88\uD328\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":75845,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":53726,"Crit":false}
+{"deltaTime":75905,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":131155,"Crit":false}
+{"deltaTime":75933,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8751,"Crit":false}
+{"deltaTime":76194,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":52534,"Crit":false}
+{"deltaTime":76471,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":16323,"Crit":false}
+{"deltaTime":76532,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":58305,"Crit":true}
+{"deltaTime":76590,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":74900,"Crit":false}
+{"deltaTime":76642,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":55566,"Crit":false}
+{"deltaTime":76810,"Opcode":"Buff","EntityId":9001,"BuffId":170800201,"BuffName":"\uC57D\uD654\uC758 \uB099\uC778","DurationMs":10000,"CasterId":1001}
+{"deltaTime":76810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":76810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":76810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":76840,"Opcode":"Buff","EntityId":2002,"BuffId":181600001,"BuffName":"\uC9C8\uC8FC\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":76840,"Opcode":"Buff","EntityId":2002,"BuffId":181900011,"BuffName":"\uBD88\uD328\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":76916,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":13445,"Crit":false}
+{"deltaTime":77021,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":28044,"Crit":false}
+{"deltaTime":77182,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12537,"Crit":true}
+{"deltaTime":77203,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":335331,"Crit":false}
+{"deltaTime":77213,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":37086,"Crit":false}
+{"deltaTime":77656,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":86762,"Crit":false}
+{"deltaTime":77730,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":95367,"Crit":false}
+{"deltaTime":77732,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11366,"Crit":false}
+{"deltaTime":77803,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":41231,"Crit":false}
+{"deltaTime":77810,"Opcode":"Buff","EntityId":1001,"BuffId":174300201,"BuffName":"\uC99D\uD3ED\uC758 \uAE30\uB3C4","DurationMs":20000,"CasterId":1001}
+{"deltaTime":77810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":77860,"Opcode":"Buff","EntityId":2002,"BuffId":181600001,"BuffName":"\uC9C8\uC8FC\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":77860,"Opcode":"Buff","EntityId":2002,"BuffId":181900011,"BuffName":"\uBD88\uD328\uC758 \uC9C4\uC5B8","DurationMs":2400,"CasterId":2002}
+{"deltaTime":78233,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":126516,"Crit":false}
+{"deltaTime":78244,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":112192,"Crit":true}
+{"deltaTime":78261,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":113840,"Crit":false}
+{"deltaTime":78294,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":212604,"Crit":false}
+{"deltaTime":78420,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":30978,"Crit":false}
+{"deltaTime":78718,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":131787,"Crit":false}
+{"deltaTime":78809,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":14376,"Crit":false}
+{"deltaTime":78908,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":76200,"Crit":true}
+{"deltaTime":78949,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":208927,"Crit":false}
+{"deltaTime":79305,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":503317,"Crit":true}
+{"deltaTime":79365,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":134655,"Crit":false}
+{"deltaTime":79457,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":11920,"Crit":false}
+{"deltaTime":79477,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12683,"Crit":false}
+{"deltaTime":79715,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":75715,"Crit":false}
+{"deltaTime":79748,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":30923,"Crit":false}
+{"deltaTime":80010,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":27853,"Crit":false}
+{"deltaTime":80020,"Opcode":"BossHp","EntityId":9001,"Hp":39205920}
+{"deltaTime":80074,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":36476,"Crit":true}
+{"deltaTime":80271,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":225844,"Crit":false}
+{"deltaTime":80334,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12070000,"SkillName":"\uD30C\uBA78\uC758 \uBC29\uD328","Damage":130726,"Crit":false}
+{"deltaTime":80472,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":32219,"Crit":false}
+{"deltaTime":80613,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12358,"Crit":false}
+{"deltaTime":80626,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":19507,"Crit":true}
+{"deltaTime":80911,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":24746,"Crit":false}
+{"deltaTime":80988,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":132460,"Crit":true}
+{"deltaTime":80993,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7630,"Crit":false}
+{"deltaTime":81305,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":16507,"Crit":false}
+{"deltaTime":81398,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":438910,"Crit":false}
+{"deltaTime":81411,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":31518,"Crit":false}
+{"deltaTime":81700,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":22538,"Crit":false}
+{"deltaTime":81786,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":318077,"Crit":false}
+{"deltaTime":81802,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":13205,"Crit":false}
+{"deltaTime":81979,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":81973,"Crit":false}
+{"deltaTime":82174,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":33198,"Crit":false}
+{"deltaTime":82304,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":251394,"Crit":false}
+{"deltaTime":82475,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":19100,"Crit":true}
+{"deltaTime":82503,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":137055,"Crit":false}
+{"deltaTime":82522,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":33477,"Crit":true}
+{"deltaTime":82705,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9303,"Crit":false}
+{"deltaTime":83078,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":98914,"Crit":false}
+{"deltaTime":83096,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":116104,"Crit":false}
+{"deltaTime":83132,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":248559,"Crit":true}
+{"deltaTime":83426,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":152888,"Crit":true}
+{"deltaTime":83519,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":102771,"Crit":false}
+{"deltaTime":83557,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":29760,"Crit":true}
+{"deltaTime":83597,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16317,"Crit":false}
+{"deltaTime":83808,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":35188,"Crit":true}
+{"deltaTime":83937,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":24360,"Crit":false}
+{"deltaTime":84152,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":123926,"Crit":false}
+{"deltaTime":84237,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":18701,"Crit":false}
+{"deltaTime":84262,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":55964,"Crit":true}
+{"deltaTime":84568,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":161660,"Crit":false}
+{"deltaTime":84601,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":38744,"Crit":true}
+{"deltaTime":84625,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":35214,"Crit":false}
+{"deltaTime":84835,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":74239,"Crit":false}
+{"deltaTime":84983,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":363417,"Crit":true}
+{"deltaTime":85020,"Opcode":"BossHp","EntityId":9001,"Hp":35453120}
+{"deltaTime":85115,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":23612,"Crit":false}
+{"deltaTime":85311,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":102123,"Crit":false}
+{"deltaTime":85383,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":18391,"Crit":false}
+{"deltaTime":85521,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":37191,"Crit":true}
+{"deltaTime":85582,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":22688,"Crit":true}
+{"deltaTime":85715,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":111391,"Crit":false}
+{"deltaTime":85973,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":33870,"Crit":true}
+{"deltaTime":86003,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":81352,"Crit":true}
+{"deltaTime":86201,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":236313,"Crit":false}
+{"deltaTime":86247,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":35814,"Crit":false}
+{"deltaTime":86438,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":69813,"Crit":true}
+{"deltaTime":86592,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":42904,"Crit":false}
+{"deltaTime":86615,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":35658,"Crit":false}
+{"deltaTime":86826,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":205205,"Crit":false}
+{"deltaTime":86928,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":37429,"Crit":false}
+{"deltaTime":87093,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":29340,"Crit":false}
+{"deltaTime":87167,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16542,"Crit":false}
+{"deltaTime":87294,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":168273,"Crit":true}
+{"deltaTime":87405,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":179002,"Crit":false}
+{"deltaTime":87496,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":24629,"Crit":false}
+{"deltaTime":87801,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":58395,"Crit":true}
+{"deltaTime":87844,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":37616,"Crit":false}
+{"deltaTime":87925,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":124630,"Crit":true}
+{"deltaTime":88027,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":33573,"Crit":false}
+{"deltaTime":88363,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":106319,"Crit":false}
+{"deltaTime":88496,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":20470,"Crit":false}
+{"deltaTime":88541,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":211620,"Crit":true}
+{"deltaTime":88632,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11366,"Crit":false}
+{"deltaTime":88740,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":212813,"Crit":true}
+{"deltaTime":89043,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":191734,"Crit":false}
+{"deltaTime":89060,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9038,"Crit":false}
+{"deltaTime":89082,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12093450,"SkillName":"\uC9D5\uBC8C","Damage":171052,"Crit":false}
+{"deltaTime":89202,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":191725,"Crit":true}
+{"deltaTime":89602,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":11545,"Crit":false}
+{"deltaTime":89623,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":96316,"Crit":false}
+{"deltaTime":89638,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":238515,"Crit":false}
+{"deltaTime":89639,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":500780,"Crit":true}
+{"deltaTime":90020,"Opcode":"BossHp","EntityId":9001,"Hp":31714073}
+{"deltaTime":90029,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":29507,"Crit":false}
+{"deltaTime":90108,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":115664,"Crit":true}
+{"deltaTime":90340,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":127728,"Crit":false}
+{"deltaTime":90380,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":59071,"Crit":false}
+{"deltaTime":90400,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":19029,"Crit":false}
+{"deltaTime":90685,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":28214,"Crit":false}
+{"deltaTime":90712,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32677,"Crit":true}
+{"deltaTime":90941,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":55206,"Crit":false}
+{"deltaTime":90979,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":19471,"Crit":false}
+{"deltaTime":91138,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":33924,"Crit":true}
+{"deltaTime":91249,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":189361,"Crit":true}
+{"deltaTime":91486,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":228328,"Crit":true}
+{"deltaTime":91577,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":185679,"Crit":true}
+{"deltaTime":91598,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":15947,"Crit":false}
+{"deltaTime":91689,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":72384,"Crit":false}
+{"deltaTime":91978,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":51879,"Crit":true}
+{"deltaTime":92066,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8246,"Crit":false}
+{"deltaTime":92080,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":18112,"Crit":false}
+{"deltaTime":92171,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":76220,"Crit":false}
+{"deltaTime":92473,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":34487,"Crit":true}
+{"deltaTime":92640,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8281,"Crit":false}
+{"deltaTime":92696,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":42396,"Crit":false}
+{"deltaTime":92700,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":92810,"Opcode":"Buff","EntityId":2001,"BuffId":12156211,"BuffName":"\uBC00\uB824\uB0A8","DurationMs":7000,"CasterId":2001}
+{"deltaTime":92810,"Opcode":"Buff","EntityId":2001,"BuffId":120700003,"BuffName":"\uD30C\uBA78\uC758 \uBC29\uD328","DurationMs":5000,"CasterId":2001}
+{"deltaTime":92810,"Opcode":"Buff","EntityId":2001,"BuffId":120700003,"BuffName":"\uD30C\uBA78\uC758 \uBC29\uD328","DurationMs":5000,"CasterId":2001}
+{"deltaTime":92832,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32764,"Crit":false}
+{"deltaTime":92889,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":30557,"Crit":false}
+{"deltaTime":93131,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":92460,"Crit":false}
+{"deltaTime":93156,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":32405,"Crit":false}
+{"deltaTime":93282,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":111080,"Crit":true}
+{"deltaTime":93304,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":174688,"Crit":false}
+{"deltaTime":93610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":93610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":93610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":93610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":93620,"Opcode":"Buff","EntityId":2003,"BuffId":137300071,"BuffName":"\uC911\uB3C5","DurationMs":10000,"CasterId":2003}
+{"deltaTime":93697,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":318986,"Crit":false}
+{"deltaTime":93729,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11410,"Crit":false}
+{"deltaTime":93810,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":93863,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":15877,"Crit":false}
+{"deltaTime":93908,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":134548,"Crit":true}
+{"deltaTime":94210,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":173050,"Crit":false}
+{"deltaTime":94302,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":206505,"Crit":false}
+{"deltaTime":94346,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":72505,"Crit":false}
+{"deltaTime":94515,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":27932,"Crit":false}
+{"deltaTime":94610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":94610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":94610,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":94627,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":188374,"Crit":false}
+{"deltaTime":94856,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":143471,"Crit":false}
+{"deltaTime":94962,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12128,"Crit":true}
+{"deltaTime":95020,"Opcode":"BossHp","EntityId":9001,"Hp":28483522}
+{"deltaTime":95027,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":97360,"Crit":false}
+{"deltaTime":95230,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16081,"Crit":true}
+{"deltaTime":95255,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":26260,"Crit":true}
+{"deltaTime":95434,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":77900,"Crit":false}
+{"deltaTime":95450,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":95454,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":253112,"Crit":true}
+{"deltaTime":95729,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":41561,"Crit":true}
+{"deltaTime":95805,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":221270,"Crit":false}
+{"deltaTime":96039,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":32268,"Crit":false}
+{"deltaTime":96070,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10262,"Crit":false}
+{"deltaTime":96150,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":42258,"Crit":false}
+{"deltaTime":96354,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":20308,"Crit":false}
+{"deltaTime":96460,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":147121,"Crit":false}
+{"deltaTime":96572,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":164110,"Crit":true}
+{"deltaTime":96573,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":59760,"Crit":true}
+{"deltaTime":96851,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":47532,"Crit":false}
+{"deltaTime":96925,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":31244,"Crit":false}
+{"deltaTime":97045,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":121062,"Crit":false}
+{"deltaTime":97273,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":141172,"Crit":false}
+{"deltaTime":97446,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":41168,"Crit":true}
+{"deltaTime":97561,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":13108,"Crit":false}
+{"deltaTime":97652,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":33407,"Crit":false}
+{"deltaTime":97839,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":172060,"Crit":false}
+{"deltaTime":97840,"Opcode":"Buff","EntityId":2001,"BuffId":121100001,"BuffName":"\uBCF4\uD638\uC758 \uBC29\uD328","DurationMs":2000,"CasterId":2001}
+{"deltaTime":97840,"Opcode":"Buff","EntityId":2001,"BuffId":121100001,"BuffName":"\uBCF4\uD638\uC758 \uBC29\uD328","DurationMs":2000,"CasterId":2001}
+{"deltaTime":97840,"Opcode":"Buff","EntityId":2001,"BuffId":1001,"BuffName":"\uBC29\uD328\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":97847,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":49595,"Crit":true}
+{"deltaTime":98120,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":98223,"Crit":true}
+{"deltaTime":98245,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":125715,"Crit":false}
+{"deltaTime":98276,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":155474,"Crit":false}
+{"deltaTime":98358,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":213632,"Crit":false}
+{"deltaTime":98691,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":15729,"Crit":false}
+{"deltaTime":98725,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":30080,"Crit":false}
+{"deltaTime":98741,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":37249,"Crit":true}
+{"deltaTime":98840,"Opcode":"Buff","EntityId":2001,"BuffId":1000,"BuffName":"\uBB34\uAE30\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":98840,"Opcode":"Buff","EntityId":2001,"BuffId":123000001,"BuffName":"\uC12C\uBA78","DurationMs":3000,"CasterId":2001}
+{"deltaTime":98888,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":66788,"Crit":true}
+{"deltaTime":99111,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":25931,"Crit":false}
+{"deltaTime":99259,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":151352,"Crit":false}
+{"deltaTime":99367,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":35140,"Crit":false}
+{"deltaTime":99473,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":172849,"Crit":true}
+{"deltaTime":99547,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":129404,"Crit":true}
+{"deltaTime":99764,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":33925,"Crit":true}
+{"deltaTime":99850,"Opcode":"Buff","EntityId":2001,"BuffId":122400001,"BuffName":"\uC2EC\uD310","DurationMs":3000,"CasterId":2001}
+{"deltaTime":99943,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":112985,"Crit":true}
+{"deltaTime":99954,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":41568,"Crit":true}
+{"deltaTime":100020,"Opcode":"BossHp","EntityId":9001,"Hp":25177499}
+{"deltaTime":100104,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":41676,"Crit":true}
+{"deltaTime":100179,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":26568,"Crit":false}
+{"deltaTime":100349,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":149050,"Crit":true}
+{"deltaTime":100483,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":18638,"Crit":true}
+{"deltaTime":100511,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":37649,"Crit":false}
+{"deltaTime":100599,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":20560,"Crit":false}
+{"deltaTime":100846,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":40959,"Crit":true}
+{"deltaTime":100928,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":41333,"Crit":false}
+{"deltaTime":101179,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":82893,"Crit":false}
+{"deltaTime":101254,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18330000,"SkillName":"\uB9C8\uB974\uCFE0\uD0C4\uC758 \uBD84\uB178","Damage":159072,"Crit":false}
+{"deltaTime":101336,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":302242,"Crit":true}
+{"deltaTime":101481,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":156146,"Crit":true}
+{"deltaTime":101709,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":72660,"Crit":false}
+{"deltaTime":101772,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":55569,"Crit":false}
+{"deltaTime":101895,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":374976,"Crit":false}
+{"deltaTime":102029,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":119383,"Crit":true}
+{"deltaTime":102183,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":149647,"Crit":false}
+{"deltaTime":102430,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":151778,"Crit":true}
+{"deltaTime":102449,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":119553,"Crit":false}
+{"deltaTime":102540,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":19399,"Crit":false}
+{"deltaTime":102682,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":230504,"Crit":false}
+{"deltaTime":102844,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":64595,"Crit":false}
+{"deltaTime":103090,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":33885,"Crit":true}
+{"deltaTime":103125,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":127367,"Crit":false}
+{"deltaTime":103200,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":222606,"Crit":false}
+{"deltaTime":103364,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":17276,"Crit":true}
+{"deltaTime":103492,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":290645,"Crit":false}
+{"deltaTime":103522,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":82610,"Crit":true}
+{"deltaTime":103642,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":25585,"Crit":false}
+{"deltaTime":104042,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":30953,"Crit":false}
+{"deltaTime":104164,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11686,"Crit":false}
+{"deltaTime":104212,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":73027,"Crit":false}
+{"deltaTime":104230,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":31224,"Crit":true}
+{"deltaTime":104246,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":81138,"Crit":false}
+{"deltaTime":104528,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":173125,"Crit":false}
+{"deltaTime":104598,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":29477,"Crit":false}
+{"deltaTime":104832,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":63300,"Crit":true}
+{"deltaTime":104924,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":11816,"Crit":false}
+{"deltaTime":105020,"Opcode":"BossHp","EntityId":9001,"Hp":21436929}
+{"deltaTime":105168,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":102959,"Crit":false}
+{"deltaTime":105187,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":320687,"Crit":false}
+{"deltaTime":105264,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9384,"Crit":false}
+{"deltaTime":105326,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":14664,"Crit":false}
+{"deltaTime":105484,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":180879,"Crit":false}
+{"deltaTime":105726,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":133751,"Crit":true}
+{"deltaTime":105844,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":217218,"Crit":true}
+{"deltaTime":105926,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28834,"Crit":false}
+{"deltaTime":106138,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":60268,"Crit":true}
+{"deltaTime":106337,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9218,"Crit":false}
+{"deltaTime":106350,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":20309,"Crit":false}
+{"deltaTime":106417,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":29581,"Crit":false}
+{"deltaTime":106687,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":17663,"Crit":false}
+{"deltaTime":106767,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":487943,"Crit":true}
+{"deltaTime":106792,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":84351,"Crit":false}
+{"deltaTime":106893,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10053,"Crit":false}
+{"deltaTime":107130,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17043450,"SkillName":"\uC2EC\uD310\uC758 \uBC88\uAC1C","Damage":81798,"Crit":true}
+{"deltaTime":107312,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":39588,"Crit":false}
+{"deltaTime":107364,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":109390,"Crit":false}
+{"deltaTime":107461,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":8869,"Crit":false}
+{"deltaTime":107705,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":237881,"Crit":false}
+{"deltaTime":107877,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":230604,"Crit":false}
+{"deltaTime":107890,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":27921,"Crit":true}
+{"deltaTime":107943,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":256683,"Crit":true}
+{"deltaTime":108135,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":31614,"Crit":false}
+{"deltaTime":108359,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":18430,"Crit":false}
+{"deltaTime":108379,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":333198,"Crit":false}
+{"deltaTime":108380,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":170778,"Crit":true}
+{"deltaTime":108551,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":13390,"Crit":false}
+{"deltaTime":108714,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":29039,"Crit":false}
+{"deltaTime":108972,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":169247,"Crit":false}
+{"deltaTime":108995,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":40612,"Crit":true}
+{"deltaTime":109197,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":72872,"Crit":false}
+{"deltaTime":109354,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":181022,"Crit":false}
+{"deltaTime":109487,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12063450,"SkillName":"\uC751\uC9D5\uC758 \uC77C\uACA9","Damage":92253,"Crit":false}
+{"deltaTime":109623,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":98733,"Crit":false}
+{"deltaTime":109672,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":100577,"Crit":false}
+{"deltaTime":109775,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11611,"Crit":false}
+{"deltaTime":109800,"Opcode":"Buff","EntityId":1001,"BuffId":174300201,"BuffName":"\uC99D\uD3ED\uC758 \uAE30\uB3C4","DurationMs":20000,"CasterId":1001}
+{"deltaTime":109800,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":109800,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":109800,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":109800,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":110020,"Opcode":"BossHp","EntityId":9001,"Hp":17353057}
+{"deltaTime":110041,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":231245,"Crit":false}
+{"deltaTime":110160,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":95691,"Crit":false}
+{"deltaTime":110197,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":39411,"Crit":false}
+{"deltaTime":110254,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11612,"Crit":false}
+{"deltaTime":110402,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":33494,"Crit":true}
+{"deltaTime":110727,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":100901,"Crit":false}
+{"deltaTime":110779,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":30225,"Crit":false}
+{"deltaTime":110791,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":46186,"Crit":true}
+{"deltaTime":110810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":110810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":110810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":110810,"Opcode":"Buff","EntityId":1001,"BuffId":174100011,"BuffName":"\uBCF4\uD638\uC758 \uBE5B","DurationMs":1250,"CasterId":1001}
+{"deltaTime":110810,"Opcode":"Buff","EntityId":1001,"BuffId":170900001,"BuffName":"\uC7AC\uC0DD\uC758 \uBE5B","DurationMs":30000,"CasterId":1001}
+{"deltaTime":110891,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":10819,"Crit":false}
+{"deltaTime":111249,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":383705,"Crit":true}
+{"deltaTime":111280,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":73708,"Crit":false}
+{"deltaTime":111370,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":48860,"Crit":true}
+{"deltaTime":111532,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18063450,"SkillName":"\uD0C0\uACA9\uC1C4","Damage":174445,"Crit":true}
+{"deltaTime":111621,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":38979,"Crit":false}
+{"deltaTime":111640,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":53724,"Crit":true}
+{"deltaTime":111999,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":18865,"Crit":false}
+{"deltaTime":112029,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":154568,"Crit":false}
+{"deltaTime":112085,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":23606,"Crit":false}
+{"deltaTime":112249,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12070000,"SkillName":"\uD30C\uBA78\uC758 \uBC29\uD328","Damage":135304,"Crit":true}
+{"deltaTime":112602,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":32159,"Crit":false}
+{"deltaTime":112711,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":12522,"Crit":false}
+{"deltaTime":112753,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":54706,"Crit":false}
+{"deltaTime":112874,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":113186,"Crit":false}
+{"deltaTime":113051,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":20939,"Crit":false}
+{"deltaTime":113201,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":119957,"Crit":false}
+{"deltaTime":113203,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17033450,"SkillName":"\uBC29\uC804","Damage":184665,"Crit":true}
+{"deltaTime":113210,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":248762,"Crit":false}
+{"deltaTime":113225,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":37343,"Crit":false}
+{"deltaTime":113766,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":36295,"Crit":false}
+{"deltaTime":113789,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":156675,"Crit":true}
+{"deltaTime":113852,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":163089,"Crit":false}
+{"deltaTime":113874,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":58930,"Crit":false}
+{"deltaTime":114232,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":30226,"Crit":true}
+{"deltaTime":114274,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":14999,"Crit":true}
+{"deltaTime":114367,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":38656,"Crit":true}
+{"deltaTime":114595,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":40489,"Crit":false}
+{"deltaTime":114618,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":184615,"Crit":false}
+{"deltaTime":114844,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":25601,"Crit":true}
+{"deltaTime":115014,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":36710,"Crit":false}
+{"deltaTime":115020,"Opcode":"BossHp","EntityId":9001,"Hp":14073895}
+{"deltaTime":115033,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":110056,"Crit":false}
+{"deltaTime":115119,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":84915,"Crit":false}
+{"deltaTime":115270,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":52872,"Crit":false}
+{"deltaTime":115495,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":92337,"Crit":false}
+{"deltaTime":115607,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":148946,"Crit":false}
+{"deltaTime":115692,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":16041,"Crit":false}
+{"deltaTime":115828,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":35552,"Crit":true}
+{"deltaTime":116097,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":45964,"Crit":false}
+{"deltaTime":116178,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11440,"Crit":false}
+{"deltaTime":116211,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":51358,"Crit":false}
+{"deltaTime":116441,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":23588,"Crit":false}
+{"deltaTime":116452,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":176520,"Crit":false}
+{"deltaTime":116629,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":215753,"Crit":false}
+{"deltaTime":116705,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":12452,"Crit":false}
+{"deltaTime":116911,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":23311,"Crit":true}
+{"deltaTime":117014,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":42033,"Crit":false}
+{"deltaTime":117047,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":94567,"Crit":false}
+{"deltaTime":117213,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":204351,"Crit":false}
+{"deltaTime":117472,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":43257,"Crit":true}
+{"deltaTime":117604,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":17844,"Crit":false}
+{"deltaTime":117629,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":121237,"Crit":false}
+{"deltaTime":117731,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":239493,"Crit":false}
+{"deltaTime":117855,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":193503,"Crit":false}
+{"deltaTime":118065,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":99216,"Crit":false}
+{"deltaTime":118099,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":46165,"Crit":false}
+{"deltaTime":118159,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":28212,"Crit":true}
+{"deltaTime":118290,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":93914,"Crit":false}
+{"deltaTime":118732,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":272757,"Crit":false}
+{"deltaTime":118801,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":17826,"Crit":false}
+{"deltaTime":118854,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":115466,"Crit":true}
+{"deltaTime":118873,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9571,"Crit":false}
+{"deltaTime":119196,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":27289,"Crit":true}
+{"deltaTime":119322,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":42156,"Crit":false}
+{"deltaTime":119462,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":11142,"Crit":false}
+{"deltaTime":119530,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":33084,"Crit":false}
+{"deltaTime":119633,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":182852,"Crit":false}
+{"deltaTime":119770,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":135316,"Crit":false}
+{"deltaTime":119911,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34481,"Crit":true}
+{"deltaTime":119992,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17063450,"SkillName":"\uBCBD\uB825","Damage":1226141,"Crit":true}
+{"deltaTime":120020,"Opcode":"BossHp","EntityId":9001,"Hp":9604207}
+{"deltaTime":120129,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":57311,"Crit":true}
+{"deltaTime":120219,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":33331,"Crit":false}
+{"deltaTime":120247,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":110768,"Crit":false}
+{"deltaTime":120693,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":15432,"Crit":false}
+{"deltaTime":120720,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":105950,"Crit":false}
+{"deltaTime":120742,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":410631,"Crit":false}
+{"deltaTime":120809,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":21567,"Crit":false}
+{"deltaTime":121113,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":21927,"Crit":false}
+{"deltaTime":121137,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":25821,"Crit":false}
+{"deltaTime":121172,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":9555,"Crit":false}
+{"deltaTime":121417,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":74104,"Crit":false}
+{"deltaTime":121647,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":321490,"Crit":true}
+{"deltaTime":121764,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":80322,"Crit":false}
+{"deltaTime":121871,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":31248,"Crit":false}
+{"deltaTime":121884,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12310000,"SkillName":"\uC8FC\uC2E0\uC758 \uC9D5\uBC8C","Damage":68925,"Crit":true}
+{"deltaTime":121951,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":31994,"Crit":true}
+{"deltaTime":122353,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":42185,"Crit":false}
+{"deltaTime":122444,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":134140,"Crit":false}
+{"deltaTime":122475,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":47990,"Crit":true}
+{"deltaTime":122508,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":42899,"Crit":false}
+{"deltaTime":122725,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13300000,"SkillName":"\uD2B8\uB9AC\uB2C8\uC5D8\uC758 \uBE44\uC218","Damage":398016,"Crit":true}
+{"deltaTime":122881,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":114542,"Crit":true}
+{"deltaTime":122956,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":25983,"Crit":false}
+{"deltaTime":123075,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":132857,"Crit":false}
+{"deltaTime":123125,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":232243,"Crit":false}
+{"deltaTime":123484,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12070000,"SkillName":"\uD30C\uBA78\uC758 \uBC29\uD328","Damage":159326,"Crit":false}
+{"deltaTime":123549,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":154789,"Crit":false}
+{"deltaTime":123651,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":29858,"Crit":false}
+{"deltaTime":123703,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":96077,"Crit":false}
+{"deltaTime":124014,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13270000,"SkillName":"\uB9F9\uC218\uC758 \uC1A1\uACF3\uB2C8","Damage":68763,"Crit":false}
+{"deltaTime":124044,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":140068,"Crit":false}
+{"deltaTime":124149,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":74008,"Crit":false}
+{"deltaTime":124172,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":10803,"Crit":false}
+{"deltaTime":124321,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":37033,"Crit":true}
+{"deltaTime":124602,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18033450,"SkillName":"\uBCBD\uB825\uC1C4","Damage":91123,"Crit":false}
+{"deltaTime":124605,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":125020,"Crit":true}
+{"deltaTime":124762,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":25403,"Crit":true}
+{"deltaTime":124886,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":206761,"Crit":false}
+{"deltaTime":125020,"Opcode":"BossHp","EntityId":9001,"Hp":5793944}
+{"deltaTime":125119,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":31988,"Crit":true}
+{"deltaTime":125276,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":111217,"Crit":false}
+{"deltaTime":125342,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17440000,"SkillName":"\uACE0\uACB0\uD55C \uAE30\uC6B4","Damage":96273,"Crit":false}
+{"deltaTime":125358,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":18036,"Crit":true}
+{"deltaTime":125635,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":57706,"Crit":false}
+{"deltaTime":125729,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":34483,"Crit":false}
+{"deltaTime":125972,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7865,"Crit":false}
+{"deltaTime":125995,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17013450,"SkillName":"\uB300\uC9C0\uC758 \uC751\uBCF4","Damage":54649,"Crit":true}
+{"deltaTime":126103,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":213579,"Crit":false}
+{"deltaTime":126320,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":109045,"Crit":false}
+{"deltaTime":126460,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":50273,"Crit":false}
+{"deltaTime":126547,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":40684,"Crit":true}
+{"deltaTime":126591,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17153450,"SkillName":"\uC2E0\uC131\uD55C \uAE30\uC6B4","Damage":33545,"Crit":false}
+{"deltaTime":126739,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":22381,"Crit":false}
+{"deltaTime":126753,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":103282,"Crit":false}
+{"deltaTime":126925,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":11770,"Crit":false}
+{"deltaTime":127270,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":50380,"Crit":false}
+{"deltaTime":127313,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":22270,"Crit":false}
+{"deltaTime":127330,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":92697,"Crit":false}
+{"deltaTime":127523,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18103450,"SkillName":"\uC554\uACA9\uC1C4","Damage":137001,"Crit":false}
+{"deltaTime":127758,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":32408,"Crit":false}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":9001,"BuffId":121200002,"BuffName":"\uC704\uCD95","DurationMs":20000,"CasterId":2001}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":137300071,"BuffName":"\uC911\uB3C5","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":127833,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":136564,"Crit":false}
+{"deltaTime":127895,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17300000,"SkillName":"\uD30C\uBA78\uC758 \uBAA9\uC18C\uB9AC","Damage":19958,"Crit":true}
+{"deltaTime":128129,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":171745,"Crit":false}
+{"deltaTime":128196,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":26375,"Crit":false}
+{"deltaTime":128344,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":16063,"Crit":false}
+{"deltaTime":128390,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12033450,"SkillName":"\uD544\uC0AC\uC758 \uC77C\uACA9","Damage":43483,"Crit":true}
+{"deltaTime":128594,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13073450,"SkillName":"\uC554\uC2B5","Damage":63114,"Crit":false}
+{"deltaTime":128723,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18023450,"SkillName":"\uACF5\uBA85\uC1C4","Damage":7327,"Crit":false}
+{"deltaTime":128800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":128800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":128800,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":128810,"Opcode":"Buff","EntityId":2001,"BuffId":1000,"BuffName":"\uBB34\uAE30\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":128810,"Opcode":"Buff","EntityId":2001,"BuffId":120900001,"BuffName":"\uC9D1\uD589\uC790","DurationMs":10000,"CasterId":2001}
+{"deltaTime":128810,"Opcode":"Buff","EntityId":2001,"BuffId":120900101,"BuffName":"\uC9D5\uBC8C","DurationMs":2500,"CasterId":2001}
+{"deltaTime":128810,"Opcode":"Buff","EntityId":2001,"BuffId":12156211,"BuffName":"\uBC00\uB824\uB0A8","DurationMs":7000,"CasterId":2001}
+{"deltaTime":128959,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":18721,"Crit":false}
+{"deltaTime":128981,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":35351,"Crit":false}
+{"deltaTime":129019,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":175672,"Crit":false}
+{"deltaTime":129257,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13013450,"SkillName":"\uBE60\uB978 \uBCA0\uAE30","Damage":34562,"Crit":false}
+{"deltaTime":129425,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":17118,"Crit":false}
+{"deltaTime":129607,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":93879,"Crit":false}
+{"deltaTime":129615,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17053450,"SkillName":"\uCC9C\uBC8C","Damage":100664,"Crit":false}
+{"deltaTime":129650,"Opcode":"Buff","EntityId":2003,"BuffId":130000011,"BuffName":"\uBB38\uC591","DurationMs":10000,"CasterId":2003}
+{"deltaTime":129719,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":32649,"Crit":false}
+{"deltaTime":129820,"Opcode":"Buff","EntityId":2001,"BuffId":120700003,"BuffName":"\uD30C\uBA78\uC758 \uBC29\uD328","DurationMs":5000,"CasterId":2001}
+{"deltaTime":129820,"Opcode":"Buff","EntityId":2001,"BuffId":120700003,"BuffName":"\uD30C\uBA78\uC758 \uBC29\uD328","DurationMs":5000,"CasterId":2001}
+{"deltaTime":129823,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":180202,"Crit":true}
+{"deltaTime":130020,"Opcode":"BossHp","EntityId":9001,"Hp":3288965}
+{"deltaTime":130034,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12243450,"SkillName":"\uC2EC\uD310","Damage":131767,"Crit":false}
+{"deltaTime":130151,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":45240,"Crit":true}
+{"deltaTime":130243,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17400000,"SkillName":"\uB300\uC9C0\uC758 \uC9D5\uBC8C","Damage":13025,"Crit":false}
+{"deltaTime":130409,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18293450,"SkillName":"\uD68C\uC804\uACA9","Damage":70777,"Crit":false}
+{"deltaTime":130489,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":497935,"Crit":true}
+{"deltaTime":130745,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":25328,"Crit":false}
+{"deltaTime":130862,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":338083,"Crit":false}
+{"deltaTime":130888,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17083450,"SkillName":"\uC57D\uD654\uC758 \uB099\uC778","Damage":14690,"Crit":false}
+{"deltaTime":131021,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18403450,"SkillName":"\uAD00\uD1B5\uC1C4","Damage":212904,"Crit":false}
+{"deltaTime":131068,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":93401,"Crit":false}
+{"deltaTime":131251,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13133450,"SkillName":"\uBB38\uC591 \uD3ED\uBC1C","Damage":307210,"Crit":false}
+{"deltaTime":131494,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18013450,"SkillName":"\uACA9\uD30C\uC1C4","Damage":18844,"Crit":false}
+{"deltaTime":131558,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":119714,"Crit":false}
+{"deltaTime":131763,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12443450,"SkillName":"\uC704\uD611\uC758 \uB9F9\uD0C0","Damage":69993,"Crit":false}
+{"deltaTime":131828,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13033450,"SkillName":"\uC808\uD63C \uBCA0\uAE30","Damage":33676,"Crit":true}
+{"deltaTime":132108,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17023450,"SkillName":"\uB1CC\uC804","Damage":25549,"Crit":false}
+{"deltaTime":132174,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18083450,"SkillName":"\uD30C\uB3D9\uACA9","Damage":44798,"Crit":false}
+{"deltaTime":132286,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":269993,"Crit":true}
+{"deltaTime":132335,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12023450,"SkillName":"\uD68C\uC2EC\uC758 \uC77C\uACA9","Damage":32210,"Crit":false}
+{"deltaTime":132633,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":48278,"Crit":true}
+{"deltaTime":132643,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17073450,"SkillName":"\uACE0\uD1B5\uC758 \uC5F0\uC1C4","Damage":15148,"Crit":false}
+{"deltaTime":132741,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12013450,"SkillName":"\uB9F9\uB82C\uD55C \uC77C\uACA9","Damage":32969,"Crit":false}
+{"deltaTime":132823,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18093450,"SkillName":"\uB3CC\uC9C4 \uACA9\uD30C","Damage":243095,"Crit":true}
+{"deltaTime":132860,"Opcode":"Buff","EntityId":2001,"BuffId":122400001,"BuffName":"\uC2EC\uD310","DurationMs":3000,"CasterId":2001}
+{"deltaTime":132860,"Opcode":"Buff","EntityId":2001,"BuffId":1001,"BuffName":"\uBC29\uD328\uB9C9\uAE30\uC0C1\uD0DC","DurationMs":5000,"CasterId":2001}
+{"deltaTime":132860,"Opcode":"Buff","EntityId":2001,"BuffId":123000001,"BuffName":"\uC12C\uBA78","DurationMs":3000,"CasterId":2001}
+{"deltaTime":133098,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13043450,"SkillName":"\uCF8C\uC18D \uBCA0\uAE30","Damage":46799,"Crit":true}
+{"deltaTime":133199,"Opcode":"Damage","ActorId":2002,"TargetId":9001,"SkillCode":18373450,"SkillName":"\uD3ED\uD48D\uC1C4","Damage":165636,"Crit":false}
+{"deltaTime":133333,"Opcode":"Damage","ActorId":1001,"TargetId":9001,"SkillCode":17353450,"SkillName":"\uB2E8\uC8C4","Damage":157713,"Crit":false}
+{"deltaTime":133397,"Opcode":"Damage","ActorId":2001,"TargetId":9001,"SkillCode":12043450,"SkillName":"\uC5F0\uC18D \uB09C\uD0C0","Damage":29446,"Crit":false}
+{"deltaTime":133454,"Opcode":"Damage","ActorId":2003,"TargetId":9001,"SkillCode":13353450,"SkillName":"\uC2EC\uC7A5 \uCC0C\uB974\uAE30","Damage":184744,"Crit":false}
+{"deltaTime":135000,"Opcode":"BossHp","EntityId":9001,"Hp":0}
+{"deltaTime":135050,"Opcode":"EntityRemoved","EntityId":9001}

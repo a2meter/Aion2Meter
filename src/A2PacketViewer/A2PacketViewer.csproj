@@ -22,6 +22,8 @@
     <Compile Include="..\A2Meter\Dps\Protocol\Lz4Decoder.cs"          Link="Protocol\Lz4Decoder.cs" />
     <Compile Include="..\A2Meter\Dps\Protocol\TcpReassembler.cs"      Link="Protocol\TcpReassembler.cs" />
     <Compile Include="..\A2Meter\Dps\Protocol\StreamProcessor.cs"     Link="Protocol\StreamProcessor.cs" />
+    <Compile Include="..\A2Meter\Api\GameDataClient.cs"               Link="Api\GameDataClient.cs" />
+    <Compile Include="..\A2Meter\Dps\Protocol\ProtocolOpcodeConfig.cs" Link="Protocol\ProtocolOpcodeConfig.cs" />
     <Compile Include="..\A2Meter\Dps\Protocol\SkillDatabase.cs"       Link="Protocol\SkillDatabase.cs" />
     <Compile Include="..\A2Meter\Dps\Protocol\PacketDispatcher.cs"    Link="Protocol\PacketDispatcher.cs" />
     <Compile Include="..\A2Meter\Dps\Protocol\PartyStreamParser.cs"   Link="Protocol\PartyStreamParser.cs" />
@@ -30,12 +32,6 @@
     <Compile Include="..\A2Meter\Dps\Protocol\StatMapping.cs"        Link="Protocol\StatMapping.cs" />
     <Compile Include="..\A2Meter\Dps\JobMapping.cs"                   Link="Dps\JobMapping.cs" />
     <Compile Include="..\A2Meter\Dps\Models.cs"                       Link="Dps\Models.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="..\A2Meter\Data\game_db.json" Link="Data\game_db.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
 </Project>

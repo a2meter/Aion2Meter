@@ -50,7 +50,6 @@ internal sealed class OverlayRenderer : IDisposable
     private ID2D1Bitmap1? _targetBitmap;
     private D2DFontProvider? _fonts;
     private JobIconAtlas? _icons;
-    private TierIconAtlas? _tierIcons;
     private ID2D1Bitmap1? _brandIcon;
     private int _texW, _texH;
 
@@ -115,7 +114,6 @@ internal sealed class OverlayRenderer : IDisposable
         string ServerName,
         bool IsSelf,
         int Level = 0,
-        string Tier = "",
         bool IsPartyRequest = false,
         long PartyRequestOrder = 0);
 
@@ -196,7 +194,6 @@ internal sealed class OverlayRenderer : IDisposable
         RebuildFonts();
 
         _icons = new JobIconAtlas(_dc);
-        _tierIcons = new TierIconAtlas(_dc);
         _brandIcon = LoadBrandIcon(_dc);
 
         BuildIconGeometries();
@@ -389,7 +386,6 @@ internal sealed class OverlayRenderer : IDisposable
         _geoUnlockShackle?.Dispose();
         _geoLockShackle?.Dispose();
         _brandIcon?.Dispose();
-        _tierIcons?.Dispose();
         _icons?.Dispose();
         _fontTotalC?.Dispose();
         _fontCpScoreC?.Dispose();
@@ -1263,26 +1259,6 @@ internal sealed class OverlayRenderer : IDisposable
             float textLeft = iconX + IconSize + 4f;
 
             float rightCursor = PadX + w - 4f;
-            string tierText = "";
-            ID2D1Bitmap1? tierIcon = null;
-            IDWriteTextLayout? tierLayout = null;
-            float tierIconSize = 0f;
-            float tierX = rightCursor;
-            if (!string.IsNullOrWhiteSpace(row.Tier))
-            {
-                tierText = TierShortKo(row.Tier);
-                tierIcon = _tierIcons?.Get(row.Tier);
-                tierIconSize = Math.Max(1f, Math.Min(rowH - 2f, IconSize * 1.2f));
-                tierLayout = dw.CreateTextLayout(tierText, FCpScore, 120f, rowH);
-                tierLayout.ParagraphAlignment = ParagraphAlignment.Center;
-
-                float tierTextW = Math.Max(8f, tierLayout.Metrics.WidthIncludingTrailingWhitespace);
-                float tierIconW = tierIcon != null ? tierIconSize + 3f : 0f;
-                float tierGroupW = tierIconW + tierTextW;
-                tierX = Math.Max(textLeft, rightCursor - tierGroupW);
-                rightCursor = tierX - 6f;
-            }
-
             IDWriteTextLayout? svrLayout = null;
             float svrX = textLeft;
             if (!string.IsNullOrEmpty(row.ServerName) && rightCursor > textLeft + 24f)
@@ -1361,20 +1337,6 @@ internal sealed class OverlayRenderer : IDisposable
                     cpX += scoreLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;
                     scoreLayout.Dispose();
                 }
-            }
-
-            if (tierLayout != null)
-            {
-                float tierTextX = tierX;
-                if (tierIcon != null)
-                {
-                    DrawBitmapScaled(dc, tierIcon, tierX, y + (rowH - tierIconSize) / 2f, tierIconSize);
-                    tierTextX += tierIconSize + 3f;
-                }
-
-                _brushGold!.Color = TierTextColor(row.Tier);
-                dc.DrawTextLayout(new Vector2(tierTextX, y), tierLayout!, _brushGold);
-                tierLayout.Dispose();
             }
 
             // Server name (right-aligned)
@@ -1559,47 +1521,6 @@ internal sealed class OverlayRenderer : IDisposable
         dc.Transform = save;
         dc.AntialiasMode = prevAA;
     }
-
-    private static void DrawBitmapScaled(ID2D1DeviceContext dc, ID2D1Bitmap1 icon, float x, float y, float size)
-    {
-        var save = dc.Transform;
-        float scale = size / icon.Size.Width;
-        dc.Transform = Matrix3x2.CreateScale(scale) * Matrix3x2.CreateTranslation(x, y);
-        dc.DrawBitmap(icon, 1f, D2D.InterpolationMode.Linear);
-        dc.Transform = save;
-    }
-
-    private static string TierShortKo(string tier) => tier switch
-    {
-        "Challenger1" => "챌1",
-        "Challenger2" => "챌2",
-        "Challenger3" => "챌3",
-        "Challenger"  => "챌",
-        "Grandmaster" => "GM",
-        "Master"      => "마",
-        "Diamond"     => "다",
-        "Platinum"    => "플",
-        "Gold"        => "골",
-        "Silver"      => "실",
-        "Bronze"      => "브",
-        "Iron"        => "아",
-        "Unranked"    => "언",
-        _             => "언",
-    };
-
-    private static D2DColor TierTextColor(string tier) => tier switch
-    {
-        "Challenger1" or "Challenger2" or "Challenger3" or "Challenger" => new D2DColor(1.00f, 0.48f, 0.32f, 1f),
-        "Grandmaster" => new D2DColor(1.00f, 0.36f, 0.36f, 1f),
-        "Master"      => new D2DColor(0.86f, 0.32f, 0.86f, 1f),
-        "Diamond"     => new D2DColor(0.43f, 0.78f, 0.94f, 1f),
-        "Platinum"    => new D2DColor(0.55f, 0.78f, 0.71f, 1f),
-        "Gold"        => new D2DColor(0.90f, 0.78f, 0.39f, 1f),
-        "Silver"      => new D2DColor(0.71f, 0.75f, 0.80f, 1f),
-        "Bronze"      => new D2DColor(0.71f, 0.51f, 0.31f, 1f),
-        "Iron"        => new D2DColor(0.52f, 0.56f, 0.62f, 1f),
-        _             => new D2DColor(0.55f, 0.59f, 0.67f, 1f),
-    };
 
     // ── Job accent palette (keyed by Korean name for Party tab icons) ──
     private static readonly Dictionary<string, D2DColor> _jobAccentByName = new()

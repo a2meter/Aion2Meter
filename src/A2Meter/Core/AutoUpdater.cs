@@ -9,22 +9,17 @@ using System.Threading.Tasks;
 
 namespace A2Meter.Core;
 
-/// Checks GitHub releases for a newer version. Download + replace is
-/// triggered only after the user confirms via the toast.
-///
-/// 업데이트 적용 시 별도 A2Updater.exe를 실행하여 본체 교체를 위임.
-/// A2Updater.exe는 %APPDATA%\A2Meter\A2Updater.exe에 배치됨.
+/// Checks GitHub releases for a newer version and hands off install/update work
+/// to the AppData installer.
 internal static class AutoUpdater
 {
     private const string RepoOwner = "a2meter";
     private const string RepoName = "Aion2Meter";
-    private const string AssetName = "A2Meter.exe";
-    private const string UpdaterAssetName = "A2Updater.exe";
-    private const string UpdaterReleaseTag = "updater-v2";
+    private const string UpdaterAssetName = "A2Meter_Installer.exe";
 
     private static readonly string UpdaterDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "A2Meter");
-    private static readonly string UpdaterPath = Path.Combine(UpdaterDir, "A2Updater.exe");
+    private static readonly string UpdaterPath = Path.Combine(UpdaterDir, UpdaterAssetName);
     private static readonly string UpdaterTagFile = Path.Combine(UpdaterDir, "updater_tag.txt");
     private static readonly string InstallPathFile = Path.Combine(UpdaterDir, "install_path.txt");
 
@@ -60,6 +55,9 @@ internal static class AutoUpdater
     {
         try
         {
+            var release = await GetLatestReleaseAsync();
+            if (release?.Assets == null || string.IsNullOrWhiteSpace(release.TagName)) return;
+
             string installedTag = "";
             try
             {
@@ -69,21 +67,18 @@ internal static class AutoUpdater
             catch { /* treat as missing */ }
 
             bool upToDate = File.Exists(UpdaterPath)
-                            && string.Equals(installedTag, UpdaterReleaseTag, StringComparison.Ordinal);
+                            && string.Equals(installedTag, release.TagName, StringComparison.Ordinal);
             if (upToDate) return;
 
-            log?.Invoke($"[updater] need updater {UpdaterReleaseTag} (installed='{installedTag}'), downloading...");
+            log?.Invoke($"[updater] need installer {release.TagName} (installed='{installedTag}'), downloading...");
             Directory.CreateDirectory(UpdaterDir);
-
-            var release = await GetReleaseByTagAsync(UpdaterReleaseTag);
-            if (release?.Assets == null) return;
 
             string? updaterUrl = null;
             foreach (var a in release.Assets)
                 if (string.Equals(a.Name, UpdaterAssetName, StringComparison.OrdinalIgnoreCase))
                 { updaterUrl = a.BrowserDownloadUrl; break; }
 
-            if (updaterUrl == null) { log?.Invoke("[updater] updater asset not found in release"); return; }
+            if (updaterUrl == null) { log?.Invoke("[updater] installer asset not found in release"); return; }
 
             // Download to a temp file first, then atomically replace to avoid leaving a
             // half-written exe if the connection drops mid-stream.
@@ -94,8 +89,8 @@ internal static class AutoUpdater
 
             if (File.Exists(UpdaterPath)) File.Delete(UpdaterPath);
             File.Move(tmpPath, UpdaterPath);
-            File.WriteAllText(UpdaterTagFile, UpdaterReleaseTag);
-            log?.Invoke($"[updater] A2Updater.exe ({UpdaterReleaseTag}) deployed to {UpdaterPath}");
+            File.WriteAllText(UpdaterTagFile, release.TagName);
+            log?.Invoke($"[updater] {UpdaterAssetName} ({release.TagName}) deployed to {UpdaterPath}");
         }
         catch (Exception ex)
         {
@@ -124,10 +119,10 @@ internal static class AutoUpdater
             string? downloadUrl = null;
             if (release.Assets != null)
                 foreach (var a in release.Assets)
-                    if (string.Equals(a.Name, AssetName, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(a.Name, UpdaterAssetName, StringComparison.OrdinalIgnoreCase))
                     { downloadUrl = a.BrowserDownloadUrl; break; }
 
-            if (downloadUrl == null) { log?.Invoke("[updater] asset not found"); return null; }
+            if (downloadUrl == null) { log?.Invoke("[updater] installer asset not found"); return null; }
 
             log?.Invoke($"[updater] update available: {remoteVer}");
             return (remoteVer, downloadUrl, release.Body ?? "");
@@ -141,20 +136,31 @@ internal static class AutoUpdater
 
     /// 업데이터를 실행. 업데이터가 GitHub 재확인 → 사용자 확인 → 교체까지 처리.
     /// 호출 후 본체는 즉시 종료해야 함.
-    public static void LaunchUpdaterAndExit(Action<string>? log = null)
+    public static async Task<bool> LaunchInstallerIfOutdatedAsync(Action<string>? log = null)
+    {
+        await EnsureUpdaterAsync(log);
+
+        var update = await CheckAsync(log);
+        if (!update.HasValue) return false;
+
+        log?.Invoke($"[updater] forcing update to {update.Value.Version}");
+        return LaunchUpdaterAndExit(log);
+    }
+
+    public static bool LaunchUpdaterAndExit(Action<string>? log = null)
     {
         var pid = Environment.ProcessId;
 
         if (!File.Exists(UpdaterPath))
         {
-            log?.Invoke("[updater] A2Updater.exe not found — cannot update");
-            return;
+            log?.Invoke($"[updater] {UpdaterAssetName} not found - cannot update");
+            return false;
         }
 
         // Ensure install_path.txt is up-to-date for the updater.
         PersistInstallPath(log);
 
-        log?.Invoke($"[updater] launching A2Updater (pid={pid})");
+        log?.Invoke($"[updater] launching A2Meter_Installer (pid={pid})");
 
         Process.Start(new ProcessStartInfo
         {
@@ -163,19 +169,13 @@ internal static class AutoUpdater
             UseShellExecute = false,
             CreateNoWindow = true,
         });
+
+        return true;
     }
 
     private static async Task<GitHubRelease?> GetLatestReleaseAsync()
     {
         var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
-        var resp = await Http.GetAsync(url);
-        if (!resp.IsSuccessStatusCode) return null;
-        return await resp.Content.ReadFromJsonAsync<GitHubRelease>();
-    }
-
-    private static async Task<GitHubRelease?> GetReleaseByTagAsync(string tag)
-    {
-        var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/tags/{tag}";
         var resp = await Http.GetAsync(url);
         if (!resp.IsSuccessStatusCode) return null;
         return await resp.Content.ReadFromJsonAsync<GitHubRelease>();

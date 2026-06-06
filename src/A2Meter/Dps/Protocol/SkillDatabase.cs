@@ -1,15 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+using A2Meter.Api;
 
 namespace A2Meter.Dps.Protocol;
 
 /// Slim port of A2Viewer.Dps.SkillDatabase.
-/// Loads game_db.json (skills + buffs + mobs + dungeons) on construction.
-/// Exposes the lookup surface the PacketDispatcher needs: ContainsSkillCode,
-/// GetSkillName, IsMobBoss, IsKnownBuffCode, IsSkillCodeInRange,
-/// and the multi-attempt ResolveFromPacketBytes used during damage parsing.
+/// Loads skills, buffs, mobs, dungeons, and opcode config from A2Web at startup.
 internal sealed class SkillDatabase
 {
     private static readonly Lazy<SkillDatabase> _shared = new(() => new SkillDatabase());
@@ -33,116 +29,37 @@ internal sealed class SkillDatabase
 
     public SkillDatabase()
     {
-        // Prefer SQLite database from AppData (downloaded from CDN).
-        if (Data.GameDatabase.Instance.IsAvailable)
-            LoadFromSqlite();
-        else
-        {
-            // Legacy fallback: bundled JSON (if present).
-            var path = Path.Combine(AppContext.BaseDirectory, "Data", "game_db.json");
-            if (File.Exists(path)) LoadFromJson(path);
-        }
+        LoadFromServer();
     }
 
-    private void LoadFromSqlite()
+    private void LoadFromServer()
     {
-        try
+        var snapshot = GameDataClient.Snapshot;
+        ProtocolOpcodeConfig.Configure(snapshot.Opcodes);
+
+        foreach (var s in snapshot.Skills)
+            if (s.Code != 0 && !string.IsNullOrWhiteSpace(s.Name))
+                _skills[s.Code] = s.Name;
+
+        foreach (var b in snapshot.Buffs)
+            if (b.Code != 0 && !string.IsNullOrWhiteSpace(b.Name))
+                _buffs[b.Code] = b.Name;
+
+        foreach (var d in snapshot.Dungeons)
         {
-            using var conn = new Microsoft.Data.Sqlite.SqliteConnection(
-                $"Data Source={Data.DataManager.DatabasePath};Mode=ReadOnly");
-            conn.Open();
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT code, name, job_code FROM skills";
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                {
-                    int code = r.GetInt32(0);
-                    string name = r.GetString(1);
-                    _skills[code] = name;
-                }
-            }
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT code, name FROM buffs";
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                    _buffs[r.GetInt32(0)] = r.GetString(1);
-            }
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT code, name FROM dungeons";
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                    _dungeons[r.GetInt32(0)] = r.GetString(1);
-            }
-
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT code, name, is_boss FROM mobs";
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                {
-                    int code = r.GetInt32(0);
-                    _mobNames[code] = r.GetString(1);
-                    _mobIsBoss[code] = r.GetInt32(2) != 0;
-                }
-            }
+            if (d.Id == 0) continue;
+            var display = string.IsNullOrWhiteSpace(d.BaseName)
+                ? d.Name
+                : $"{d.BaseName} {d.Tier}".Trim();
+            if (!string.IsNullOrWhiteSpace(display)) _dungeons[d.Id] = display;
         }
-        catch
+
+        foreach (var m in snapshot.Mobs)
         {
-            // Fall through; dictionaries may be partially loaded — that's acceptable.
+            if (m.Id == 0) continue;
+            if (!string.IsNullOrWhiteSpace(m.Name)) _mobNames[m.Id] = m.Name;
+            _mobIsBoss[m.Id] = m.IsBoss != 0;
         }
-    }
-
-    private void LoadFromJson(string path)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("skills", out var sk))
-                foreach (var prop in sk.EnumerateObject())
-                    if (int.TryParse(prop.Name, out int id))
-                    {
-                        var name = prop.Value.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "";
-                        _skills[id] = name;
-                    }
-
-            if (root.TryGetProperty("buffs", out var bf))
-                foreach (var prop in bf.EnumerateObject())
-                    if (int.TryParse(prop.Name, out int id))
-                    {
-                        var name = prop.Value.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "";
-                        _buffs[id] = name;
-                    }
-
-            if (root.TryGetProperty("dungeons", out var dg))
-                foreach (var prop in dg.EnumerateObject())
-                    if (int.TryParse(prop.Name, out int id) && prop.Value.TryGetProperty("name", out var n))
-                    {
-                        var s = n.GetString();
-                        if (!string.IsNullOrWhiteSpace(s)) _dungeons[id] = s!;
-                    }
-
-            if (root.TryGetProperty("mobs", out var mb))
-                foreach (var prop in mb.EnumerateObject())
-                    if (int.TryParse(prop.Name, out int id))
-                    {
-                        bool isBoss = prop.Value.TryGetProperty("isBoss", out var b) && b.GetBoolean();
-                        _mobIsBoss[id] = isBoss;
-                        if (prop.Value.TryGetProperty("name", out var n))
-                        {
-                            var s = n.GetString();
-                            if (!string.IsNullOrWhiteSpace(s)) _mobNames[id] = s!;
-                        }
-                    }
-        }
-        catch { /* missing/corrupt DB just means parsers fall back to empty lookups */ }
     }
 
     public bool ContainsSkillCode(int code) => _skills.ContainsKey(code) || _buffs.ContainsKey(code);
@@ -157,10 +74,9 @@ internal sealed class SkillDatabase
     public bool IsMobBoss(int code)         => _mobIsBoss.TryGetValue(code, out var b) && b;
     public string? GetMobName(int code)     => _mobNames.TryGetValue(code, out var n) ? n : null;
     public string  GetDungeonName(int id)   => _dungeons.TryGetValue(id, out var n) ? n : $"#{id}";
-    public bool    IsDungeon(int id)       => _dungeons.ContainsKey(id);
+    public bool    IsDungeon(int id)        => _dungeons.ContainsKey(id);
     public bool IsKnownBuffCode(int code)   => _buffs.ContainsKey(code);
 
-    /// Tries exact → /10*10 → /10000*10000 fallback chain (matches original A2Viewer).
     private static int? ResolveSkillCodeFallback(int code, Func<int, bool> predicate)
     {
         if (predicate(code)) return code;
@@ -178,8 +94,6 @@ internal sealed class SkillDatabase
         return false;
     }
 
-    /// Decode specialization tiers from the delta between raw and base skill codes.
-    /// Returns sorted ascending tier indices (1-based), or null if no specs.
     public static int[]? DecodeSpecializations(int rawCode, int baseCode)
     {
         int num = (rawCode - baseCode) / 10;
@@ -195,7 +109,6 @@ internal sealed class SkillDatabase
         }
         if (list.Count == 0) return null;
 
-        // Original validates descending order before sort.
         for (int i = 1; i < list.Count; i++)
             if (list[i] >= list[i - 1]) return null;
 
@@ -203,10 +116,6 @@ internal sealed class SkillDatabase
         return list.ToArray();
     }
 
-    /// Walks a few candidate offsets at `pos` looking for a 4-byte little-endian
-    /// integer that resolves to a known skill, possibly via *10/+1 packing.
-    /// On success advances `pos` past the consumed bytes and returns the
-    /// normalized base skill code; on failure returns 0.
     public int ResolveFromPacketBytes(byte[] data, ref int pos, int end)
     {
         LastRawSkillCode = 0;

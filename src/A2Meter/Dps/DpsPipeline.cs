@@ -51,8 +51,16 @@ internal sealed class DpsPipeline : IDisposable
     private int?       _dungeonId;          // current dungeon ID for record storage
 
     /// Current dungeon ID (null if not in a dungeon instance). Exposed so the
-    /// overlay can prefer the active dungeon when displaying a player's tier.
+    /// overlay and party-request toasts can include the active dungeon context.
     public int? CurrentDungeonId => _dungeonId;
+    public bool SuppressExternalServices { get; set; }
+    public bool ForceWebUpload { get; set; }
+    public bool ExternalLookupsAllowed =>
+        !SuppressExternalServices
+        && DateTime.UtcNow >= _externalLookupHoldUntilUtc
+        && !_sessionActive
+        && !_inDungeon
+        && _currentTarget is not { IsBoss: true };
 
     // ── Removed entities tracking (A2Power _removedEntities) ──
     private readonly HashSet<int> _removedEntities = new();
@@ -81,6 +89,7 @@ internal sealed class DpsPipeline : IDisposable
     private long   _lastTotal;
     private string _lastTimer = "";
     private int _lookupRefreshQueued;
+    private readonly DateTime _externalLookupHoldUntilUtc = DateTime.UtcNow.AddSeconds(20);
 
     /// Per-actor running peak DPS this session (resets when session ends).
     private readonly Dictionary<int, long> _peakByActor = new();
@@ -106,7 +115,7 @@ internal sealed class DpsPipeline : IDisposable
         _source.EntityRemoved   += OnEntityRemoved;
         _source.PartyMemberSeen += OnPartyMemberSeen;
         _source.PartyLeft       += () => _party.ClearPartyFlags();
-        _source.DungeonChanged  += id => { _dungeonId = id > 0 ? id : (int?)null; _inDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id); };
+        _source.DungeonChanged  += OnDungeonChanged;
         _source.BuffEvent       += OnBuffEvent;
         _source.SegmentReceived += seg => Ping.Feed(seg);
 
@@ -118,6 +127,7 @@ internal sealed class DpsPipeline : IDisposable
     public BuffTracker Buffs => _buffTracker;
     public void EnterHistoryView() => _viewingHistory = true;
     public void ExitHistoryView()  => _viewingHistory = false;
+    public void RefreshCachedData() => Push(refreshCachedRows: true);
 
     /// Current countdown limit (0 = off).
     public int CountdownSeconds => _countdownSec;
@@ -176,8 +186,13 @@ internal sealed class DpsPipeline : IDisposable
         _party.Upsert(m);
 
         // Trigger async skill level fetch from Plaync API (self + party only).
-        if (!string.IsNullOrEmpty(m.Nickname) && m.ServerId > 0 && (m.IsSelf || m.IsPartyMember || m.IsPartyRequest))
+        if (ExternalLookupsAllowed
+            && !string.IsNullOrEmpty(m.Nickname)
+            && m.ServerId > 0
+            && (m.IsSelf || m.IsPartyMember || m.IsPartyRequest))
+        {
             Api.SkillLevelCache.Instance.EnsureLoaded(m.Nickname, m.ServerId);
+        }
 
         // Detection triggers immediate refresh to show the new member row.
 
@@ -213,6 +228,48 @@ internal sealed class DpsPipeline : IDisposable
         }
     }
 
+    private void OnDungeonChanged(int id)
+    {
+        bool isDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id);
+        bool enteringNewDungeon = isDungeon && (!_inDungeon || _dungeonId != id);
+
+        if (enteringNewDungeon)
+            ResetForDungeonEnter();
+
+        _dungeonId = id > 0 ? id : (int?)null;
+        _inDungeon = isDungeon;
+    }
+
+    private void ResetForDungeonEnter()
+    {
+        _meter.Reset();
+        _party.ClearPartyForDungeonEnter();
+        _buffTracker.Reset();
+        _countdownExpired = false;
+        _combatRecordSaved = false;
+        _sessionId = null;
+        _currentTargetId = 0;
+        _currentTarget = null;
+        _knownBosses.Clear();
+        _removedEntities.Clear();
+        _maxHpCorrected = false;
+        _timeline.Clear();
+        _lastTimelineSec = -1;
+        _hitLog.Clear();
+        _skillLog.Clear();
+        _pendingSkillLog.Clear();
+        _lastSummary = null;
+        _lastRows = null;
+        _lastTotal = 0;
+        _lastTimer = "";
+        _lastHitUtc = DateTime.MinValue;
+        _sessionActive = false;
+        _peakByActor.Clear();
+        _peakDpsThisSess = 0;
+        _selfDetectedOnce = false;
+        _selfEntityId = 0;
+    }
+
     /// Track boss/dummy spawns (matches A2Power _mobs dictionary).
     private void OnMobSpawned(MobTarget mob)
     {
@@ -229,8 +286,18 @@ internal sealed class DpsPipeline : IDisposable
             mob.DamageAtLastHpSample = 0;
             mob.FirstBossHpSet = false;
             mob.FirstBossHpSample = 0;
+            mob.MaxGroggy = 0;
+            mob.CurrentGroggy = 0;
+            mob.GroggyStatus = 0;
+            mob.AggroEntityId = 0;
+            mob.TargetingMode = 0;
+            mob.CombatState = 0;
         }
+        bool resetForFullHpSameName = mob.IsBoss
+            && TryResetDpsForSameNameFullHpBoss(mob, mob.CurrentHp, requirePreviousHpDrop: false);
         _knownBosses[mob.EntityId] = mob;
+        if (resetForFullHpSameName)
+            SetTargetForDisplay(mob);
     }
 
     /// Boss entity removed from world → immediate session end.
@@ -258,6 +325,14 @@ internal sealed class DpsPipeline : IDisposable
     /// Update target display. Does NOT drive hit filtering — that uses _knownBosses.
     private void OnTargetChanged(MobTarget? t)
     {
+        if (t is { IsBoss: true })
+            TryResetDpsForSameNameFullHpBoss(t, t.CurrentHp, requirePreviousHpDrop: false);
+
+        SetTargetForDisplay(t);
+    }
+
+    private void SetTargetForDisplay(MobTarget? t)
+    {
         _meter.SetTarget(t);
         _currentTarget = t;
         // Also register in _knownBosses so targets discovered via TargetChanged
@@ -270,6 +345,31 @@ internal sealed class DpsPipeline : IDisposable
                 _removedEntities.Remove(t.EntityId);
         }
     }
+
+    private bool TryResetDpsForSameNameFullHpBoss(MobTarget candidate, long incomingHp, bool requirePreviousHpDrop)
+    {
+        if (!_sessionActive) return false;
+        if (!candidate.IsBoss || candidate.MaxHp <= 0 || incomingHp < candidate.MaxHp) return false;
+        if (_currentTarget is not { IsBoss: true } current) return false;
+        if (!SameBossName(current.Name, candidate.Name)) return false;
+        if (!CurrentCombatHasDamage()) return false;
+        if (requirePreviousHpDrop && !(candidate.HpAtLastSample > 0 && candidate.HpAtLastSample < candidate.MaxHp))
+            return false;
+
+        ResetCombatStats();
+        return true;
+    }
+
+    private bool CurrentCombatHasDamage()
+    {
+        if (_currentTargetId == 0) return false;
+        return _meter.BuildTargetSnapshot(_currentTargetId).TotalPartyDamage > 0;
+    }
+
+    private static bool SameBossName(string? a, string? b)
+        => !string.IsNullOrWhiteSpace(a)
+           && !string.IsNullOrWhiteSpace(b)
+           && string.Equals(a.Trim(), b.Trim(), StringComparison.Ordinal);
 
     private void OnBuffEvent(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
     {
@@ -362,12 +462,22 @@ internal sealed class DpsPipeline : IDisposable
 
         if (e.Damage <= 0 && !e.IsHeal) return;
 
+        string actorName = e.Name;
+        int actorJobCode = e.JobCode;
+        if (_party.TryGetLookupForCombatActor(e.ActorId, e.Name, out var lookupInfo))
+        {
+            if (!string.IsNullOrWhiteSpace(lookupInfo.Nickname))
+                actorName = lookupInfo.Nickname;
+            if (lookupInfo.JobCode > 0)
+                actorJobCode = lookupInfo.JobCode;
+        }
+
         // Heals: accumulate on actor only (A2Power: orAdd.HealTotal += heal).
         // No target/self filter, no combat start trigger.
         if (e.IsHeal)
         {
             if (_sessionActive)
-                _meter.RecordHit(e.ActorId, e.TargetId, e.Name, e.JobCode, e.Damage, e.HitFlags, true, e.Skill, e.ExtraHits, e.IsDot, e.Specs);
+                _meter.RecordHit(e.ActorId, e.TargetId, actorName, actorJobCode, e.Damage, e.HitFlags, true, e.Skill, e.ExtraHits, e.IsDot, e.Specs);
             return;
         }
 
@@ -396,7 +506,7 @@ internal sealed class DpsPipeline : IDisposable
         {
             _currentTargetId = e.TargetId;
             if (hitMob.IsBoss)
-                RequestMissingActorLookups();
+                RequestMissingActorLookups(TimeSpan.FromSeconds(12));
         }
         else if (_currentTargetId != e.TargetId)
         {
@@ -428,7 +538,7 @@ internal sealed class DpsPipeline : IDisposable
             ResetCombatStats();
             _currentTargetId = e.TargetId;
             if (hitMob.IsBoss)
-                RequestMissingActorLookups();
+                RequestMissingActorLookups(TimeSpan.FromSeconds(12));
         }
 
         // Countdown expired → freeze.
@@ -456,7 +566,7 @@ internal sealed class DpsPipeline : IDisposable
             CombatStarted?.Invoke();
         }
 
-        _meter.RecordHit(e.ActorId, e.TargetId, e.Name, e.JobCode, e.Damage, e.HitFlags, false, e.Skill, e.ExtraHits, e.IsDot, e.Specs);
+        _meter.RecordHit(e.ActorId, e.TargetId, actorName, actorJobCode, e.Damage, e.HitFlags, false, e.Skill, e.ExtraHits, e.IsDot, e.Specs);
         _lastHitUtc = DateTime.UtcNow;
 
         // ── HitLog recording (A2Power _hitLog) ──
@@ -493,7 +603,7 @@ internal sealed class DpsPipeline : IDisposable
             TryCorrectMaxHp(primMob);
     }
 
-    private void Push()
+    private void Push(bool refreshCachedRows = false)
     {
         if (_viewingHistory) return;
 
@@ -502,9 +612,7 @@ internal sealed class DpsPipeline : IDisposable
         // When a boss is active, scope the canvas to that boss's damage only —
         // matches the original A2Power "기록 조회 중" view. Otherwise show the
         // party-wide roll-up.
-        var snap = _currentTargetId != 0
-            ? _meter.BuildTargetSnapshot(_currentTargetId)
-            : _meter.BuildCurrentSnapshot();
+        var snap = BuildDisplaySnapshot();
 
         // Track per-session peak as the highest single-actor DPS we've observed.
         if (_sessionActive && snap.Players.Count > 0)
@@ -530,9 +638,7 @@ internal sealed class DpsPipeline : IDisposable
                 _sessionActive = false;
 
                 // Build final snapshot at countdown limit.
-                var finalSnap = _currentTargetId != 0
-                    ? _meter.BuildTargetSnapshot(_currentTargetId)
-                    : _meter.BuildCurrentSnapshot();
+                var finalSnap = BuildDisplaySnapshot();
                 _lastRows = MapForCanvas(finalSnap.Players, _countdownSec);
                 _lastTotal = finalSnap.TotalPartyDamage;
                 _lastTimer = FormatTimer(_countdownSec);
@@ -544,6 +650,13 @@ internal sealed class DpsPipeline : IDisposable
         // When countdown expired, show frozen data.
         if (_countdownExpired && _lastRows != null)
         {
+            if (refreshCachedRows)
+            {
+                var refreshedSnap = BuildDisplaySnapshot();
+                _lastRows = MapForCanvas(refreshedSnap.Players, _countdownSec);
+                _lastTotal = refreshedSnap.TotalPartyDamage;
+                _lastTimer = FormatTimer(_countdownSec);
+            }
             DataPushed?.Invoke(_lastRows, _lastTotal, _lastTimer, _currentTarget, _lastSummary);
             return;
         }
@@ -592,6 +705,13 @@ internal sealed class DpsPipeline : IDisposable
         // After session ends, keep displaying the last frame instead of empty.
         if (!_sessionActive && _lastRows != null)
         {
+            if (refreshCachedRows)
+            {
+                var refreshedSnap = BuildDisplaySnapshot();
+                _lastRows = MapForCanvas(refreshedSnap.Players, refreshedSnap.ElapsedSeconds);
+                _lastTotal = refreshedSnap.TotalPartyDamage;
+                _lastTimer = FormatTimer(refreshedSnap.ElapsedSeconds);
+            }
             DataPushed?.Invoke(_lastRows, _lastTotal, _lastTimer, _currentTarget, _lastSummary);
             return;
         }
@@ -610,6 +730,11 @@ internal sealed class DpsPipeline : IDisposable
         }
         DataPushed?.Invoke(rows, snap.TotalPartyDamage, timer, _currentTarget, _lastSummary);
     }
+
+    private DpsSnapshot BuildDisplaySnapshot()
+        => _currentTargetId != 0
+            ? _meter.BuildTargetSnapshot(_currentTargetId)
+            : _meter.BuildCurrentSnapshot();
 
     private DpsCanvas.SessionSummary BuildSummary(DpsSnapshot snap)
     {
@@ -669,6 +794,21 @@ internal sealed class DpsPipeline : IDisposable
         var allowedBuffCasterIds = BuildAllowedBuffCasterIds(snap.Players);
         foreach (var p in snap.Players)
         {
+            if (_party.TryGetLookupForCombatActor(p.EntityId, p.Name, out var initialLookup))
+            {
+                if (!string.IsNullOrWhiteSpace(initialLookup.Nickname))
+                    p.Name = initialLookup.Nickname;
+                if (initialLookup.JobCode > 0)
+                    p.JobCode = initialLookup.JobCode;
+                if (p.ServerId == 0 && initialLookup.ServerId > 0)
+                {
+                    p.ServerId = initialLookup.ServerId;
+                    p.ServerName = initialLookup.ServerName;
+                }
+                if (p.CombatPower == 0 && initialLookup.CombatPower > 0)
+                    p.CombatPower = initialLookup.CombatPower;
+            }
+
             string cleanName = StripServerSuffix(p.Name);
             int sid = p.ServerId;
             string sname = p.ServerName;
@@ -679,13 +819,23 @@ internal sealed class DpsPipeline : IDisposable
             if (sid <= 0 && identity.ServerId > 0) sid = identity.ServerId;
             if (string.IsNullOrEmpty(sname)) sname = identity.ServerName;
 
-            foreach (var pm in _party.SnapshotMembers())
+            if (_party.TryGetLookupForCombatActor(p.EntityId, cleanName, out var lookup))
             {
-                if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                if (cp == 0 && lookup.CombatPower > 0) cp = lookup.CombatPower;
+                if (lookup.ServerId > 0 && sid == 0) { sid = lookup.ServerId; sname = lookup.ServerName; }
+                if (lookup.JobCode > 0) p.JobCode = lookup.JobCode;
+            }
+            else
+            {
+                foreach (var pm in _party.SnapshotMembers())
                 {
-                    if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
-                    if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
-                    break;
+                    if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                    {
+                        if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
+                        if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
+                        if (pm.JobCode > 0) p.JobCode = pm.JobCode;
+                        break;
+                    }
                 }
             }
             if (string.IsNullOrEmpty(sname) && sid > 0)
@@ -753,10 +903,11 @@ internal sealed class DpsPipeline : IDisposable
             DungeonId   = isDummyTarget ? null : _dungeonId,
         };
 
-        if (!_history.Save(record))
+        bool saved = _history.Save(record);
+        if (!saved && !ForceWebUpload)
             return; // duplicate of previous record — skip upload too
 
-        if (!isDummyTarget && AppSettings.Instance.WebUploadEnabled)
+        if (ForceWebUpload || (!isDummyTarget && !SuppressExternalServices && AppSettings.Instance.WebUploadEnabled))
         {
             _uploader.BaseUrl = AppSettings.Instance.WebUploadUrl;
             _uploader.UploadAsync(record);
@@ -795,6 +946,12 @@ internal sealed class DpsPipeline : IDisposable
             mob.TotalDamageReceived = 0;
             mob.HpAtLastSample = 0;
             mob.DamageAtLastHpSample = 0;
+            mob.MaxGroggy = 0;
+            mob.CurrentGroggy = 0;
+            mob.GroggyStatus = 0;
+            mob.AggroEntityId = 0;
+            mob.TargetingMode = 0;
+            mob.CombatState = 0;
         }
     }
 
@@ -823,7 +980,7 @@ internal sealed class DpsPipeline : IDisposable
     }
 
     /// Trigger API fetch for party members not yet enriched (A2Power RequestMissingActorLookups).
-    private void RequestMissingActorLookups()
+    private void RequestMissingActorLookups(TimeSpan? delay = null)
     {
         if (System.Threading.Interlocked.Exchange(ref _lookupRefreshQueued, 1) != 0)
             return;
@@ -832,7 +989,7 @@ internal sealed class DpsPipeline : IDisposable
         {
             try
             {
-                await System.Threading.Tasks.Task.Delay(250).ConfigureAwait(false);
+                await System.Threading.Tasks.Task.Delay(delay ?? TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
                 RequestMissingActorLookupsNow();
             }
             finally
@@ -844,6 +1001,8 @@ internal sealed class DpsPipeline : IDisposable
 
     private void RequestMissingActorLookupsNow()
     {
+        if (!ExternalLookupsAllowed) return;
+
         foreach (var pm in _party.SnapshotMembers())
         {
             if (!string.IsNullOrEmpty(pm.Nickname) && pm.ServerId > 0)
@@ -883,6 +1042,21 @@ internal sealed class DpsPipeline : IDisposable
         var allowedBuffCasterIds = BuildAllowedBuffCasterIds(players);
         foreach (var p in players)
         {
+            if (_party.TryGetLookupForCombatActor(p.EntityId, p.Name, out var initialLookup))
+            {
+                if (!string.IsNullOrWhiteSpace(initialLookup.Nickname))
+                    p.Name = initialLookup.Nickname;
+                if (initialLookup.JobCode > 0)
+                    p.JobCode = initialLookup.JobCode;
+                if (p.ServerId == 0 && initialLookup.ServerId > 0)
+                {
+                    p.ServerId = initialLookup.ServerId;
+                    p.ServerName = initialLookup.ServerName;
+                }
+                if (p.CombatPower == 0 && initialLookup.CombatPower > 0)
+                    p.CombatPower = initialLookup.CombatPower;
+            }
+
             // Skip unidentified actors (mobs/targets that received damage but never
             // had a UserInfo packet — they leak into the meter because we record by
             // entityId regardless of role).
@@ -925,15 +1099,26 @@ internal sealed class DpsPipeline : IDisposable
             int sid = p.ServerId;
             string sname = p.ServerName;
             string cleanName = StripServerSuffix(p.Name);
-            // PartyTracker is keyed by CharacterId, not EntityId — look up by nickname.
-            // Snapshot Values to avoid InvalidOperationException from concurrent Upsert.
-            foreach (var pm in _party.SnapshotMembers())
+            // Prefer lookup-tab data when it exists; it can survive dungeon-entry resets.
+            if (_party.TryGetLookupForCombatActor(p.EntityId, cleanName, out var lookup))
             {
-                if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                if (cp == 0 && lookup.CombatPower > 0) cp = lookup.CombatPower;
+                if (lookup.ServerId > 0 && sid == 0) { sid = lookup.ServerId; sname = lookup.ServerName; }
+                if (lookup.JobCode > 0) p.JobCode = lookup.JobCode;
+            }
+            else
+            {
+                // PartyTracker is keyed by CharacterId, not EntityId — look up by nickname.
+                // Snapshot Values to avoid InvalidOperationException from concurrent Upsert.
+                foreach (var pm in _party.SnapshotMembers())
                 {
-                    if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
-                    if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
-                    break;
+                    if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                    {
+                        if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
+                        if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
+                        if (pm.JobCode > 0) p.JobCode = pm.JobCode;
+                        break;
+                    }
                 }
             }
             if (string.IsNullOrEmpty(sname) && sid > 0)
@@ -946,7 +1131,7 @@ internal sealed class DpsPipeline : IDisposable
                 if (cp == 0 && apiData.CombatPower > 0) cp = apiData.CombatPower;
                 if (score == 0 && apiData.CombatScore > 0) score = apiData.CombatScore;
             }
-            else if (sid > 0)
+            else if (sid > 0 && ExternalLookupsAllowed)
             {
                 Api.SkillLevelCache.Instance.EnsureLoaded(cleanName, sid);
             }
@@ -1052,7 +1237,7 @@ internal sealed class DpsPipeline : IDisposable
                 if (pmCp == 0 && pmApi.CombatPower > 0) pmCp = pmApi.CombatPower;
                 if (pmScore == 0 && pmApi.CombatScore > 0) pmScore = pmApi.CombatScore;
             }
-            else if (pmSid > 0)
+            else if (pmSid > 0 && ExternalLookupsAllowed)
             {
                 Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, pmSid);
             }

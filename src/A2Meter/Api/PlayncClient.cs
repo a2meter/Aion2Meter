@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using A2Meter.Dps.Protocol;
 
@@ -21,6 +22,7 @@ internal static class PlayncClient
         BaseAddress = new Uri("https://aion2.plaync.com"),
         Timeout = TimeSpan.FromSeconds(10),
     };
+    private static readonly SemaphoreSlim HttpGate = new(2, 2);
 
     private static readonly string LogPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "A2Meter", "api_debug.log");
@@ -33,6 +35,9 @@ internal static class PlayncClient
 
     private static void Log(string msg)
     {
+        if (!string.Equals(Environment.GetEnvironmentVariable("A2METER_API_DEBUG"), "1", StringComparison.Ordinal))
+            return;
+
         try
         {
             var dir = Path.GetDirectoryName(LogPath);
@@ -44,12 +49,20 @@ internal static class PlayncClient
 
     private static async Task<JsonElement> GetJson(string path)
     {
-        Log($"GET {path}");
-        var resp = await Http.GetAsync(path);
-        var json = await resp.Content.ReadAsStringAsync();
-        Log($"  → {(int)resp.StatusCode} | {json[..Math.Min(json.Length, 300)]}");
-        resp.EnsureSuccessStatusCode();
-        return JsonDocument.Parse(json).RootElement;
+        await HttpGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            Log($"GET {path}");
+            var resp = await Http.GetAsync(path).ConfigureAwait(false);
+            var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Log($"  → {(int)resp.StatusCode} | {json[..Math.Min(json.Length, 300)]}");
+            resp.EnsureSuccessStatusCode();
+            return JsonDocument.Parse(json).RootElement;
+        }
+        finally
+        {
+            HttpGate.Release();
+        }
     }
 
     /// Map game packet serverId (1001~2021) to Plaync API serverId.

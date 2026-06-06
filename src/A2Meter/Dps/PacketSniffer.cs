@@ -23,6 +23,13 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     void IInternalEventRaise.RaisePartyLeft() => PartyLeft?.Invoke();
     void IInternalEventRaise.RaiseDungeonChanged(int id) => DungeonChanged?.Invoke(id);
     void IInternalEventRaise.RaiseBuffEvent(int eid, int bid, int type, uint dur, long ts, int casterId) => BuffEvent?.Invoke(eid, bid, type, dur, ts, casterId);
+    void IInternalEventRaise.RaiseBuffRefreshEvent(int eid, int bid, uint dur, long ts, int casterId) => BuffRefreshEvent?.Invoke(eid, bid, dur, ts, casterId);
+    void IInternalEventRaise.RaiseCombatStateChanged(int eid, int state) => CombatStateChanged?.Invoke(eid, state);
+    void IInternalEventRaise.RaiseRemainHpChanged(int targetId, uint remainHp) => RemainHpChanged?.Invoke(targetId, remainHp);
+    void IInternalEventRaise.RaiseNpcGroggyChanged(int targetId, uint maxGroggy, uint currentGroggy, int status) => NpcGroggyChanged?.Invoke(targetId, maxGroggy, currentGroggy, status);
+    void IInternalEventRaise.RaiseTargetOn(int targetId, int aggroId, int mode) => TargetOn?.Invoke(targetId, aggroId, mode);
+    void IInternalEventRaise.RaiseTargetOff(int targetId, int mode) => TargetOff?.Invoke(targetId, mode);
+    void IInternalEventRaise.RaiseZoneMoved(uint zoneId) => ZoneMoved?.Invoke(zoneId);
 
     public event Action<TcpSegment>? SegmentReceived;
     public event Action<CombatHitArgs>? CombatHit;
@@ -34,11 +41,19 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     public event Action? PartyLeft;
     public event Action<int>? DungeonChanged;
     public event Action<int, int, int, uint, long, int>? BuffEvent;
+    public event Action<int, int, uint, long, int>? BuffRefreshEvent;
+    public event Action<int, int>? CombatStateChanged;
+    public event Action<int, uint>? RemainHpChanged;
+    public event Action<int, uint, uint, int>? NpcGroggyChanged;
+    public event Action<int, int, int>? TargetOn;
+    public event Action<int, int>? TargetOff;
+    public event Action<uint>? ZoneMoved;
 
     public bool IsRunning { get; private set; }
 
     private readonly string _filter;
     private readonly string? _adapterSpec;
+    private readonly bool _includeLoopback;
 
     /// The single adapter we locked onto after detecting game traffic.
     private ICaptureDevice? _lockedDevice;
@@ -47,10 +62,11 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
     /// 0 = still scanning, 1 = locked onto an adapter.
     private int _locked;
 
-    public PacketSniffer(string filter = "tcp port 13328", string? adapterSpec = null)
+    public PacketSniffer(string filter = "tcp port 13328", string? adapterSpec = null, bool includeLoopback = false)
     {
         _filter = filter;
         _adapterSpec = adapterSpec;
+        _includeLoopback = includeLoopback;
     }
 
     public void Start()
@@ -75,8 +91,11 @@ internal sealed class PacketSniffer : IPacketSource, IInternalEventRaise
             if (d is LibPcapLiveDevice ld)
             {
                 var desc = ld.Description ?? "";
-                if (desc.Contains("loopback", StringComparison.OrdinalIgnoreCase)) continue;
-                if (!HasIPv4(ld)) continue;
+                var name = ld.Interface?.FriendlyName ?? ld.Interface?.Name ?? "";
+                bool isLoopback = desc.Contains("loopback", StringComparison.OrdinalIgnoreCase)
+                                  || name.Contains("loopback", StringComparison.OrdinalIgnoreCase);
+                if (!_includeLoopback && isLoopback) continue;
+                if (!_includeLoopback && !HasIPv4(ld)) continue;
             }
 
             try

@@ -501,7 +501,7 @@ internal sealed class Dispatcher
             p += 4;
             if (p + 4 > end) continue;
             if ((data[p] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24)) != 0) continue;
-            if (hp <= 0) continue;
+            if (hp < 0) continue;
 
             _state.FireBossHp((int)entityId, hp);
             return true;

@@ -205,6 +205,83 @@ internal sealed class PartyTracker
         Changed?.Invoke();
     }
 
+    /// Clear party/session identity while preserving lookup rows shown in the
+    /// lookup tab. New party membership must come from fresh party packets.
+    public void ClearPartyForDungeonEnter()
+    {
+        bool changed = false;
+        lock (_sync)
+        {
+            var preservedLookups = new List<PartyMember>();
+            foreach (var member in _members.Values)
+            {
+                if (!member.IsLookup)
+                {
+                    changed = true;
+                    continue;
+                }
+
+                if (member.IsSelf || member.IsPartyMember || member.IsPartyRequest || member.PartyRequestOrder != 0)
+                    changed = true;
+
+                member.IsSelf = false;
+                member.IsPartyMember = false;
+                member.IsPartyRequest = false;
+                member.PartyRequestOrder = 0;
+                preservedLookups.Add(member);
+            }
+
+            _partyNames.Clear();
+            _namedKeys.Clear();
+            _members.Clear();
+            SelfEntityId = null;
+            _nextPartyRequestOrder = 0;
+
+            foreach (var member in preservedLookups)
+            {
+                uint key = _nextSyntheticId++;
+                member.CharacterId = key;
+                _members[key] = member;
+                var nameKey = GetNameKey(member);
+                if (nameKey != null)
+                    _namedKeys[nameKey] = key;
+            }
+        }
+
+        if (changed) Changed?.Invoke();
+    }
+
+    public bool TryGetLookupForCombatActor(int entityId, string? nickname, out PartyMember member)
+    {
+        lock (_sync)
+        {
+            if (entityId > 0
+                && _members.TryGetValue((uint)entityId, out var byId)
+                && byId.IsLookup)
+            {
+                member = byId;
+                return true;
+            }
+
+            string cleanName = CleanName(nickname);
+            if (cleanName.Length > 0)
+            {
+                foreach (var candidate in _members.Values)
+                {
+                    if (!candidate.IsLookup) continue;
+                    if (string.Equals(CleanName(candidate.Nickname), cleanName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        member = candidate;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        member = null!;
+        return false;
+    }
+
     /// Remove members that are neither self, confirmed party members, nor
     /// pending party-request rows.
     public void PurgeNonParty()
@@ -242,5 +319,12 @@ internal sealed class PartyTracker
             changed = true;
         }
         if (changed) Changed?.Invoke();
+    }
+
+    private static string CleanName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        int idx = name.IndexOf('[');
+        return (idx > 0 ? name[..idx] : name).Trim();
     }
 }

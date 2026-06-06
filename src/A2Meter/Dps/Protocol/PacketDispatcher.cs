@@ -10,16 +10,25 @@ namespace A2Meter.Dps.Protocol;
 internal sealed class PacketDispatcher
 {
     // Tag bytes used by the original to anchor specific message types.
-    private const byte TAG_DAMAGE_1 = 4,  TAG_DAMAGE_2 = 56;
-    private const byte TAG_DOT_1    = 5,  TAG_DOT_2    = 56;
-    private const byte TAG_BATTLE_STATS_1     = 42, TAG_BATTLE_STATS_2 = 56;
-    private const byte TAG_BATTLE_STATS_ALT_1 = 43;
-    private const byte TAG_SELF_INFO_1  = 51, TAG_SELF_INFO_2  = 54;
-    private const byte TAG_OTHER_INFO_1 = 68, TAG_OTHER_INFO_2 = 54;
-    private const byte TAG_MOB_SPAWN_1  = 64, TAG_MOB_SPAWN_2  = 54;
-    private const byte TAG_GUARD_1      = 3,  TAG_GUARD_2      = 54;
-    private const byte TAG_ENTITY_REMOVED_1 = 33, TAG_ENTITY_REMOVED_2 = 141;
-    private const byte TAG_CHAR_LOOKUP_1   = 79, TAG_CHAR_LOOKUP_2   = 54; // 0x4F 0x36
+    private static byte TAG_DAMAGE_1 => ProtocolOpcodeConfig.Damage.A;
+    private static byte TAG_DAMAGE_2 => ProtocolOpcodeConfig.Damage.B;
+    private static byte TAG_DOT_1 => ProtocolOpcodeConfig.Dot.A;
+    private static byte TAG_DOT_2 => ProtocolOpcodeConfig.Dot.B;
+    private static byte TAG_BATTLE_STATS_1 => ProtocolOpcodeConfig.BattleStats.A;
+    private static byte TAG_BATTLE_STATS_2 => ProtocolOpcodeConfig.BattleStats.B;
+    private static byte TAG_BATTLE_STATS_ALT_1 => ProtocolOpcodeConfig.BattleStatsAlt.A;
+    private static byte TAG_SELF_INFO_1 => ProtocolOpcodeConfig.SelfInfo.A;
+    private static byte TAG_SELF_INFO_2 => ProtocolOpcodeConfig.SelfInfo.B;
+    private static byte TAG_OTHER_INFO_1 => ProtocolOpcodeConfig.OtherInfo.A;
+    private static byte TAG_OTHER_INFO_2 => ProtocolOpcodeConfig.OtherInfo.B;
+    private static byte TAG_MOB_SPAWN_1 => ProtocolOpcodeConfig.MobSpawn.A;
+    private static byte TAG_MOB_SPAWN_2 => ProtocolOpcodeConfig.MobSpawn.B;
+    private static byte TAG_GUARD_1 => ProtocolOpcodeConfig.Guard.A;
+    private static byte TAG_GUARD_2 => ProtocolOpcodeConfig.Guard.B;
+    private static byte TAG_ENTITY_REMOVED_1 => ProtocolOpcodeConfig.EntityRemoved.A;
+    private static byte TAG_ENTITY_REMOVED_2 => ProtocolOpcodeConfig.EntityRemoved.B;
+    private static byte TAG_CHAR_LOOKUP_1 => ProtocolOpcodeConfig.CharLookup.A;
+    private static byte TAG_CHAR_LOOKUP_2 => ProtocolOpcodeConfig.CharLookup.B;
 
     private const uint SENTINEL_SKILL_CODE = 12_250_030u;
     private const int  MIN_PACKET_LENGTH   = 4;
@@ -57,6 +66,16 @@ internal sealed class PacketDispatcher
     public event Action<int, int>?           BossHp;             // (entityId, currentHp)
     public event Action<int, int, int, uint, long, int>? Buff;
         // (entityId, buffId, type, durationMs, timestamp, casterId)
+#pragma warning disable CS0067 // Compatibility events whose packet forms are native-only for now.
+    public event Action<int, int, uint, long, int>? BuffRefresh;
+        // (entityId, buffId, durationMs, timestamp, casterId)
+    public event Action<int, int>?           CombatState;
+    public event Action<int, uint>?          RemainHp;
+    public event Action<int, uint, uint, int>? NpcGroggy;
+    public event Action<int, int, int>?      TargetOn;
+    public event Action<int, int>?           TargetOff;
+    public event Action<uint>?               ZoneMove;
+#pragma warning restore CS0067
     public event Action<int, string, int, int, int, int>? CharacterLookup;
         // (entityId, nickname, serverId, jobCode, level, combatPower)
     public event Action<int, List<EquipmentItem>>? CharacterEquipment;
@@ -115,6 +134,26 @@ internal sealed class PacketDispatcher
     }
 
     // ─── damage ──────────────────────────────────────────────────────────
+
+    public void DispatchSupplemental(byte[] data, int offset, int length)
+    {
+        if (length < MIN_PACKET_LENGTH || length == IGNORED_PACKET_LENGTH) return;
+
+        int p = offset;
+        int limit = offset + length;
+        ProtocolUtils.ReadVarint(data, ref p, limit);
+        int afterVarint = p - offset;
+        if (afterVarint <= 0) afterVarint = 1;
+
+        if (afterVarint < length - 1 &&
+            data[offset + afterVarint] == TAG_GUARD_1 &&
+            data[offset + afterVarint + 1] == TAG_GUARD_2)
+        {
+            return;
+        }
+
+        TryParseCharacterLookup(data, offset, length);
+    }
 
     private bool TryParseDamage(byte[] data, int offset, int length)
     {
@@ -522,7 +561,7 @@ internal sealed class PacketDispatcher
         int end = offset + length;
         for (int i = offset; i < end - 10; i++)
         {
-            if (data[i] != 141) continue;
+            if (data[i] != ProtocolOpcodeConfig.BossHp.B) continue;
             int p = i + 1;
             uint entityId = ProtocolUtils.ReadVarint(data, ref p, end);
             if (entityId == uint.MaxValue || entityId == 0) continue;
@@ -534,9 +573,10 @@ internal sealed class PacketDispatcher
             p += 4;
             if (p + 4 > end) continue;
             if ((data[p] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24)) != 0) continue;
-            if (hp <= 0) continue;
+            if (hp < 0) continue;
 
             BossHp?.Invoke((int)entityId, hp);
+            RemainHp?.Invoke((int)entityId, (uint)hp);
             return true;
         }
         return false;
@@ -566,6 +606,8 @@ internal sealed class PacketDispatcher
         if (entityId == uint.MaxValue) return false;
 
         EntityRemoved?.Invoke((int)entityId);
+        TargetOff?.Invoke((int)entityId, 0);
+        CombatState?.Invoke((int)entityId, 0);
         return true;
     }
 

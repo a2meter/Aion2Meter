@@ -246,11 +246,11 @@ internal sealed class SettingsPanelForm : Form
 
             {
                 var row = new HLayout();
-                row.Add(FieldLabel("파티 신청 조회 토스트"));
-                var chk = StyledCheckBox(settings.LookupToastEnabled);
+                row.Add(FieldLabel("파티지원 토스트"));
+                var chk = StyledCheckBox(settings.EffectivePartyRequestToastEnabled);
                 chk.CheckedChanged += (_, _) =>
                 {
-                    settings.LookupToastEnabled = chk.Checked;
+                    settings.EffectivePartyRequestToastEnabled = chk.Checked;
                     settings.SaveDebounced();
                 };
                 row.Add(chk);
@@ -859,6 +859,7 @@ internal sealed class SettingsPanelForm : Form
             settings.ShowCombatPower = imported.ShowCombatPower;
             settings.ShowCombatScore = imported.ShowCombatScore;
             settings.LookupToastEnabled = imported.LookupToastEnabled;
+            settings.PartyRequestToastEnabled = imported.PartyRequestToastEnabled;
             settings.SnapEnabled = imported.SnapEnabled;
             settings.SnapDistance = imported.SnapDistance;
             settings.JobBarColors = imported.JobBarColors ?? new AppSettings.JobBarColorSettings();
@@ -892,6 +893,7 @@ internal sealed class SettingsPanelForm : Form
         settings.ShowCombatPower = def.ShowCombatPower;
         settings.ShowCombatScore = def.ShowCombatScore;
         settings.LookupToastEnabled = def.LookupToastEnabled;
+        settings.PartyRequestToastEnabled = def.PartyRequestToastEnabled;
         settings.SnapEnabled = def.SnapEnabled;
         settings.SnapDistance = def.SnapDistance;
         settings.JobBarColors = def.JobBarColors;

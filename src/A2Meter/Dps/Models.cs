@@ -64,6 +64,12 @@ internal sealed class MobTarget
     public long   CurrentHp { get; set; }
     public long   TotalDamageReceived { get; set; }
     public bool   IsBoss { get; set; }
+    public uint   MaxGroggy { get; set; }
+    public uint   CurrentGroggy { get; set; }
+    public int    GroggyStatus { get; set; }
+    public int    AggroEntityId { get; set; }
+    public int    TargetingMode { get; set; }
+    public int    CombatState { get; set; }
 
     // ── Per-mob tracking state (matches A2Power MobInfo) ──
     /// True when self has dealt at least one hit to this mob.

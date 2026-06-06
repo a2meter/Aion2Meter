@@ -3,20 +3,16 @@
   "WorkspaceRootPath": "E:\\A2Viewer\\A2Meter\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|e:\\a2viewer\\a2meter\\src\\a2meter\\direct2d\\verticallayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|solutionrelative:src\\a2meter\\direct2d\\verticallayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{AEE1C575-2839-9A4D-B086-7685AFACD7FA}|src\\A2DebugPacketTool\\A2DebugPacketTool.csproj|E:\\A2Viewer\\A2Meter\\src\\a2debugpackettool\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{AEE1C575-2839-9A4D-B086-7685AFACD7FA}|src\\A2DebugPacketTool\\A2DebugPacketTool.csproj|solutionrelative:src\\a2debugpackettool\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|e:\\a2viewer\\a2meter\\src\\a2meter\\direct2d\\dpscanvas.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|solutionrelative:src\\a2meter\\direct2d\\dpscanvas.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{AEE1C575-2839-9A4D-B086-7685AFACD7FA}|src\\A2DebugPacketTool\\A2DebugPacketTool.csproj|e:\\a2viewer\\a2meter\\src\\a2debugpackettool\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AEE1C575-2839-9A4D-B086-7685AFACD7FA}|src\\A2DebugPacketTool\\A2DebugPacketTool.csproj|solutionrelative:src\\a2debugpackettool\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|e:\\a2viewer\\a2meter\\src\\a2meter\\a2meter.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
       "RelativeMoniker": "D:0:0:{C0C63986-56D1-2972-9D33-D97889113A30}|src\\A2Meter\\A2Meter.csproj|solutionrelative:src\\a2meter\\a2meter.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D0DD2C9E-3995-D996-A9B9-BEABD90CF71E}|src\\A2Capture\\A2Capture.csproj|e:\\a2viewer\\a2meter\\src\\a2capture\\a2capture.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{D0DD2C9E-3995-D996-A9B9-BEABD90CF71E}|src\\A2Capture\\A2Capture.csproj|solutionrelative:src\\a2capture\\a2capture.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     }
   ],
   "DocumentGroupContainers": [
@@ -25,66 +21,46 @@
       "VerticalTabListWidth": 256,
       "DocumentGroups": [
         {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "DockedWidth": 175,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "VerticalLayout.cs",
-              "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\Direct2D\\VerticalLayout.cs",
-              "RelativeDocumentMoniker": "src\\A2Meter\\Direct2D\\VerticalLayout.cs",
-              "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\Direct2D\\VerticalLayout.cs",
-              "RelativeToolTip": "src\\A2Meter\\Direct2D\\VerticalLayout.cs",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "MainForm.cs",
+              "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2DebugPacketTool\\MainForm.cs",
+              "RelativeDocumentMoniker": "src\\A2DebugPacketTool\\MainForm.cs",
+              "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2DebugPacketTool\\MainForm.cs",
+              "RelativeToolTip": "src\\A2DebugPacketTool\\MainForm.cs",
+              "ViewState": "AgIAABUEAAAAAAAAAAAAwCwEAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-03T02:45:09.516Z",
+              "WhenOpened": "2026-05-30T17:20:42.079Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "A2Meter",
+              "Title": "A2Meter.csproj",
               "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\A2Meter.csproj",
               "RelativeDocumentMoniker": "src\\A2Meter\\A2Meter.csproj",
               "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\A2Meter.csproj",
               "RelativeToolTip": "src\\A2Meter\\A2Meter.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-05-03T02:45:04.149Z",
+              "WhenOpened": "2026-05-30T17:17:14.407Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "A2Capture",
-              "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2Capture\\A2Capture.csproj",
-              "RelativeDocumentMoniker": "src\\A2Capture\\A2Capture.csproj",
-              "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2Capture\\A2Capture.csproj",
-              "RelativeToolTip": "src\\A2Capture\\A2Capture.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-05-03T02:45:01.821Z",
-              "EditorCaption": ""
-            }
-          ]
-        },
-        {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 0,
-          "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "DpsCanvas.cs",
-              "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\Direct2D\\DpsCanvas.cs",
-              "RelativeDocumentMoniker": "src\\A2Meter\\Direct2D\\DpsCanvas.cs",
-              "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2Meter\\Direct2D\\DpsCanvas.cs",
-              "RelativeToolTip": "src\\A2Meter\\Direct2D\\DpsCanvas.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwBIAAAAWAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "MainForm.cs [\uB514\uC790\uC778]",
+              "DocumentMoniker": "E:\\A2Viewer\\A2Meter\\src\\A2DebugPacketTool\\MainForm.cs",
+              "RelativeDocumentMoniker": "src\\A2DebugPacketTool\\MainForm.cs",
+              "ToolTip": "E:\\A2Viewer\\A2Meter\\src\\A2DebugPacketTool\\MainForm.cs [\uB514\uC790\uC778]",
+              "RelativeToolTip": "src\\A2DebugPacketTool\\MainForm.cs [\uB514\uC790\uC778]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-05-03T02:45:19.024Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-05-30T16:33:11.073Z",
+              "EditorCaption": " [\uB514\uC790\uC778]"
             }
           ]
         }

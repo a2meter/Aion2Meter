@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using A2Meter.Api;
 using A2Meter.Core;
 using A2Meter.Direct2D;
 using A2Meter.Dps;
@@ -96,9 +97,9 @@ internal static class Program
             return;
         }
 
-        var (replayDir, replayRealtime, replaySpeed, _) = parsed;
+        var (replayDir, replayRealtime, replaySpeed, _, capturePort, enableUpload) = parsed;
 
-        if (replayDir is null)
+        if (replayDir is null && capturePort is null)
         {
             _mutex = new Mutex(true, "A2Meter.SingleInstance.Mutex", out bool createdNew);
             if (!createdNew) return;
@@ -111,9 +112,10 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var settings = AppSettings.Instance;
+        GameDataClient.BaseUrl = settings.WebUploadUrl;
 
         // Show setup dialog if prerequisites are missing.
-        if (NeedsSetup())
+        if (capturePort is null && NeedsSetup())
         {
             using var setup = new Forms.SetupForm();
             if (setup.ShowDialog() != System.Windows.Forms.DialogResult.OK)
@@ -124,12 +126,24 @@ internal static class Program
         // default; only runs when the user has opted in via SettingsPanelForm.
         _ = Task.Run(() => CrashReporter.ReportPendingAsync(settings));
 
-        // Fire-and-forget: check for game data updates.
-        _ = Task.Run(() => Data.DataManager.CheckForUpdateAsync());
+        // Static game data is loaded from A2Web by GameDataClient on demand.
+        if (capturePort is null)
+            Data.DataManager.CheckForUpdateAsync().GetAwaiter().GetResult();
 
         using var overlay = new OverlayForm();
+        overlay.ForceWebUpload = enableUpload;
 
-        if (replayDir is not null)
+        if (capturePort is int packetPort)
+        {
+            overlay.PacketSourceOverride = new PacketSniffer($"tcp port {packetPort}", includeLoopback: true);
+            overlay.InitialServerPortOverride = packetPort;
+            overlay.ForceManagedPacketParser = true;
+            overlay.DisableForegroundWatcherForDebug = true;
+            overlay.SuppressExternalServicesForDebug = true;
+            overlay.Text = $"A2Meter [capture port: {packetPort}]";
+            overlay.Tag = $"capture-port:{packetPort}";
+        }
+        else if (replayDir is not null)
         {
             overlay.PacketSourceOverride = new PcapReplaySource(replayDir, realtime: replayRealtime, speed: replaySpeed);
             overlay.Text = $"A2Meter [replay: {System.IO.Path.GetFileName(replayDir)}]";
@@ -142,22 +156,22 @@ internal static class Program
             overlay.Hotkeys = hk;
             hk.RegisterFromSettings(settings.Shortcuts);
 
+            if (capturePort is not null)
+            {
+                Console.Error.WriteLine($"[capture-mock] A2Meter is sniffing TCP port {capturePort}");
+                return;
+            }
+
             // 본체 실행 경로를 appdata에 기록 (업데이터가 이 경로의 exe를 교체).
             AutoUpdater.PersistInstallPath(msg => Console.Error.WriteLine(msg));
 
             // 업데이터 자동 배치 + 업데이트 확인.
             _ = Task.Run(async () =>
             {
-                await AutoUpdater.EnsureUpdaterAsync(msg => Console.Error.WriteLine(msg));
-                var result = await AutoUpdater.CheckAsync(msg => Console.Error.WriteLine(msg));
-                if (result.HasValue)
+                if (await AutoUpdater.LaunchInstallerIfOutdatedAsync(msg => Console.Error.WriteLine(msg)))
                 {
-                    var (ver, _, _) = result.Value;
-                    overlay.Invoke(() =>
-                    {
-                        var toast = new Forms.UpdateToastForm(overlay, ver);
-                        toast.Show();
-                    });
+                    settings.Save();
+                    Environment.Exit(0);
                 }
             });
         };
@@ -271,12 +285,18 @@ internal static class Program
     ///   A2Meter --replay <dir> --speed 4           # replay 4x faster
     ///   A2Meter --replay <dir> --fast              # replay as fast as possible
     ///   A2Meter --demo                              # dummy data preview
-    private static (string? Dir, bool Realtime, double Speed, bool Demo) ParseArgs(string[] args)
+    ///   A2Meter --debug-packet-port 40133          # compatibility alias for packet capture mode
+    ///   A2Meter 40133                              # sniff real TCP traffic on a mock game port
+    ///   A2Meter --port 40133                       # same as above
+    ///   A2Meter --enable-upload                    # force combat record upload even in debug/capture mode
+    private static (string? Dir, bool Realtime, double Speed, bool Demo, int? CapturePort, bool EnableUpload) ParseArgs(string[] args)
     {
         string? dir = null;
         bool realtime = true;
         double speed = 1.0;
         bool demo = false;
+        bool enableUpload = false;
+        int? capturePort = null;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -285,9 +305,33 @@ internal static class Program
                 case "--speed":  speed = double.Parse(args[++i]); break;
                 case "--fast":   realtime = false; break;
                 case "--demo":   demo = true; break;
+                case "--enable-upload":
+                    enableUpload = true;
+                    break;
+                case "--debug-packets":
+                    capturePort = 40133;
+                    break;
+                case "--debug-port":
+                case "--debug-packet-port":
+                    capturePort = (i + 1 < args.Length && int.TryParse(args[i + 1], out int port))
+                        ? port
+                        : 40133;
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out _)) i++;
+                    break;
+                case "--port":
+                case "--capture-port":
+                    capturePort = (i + 1 < args.Length && int.TryParse(args[i + 1], out int capture))
+                        ? capture
+                        : 40133;
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out _)) i++;
+                    break;
+                default:
+                    if (args.Length == 1 && int.TryParse(args[i], out int barePort))
+                        capturePort = barePort;
+                    break;
             }
         }
-        return (dir, realtime, speed, demo);
+        return (dir, realtime, speed, demo, capturePort, enableUpload);
     }
 
     /// Returns true if the setup dialog should be shown (Npcap missing or data not downloaded).

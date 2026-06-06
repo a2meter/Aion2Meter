@@ -24,6 +24,14 @@ internal sealed unsafe class EngineState
     public delegate* unmanaged<nint, int, void> OnEntityRemoved;
     public delegate* unmanaged<nint, int, int, void> OnBossHp;
     public delegate* unmanaged<nint, int, int, int, uint, long, int, void> OnBuff;
+    public delegate* unmanaged<nint, int, int, uint, long, int, void> OnBuffRefresh;
+    public delegate* unmanaged<nint, int, int, void> OnCombatState;
+    public delegate* unmanaged<nint, int, uint, void> OnRemainHp;
+    public delegate* unmanaged<nint, int, uint, uint, int, void> OnNpcGroggy;
+    public delegate* unmanaged<nint, int, int, int, void> OnTargetOn;
+    public delegate* unmanaged<nint, int, int, void> OnTargetOff;
+    public delegate* unmanaged<nint, uint, void> OnZoneMove;
+    public delegate* unmanaged<nint, int, int, int, uint, int, nint, int, int, int, int, int, void> OnPartyEvent;
     public delegate* unmanaged<nint, int, nint, int, void> OnLog;
 
     // ── Query callbacks (called back into managed code) ───────────────
@@ -108,18 +116,76 @@ internal sealed unsafe class EngineState
     {
         if (OnEntityRemoved != null)
             OnEntityRemoved(Ctx, entityId);
+        FireTargetOff(entityId, 0);
+        FireCombatState(entityId, 0);
     }
 
     public void FireBossHp(int entityId, int hp)
     {
         if (OnBossHp != null)
             OnBossHp(Ctx, entityId, hp);
+        if (hp >= 0)
+            FireRemainHp(entityId, (uint)hp);
     }
 
     public void FireBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
     {
         if (OnBuff != null)
             OnBuff(Ctx, entityId, buffId, type, durationMs, timestamp, casterId);
+    }
+
+    public void FireBuffRefresh(int entityId, int buffId, uint durationMs, long timestamp, int casterId)
+    {
+        if (OnBuffRefresh != null)
+            OnBuffRefresh(Ctx, entityId, buffId, durationMs, timestamp, casterId);
+    }
+
+    public void FireCombatState(int entityId, int state)
+    {
+        if (OnCombatState != null)
+            OnCombatState(Ctx, entityId, state);
+    }
+
+    public void FireRemainHp(int targetId, uint remainHp)
+    {
+        if (OnRemainHp != null)
+            OnRemainHp(Ctx, targetId, remainHp);
+    }
+
+    public void FireNpcGroggy(int targetId, uint maxGroggy, uint currentGroggy, int groggyStatus)
+    {
+        if (OnNpcGroggy != null)
+            OnNpcGroggy(Ctx, targetId, maxGroggy, currentGroggy, groggyStatus);
+    }
+
+    public void FireTargetOn(int targetId, int aggroId, int targetingMode)
+    {
+        if (OnTargetOn != null)
+            OnTargetOn(Ctx, targetId, aggroId, targetingMode);
+    }
+
+    public void FireTargetOff(int targetId, int offMode)
+    {
+        if (OnTargetOff != null)
+            OnTargetOff(Ctx, targetId, offMode);
+    }
+
+    public void FireZoneMove(uint zoneId)
+    {
+        if (OnZoneMove != null)
+            OnZoneMove(Ctx, zoneId);
+    }
+
+    public void FirePartyEvent(int eventType, int memberIndex, int totalMembers, uint characterId,
+        int serverId, string nickname, int jobCode, int level, int combatPower, int itemLevel)
+    {
+        if (OnPartyEvent == null) return;
+        byte[] nickBytes = System.Text.Encoding.UTF8.GetBytes(nickname);
+        fixed (byte* nickPtr = nickBytes)
+        {
+            OnPartyEvent(Ctx, eventType, memberIndex, totalMembers, characterId, serverId,
+                         (nint)nickPtr, nickBytes.Length, jobCode, level, combatPower, itemLevel);
+        }
     }
 
     public void FireLog(int level, string message)
