@@ -12,6 +12,7 @@ internal sealed class PartyTracker
     private readonly object _sync = new();
     private readonly Dictionary<uint, PartyMember> _members = new();
     private readonly Dictionary<string, uint> _namedKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<uint, uint> _aliases = new();
     private readonly HashSet<string> _partyNames = new(StringComparer.Ordinal);
     private uint _nextSyntheticId = 0x80000000;
     private long _nextPartyRequestOrder;
@@ -51,7 +52,7 @@ internal sealed class PartyTracker
     {
         lock (_sync)
         {
-            return _members.TryGetValue(entityId, out var m) && (m.IsPartyMember || m.IsSelf);
+            return TryGetByIdOrAlias(entityId, out var m) && (m.IsPartyMember || m.IsSelf);
         }
     }
 
@@ -59,7 +60,7 @@ internal sealed class PartyTracker
     public bool IsPartyName(string? name)
     {
         if (string.IsNullOrEmpty(name)) return false;
-        lock (_sync) { return _partyNames.Contains(name); }
+        lock (_sync) { return _partyNames.Contains(CleanName(name)); }
     }
 
     public event Action? Changed;
@@ -77,13 +78,14 @@ internal sealed class PartyTracker
 
             if (member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname))
             {
-                _partyNames.Add(member.Nickname);
+                string partyName = CleanName(member.Nickname);
+                _partyNames.Add(partyName);
                 foreach (var m in _members.Values)
-                    if (m.Nickname == member.Nickname)
+                    if (CleanName(m.Nickname) == partyName)
                         m.IsPartyMember = true;
             }
 
-            if (!member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname) && _partyNames.Contains(member.Nickname))
+            if (!member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname) && _partyNames.Contains(CleanName(member.Nickname)))
                 member.IsPartyMember = true;
 
             if (existing != null)
@@ -120,6 +122,7 @@ internal sealed class PartyTracker
             {
                 existing = oldMember;
                 _members.Remove(oldKey);
+                _aliases[oldKey] = member.CharacterId;
             }
             else
             {
@@ -149,6 +152,7 @@ internal sealed class PartyTracker
 
     private static void MergeExisting(PartyMember member, PartyMember existing)
     {
+        if (!member.IsSelf) member.IsSelf = existing.IsSelf;
         if (!member.IsPartyMember) member.IsPartyMember = existing.IsPartyMember;
         if (!member.IsLookup) member.IsLookup = existing.IsLookup;
         if (!member.IsPartyRequest) member.IsPartyRequest = existing.IsPartyRequest;
@@ -164,9 +168,9 @@ internal sealed class PartyTracker
     }
 
     private static string? GetNameKey(PartyMember member)
-        => string.IsNullOrEmpty(member.Nickname)
+        => string.IsNullOrEmpty(CleanName(member.Nickname))
             ? null
-            : $"{member.ServerId}\u001f{member.Nickname}";
+            : $"{member.ServerId}\u001f{CleanName(member.Nickname)}";
 
     private void ForgetNamedKey(uint memberKey)
     {
@@ -182,13 +186,53 @@ internal sealed class PartyTracker
         if (remove != null) _namedKeys.Remove(remove);
     }
 
+    private void ForgetAliases(uint memberKey)
+    {
+        _aliases.Remove(memberKey);
+        List<uint>? remove = null;
+        foreach (var kvp in _aliases)
+        {
+            if (kvp.Value == memberKey)
+                (remove ??= new List<uint>()).Add(kvp.Key);
+        }
+        if (remove != null)
+            foreach (var key in remove)
+                _aliases.Remove(key);
+    }
+
+    private bool TryGetByIdOrAlias(uint id, out PartyMember member)
+    {
+        if (_members.TryGetValue(id, out member!))
+            return true;
+        if (TryResolveAlias(id, out var canonical) && _members.TryGetValue(canonical, out member!))
+            return true;
+        member = null!;
+        return false;
+    }
+
+    private bool TryResolveAlias(uint id, out uint canonical)
+    {
+        canonical = id;
+        for (int i = 0; i < 8; i++)
+        {
+            if (!_aliases.TryGetValue(canonical, out var next) || next == canonical)
+                return canonical != id;
+            canonical = next;
+        }
+        return canonical != id;
+    }
+
     public void Remove(uint characterId)
     {
         bool removed;
         lock (_sync)
         {
             removed = _members.Remove(characterId);
-            if (removed) ForgetNamedKey(characterId);
+            if (removed)
+            {
+                ForgetNamedKey(characterId);
+                ForgetAliases(characterId);
+            }
         }
         if (removed) Changed?.Invoke();
     }
@@ -212,10 +256,10 @@ internal sealed class PartyTracker
         bool changed = false;
         lock (_sync)
         {
-            var preservedLookups = new List<PartyMember>();
+            var preservedMembers = new List<PartyMember>();
             foreach (var member in _members.Values)
             {
-                if (!member.IsLookup)
+                if (!member.IsLookup && !IsIdentityHint(member))
                 {
                     changed = true;
                     continue;
@@ -228,18 +272,19 @@ internal sealed class PartyTracker
                 member.IsPartyMember = false;
                 member.IsPartyRequest = false;
                 member.PartyRequestOrder = 0;
-                preservedLookups.Add(member);
+                preservedMembers.Add(member);
             }
 
             _partyNames.Clear();
             _namedKeys.Clear();
+            _aliases.Clear();
             _members.Clear();
             SelfEntityId = null;
             _nextPartyRequestOrder = 0;
 
-            foreach (var member in preservedLookups)
+            foreach (var member in preservedMembers)
             {
-                uint key = _nextSyntheticId++;
+                uint key = member.CharacterId != 0 ? member.CharacterId : _nextSyntheticId++;
                 member.CharacterId = key;
                 _members[key] = member;
                 var nameKey = GetNameKey(member);
@@ -256,8 +301,8 @@ internal sealed class PartyTracker
         lock (_sync)
         {
             if (entityId > 0
-                && _members.TryGetValue((uint)entityId, out var byId)
-                && byId.IsLookup)
+                && TryGetByIdOrAlias((uint)entityId, out var byId)
+                && IsCombatRelevant(byId))
             {
                 member = byId;
                 return true;
@@ -268,7 +313,7 @@ internal sealed class PartyTracker
             {
                 foreach (var candidate in _members.Values)
                 {
-                    if (!candidate.IsLookup) continue;
+                    if (!IsCombatRelevant(candidate)) continue;
                     if (string.Equals(CleanName(candidate.Nickname), cleanName, StringComparison.OrdinalIgnoreCase))
                     {
                         member = candidate;
@@ -291,7 +336,11 @@ internal sealed class PartyTracker
         {
             List<uint>? toRemove = null;
             foreach (var kvp in _members)
-                if (!kvp.Value.IsSelf && !kvp.Value.IsPartyMember && !kvp.Value.IsPartyRequest)
+                if (!kvp.Value.IsSelf
+                    && !kvp.Value.IsPartyMember
+                    && !kvp.Value.IsPartyRequest
+                    && !kvp.Value.IsLookup
+                    && !IsIdentityHint(kvp.Value))
                     (toRemove ??= new List<uint>()).Add(kvp.Key);
             if (toRemove != null)
             {
@@ -299,6 +348,7 @@ internal sealed class PartyTracker
                 {
                     _members.Remove(id);
                     ForgetNamedKey(id);
+                    ForgetAliases(id);
                 }
                 changed = toRemove.Count > 0;
             }
@@ -314,6 +364,7 @@ internal sealed class PartyTracker
             if (_members.Count == 0) return;
             _partyNames.Clear();
             _namedKeys.Clear();
+            _aliases.Clear();
             _members.Clear();
             _nextPartyRequestOrder = 0;
             changed = true;
@@ -327,4 +378,13 @@ internal sealed class PartyTracker
         int idx = name.IndexOf('[');
         return (idx > 0 ? name[..idx] : name).Trim();
     }
+
+    private static bool IsCombatRelevant(PartyMember member)
+        => member.IsLookup || member.IsPartyMember || member.IsSelf || member.IsPartyRequest;
+
+    private static bool IsIdentityHint(PartyMember member)
+        => member.CharacterId != 0
+           && !string.IsNullOrWhiteSpace(member.Nickname)
+           && member.ServerId > 0
+           && member.JobCode > 0;
 }

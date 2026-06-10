@@ -680,6 +680,8 @@ internal sealed class PacketDispatcher
 
         // Other-player info.
         int other = IndexOfTag(data, offset, end, TAG_OTHER_INFO_1, TAG_OTHER_INFO_2);
+        if (other < 0 && (TAG_OTHER_INFO_1 != 0x45 || TAG_OTHER_INFO_2 != 0x36))
+            other = IndexOfTag(data, offset, end, 0x45, 0x36);
         if (other < 0) return false;
 
         int q = other + 2;

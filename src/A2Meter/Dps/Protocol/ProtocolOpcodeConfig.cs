@@ -12,7 +12,7 @@ internal static class ProtocolOpcodeConfig
     public static (byte A, byte B) BattleStats { get; private set; } = (0x2A, 0x38);
     public static (byte A, byte B) BattleStatsAlt { get; private set; } = (0x2B, 0x38);
     public static (byte A, byte B) SelfInfo { get; private set; } = (0x33, 0x36);
-    public static (byte A, byte B) OtherInfo { get; private set; } = (0x44, 0x36);
+    public static (byte A, byte B) OtherInfo { get; private set; } = (0x45, 0x36);
     public static (byte A, byte B) MobSpawn { get; private set; } = (0x41, 0x36);
     public static (byte A, byte B) BossHp { get; private set; } = (0x01, 0x8D);
     public static (byte A, byte B) Guard { get; private set; } = (0x03, 0x36);
