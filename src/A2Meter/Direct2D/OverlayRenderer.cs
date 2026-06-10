@@ -1271,7 +1271,12 @@ internal sealed class OverlayRenderer : IDisposable
                 rightCursor = svrX - 6f;
             }
 
-            float inlineW = Math.Max(32f, rightCursor - textLeft);
+            float metricsReserve = 42f; // Keep the Atul score column visible in lookup rows.
+            if (row.CombatPower > 0) metricsReserve += 58f;
+            if (row.Level > 0) metricsReserve += 44f;
+            if (row.IsPartyRequest) metricsReserve += 54f;
+
+            float inlineW = Math.Max(32f, rightCursor - textLeft - metricsReserve);
             var nameBrush = row.ServerId switch
             {
                 >= 1000 and < 2000 => _brushNameElyos!,
@@ -1326,12 +1331,14 @@ internal sealed class OverlayRenderer : IDisposable
                     cpLayout.Dispose();
                 }
             }
-            if (row.CombatScore > 0)
             {
-                _brushBarFill!.Color = new D2DColor(0.91f, 0.78f, 0.30f, 1f);
+                string scoreText = row.CombatScore > 0 ? FormatAbbrev(row.CombatScore) : "-";
+                _brushBarFill!.Color = row.CombatScore > 0
+                    ? new D2DColor(0.91f, 0.78f, 0.30f, 1f)
+                    : new D2DColor(0.46f, 0.40f, 0.20f, 1f);
                 if (cpX < inlineRight - 8f)
                 {
-                    var scoreLayout = dw.CreateTextLayout(FormatAbbrev(row.CombatScore), FCpScore, Math.Min(160f, inlineRight - cpX), rowH);
+                    var scoreLayout = dw.CreateTextLayout(scoreText, FCpScore, Math.Min(160f, inlineRight - cpX), rowH);
                     scoreLayout.ParagraphAlignment = ParagraphAlignment.Center;
                     dc.DrawTextLayout(new Vector2(cpX, y), scoreLayout, _brushBarFill);
                     cpX += scoreLayout.Metrics.WidthIncludingTrailingWhitespace + 4f;

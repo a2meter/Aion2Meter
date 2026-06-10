@@ -49,6 +49,7 @@ internal sealed class DpsPipeline : IDisposable
     // ── Dungeon state ──
     private bool       _inDungeon;          // true when inside a dungeon instance
     private int?       _dungeonId;          // current dungeon ID for record storage
+    private uint       _zoneId;             // last observed zone/map id
 
     /// Current dungeon ID (null if not in a dungeon instance). Exposed so the
     /// overlay and party-request toasts can include the active dungeon context.
@@ -116,6 +117,7 @@ internal sealed class DpsPipeline : IDisposable
         _source.PartyMemberSeen += OnPartyMemberSeen;
         _source.PartyLeft       += () => _party.ClearPartyFlags();
         _source.DungeonChanged  += OnDungeonChanged;
+        _source.ZoneMoved       += OnZoneMoved;
         _source.BuffEvent       += OnBuffEvent;
         _source.SegmentReceived += seg => Ping.Feed(seg);
 
@@ -156,98 +158,28 @@ internal sealed class DpsPipeline : IDisposable
 
     public void Reset()
     {
-        _meter.Reset();
         _party.Clear();
-        _buffTracker.Reset();
-        _countdownExpired = false;
-        _combatRecordSaved = false;
-        _sessionId = null;
-        _inDungeon = false;
-        _dungeonId = null;
-        _currentTargetId = 0;
-        _currentTarget = null;
-        _knownBosses.Clear();
-        _removedEntities.Clear();
-        _maxHpCorrected = false;
-        _timeline.Clear();
-        _lastTimelineSec = -1;
-        _hitLog.Clear();
-        _skillLog.Clear();
-        _pendingSkillLog.Clear();
-        _lastSummary = null;
-        _lastRows = null;
-        _sessionActive = false;
-        _peakByActor.Clear();
-        _peakDpsThisSess = 0;
+        ClearDpsState(resetDungeon: true, resetSelfIdentity: true);
     }
 
-    private void OnPartyMemberSeen(PartyMember m)
+    public void ResetDpsTab()
     {
-        _party.Upsert(m);
-
-        // Trigger async skill level fetch from Plaync API (self + party only).
-        if (ExternalLookupsAllowed
-            && !string.IsNullOrEmpty(m.Nickname)
-            && m.ServerId > 0
-            && (m.IsSelf || m.IsPartyMember || m.IsPartyRequest))
-        {
-            Api.SkillLevelCache.Instance.EnsureLoaded(m.Nickname, m.ServerId);
-        }
-
-        // Detection triggers immediate refresh to show the new member row.
-
-        // Zone change detection: entityId is per-zone — when it changes,
-        // the player entered a new map.  Same entityId = stat update (buff etc.)
-        // which must NOT disrupt the active session.
-        // Exception: if the boss HP is below 100%, it's a phase transition within
-        // the same fight (e.g., zone change mid-boss) — keep the session alive.
-        if (m.IsSelf)
-        {
-            int eid = (int)m.CharacterId;
-            if (_selfDetectedOnce && eid != _selfEntityId)
-            {
-                // Zone changed — always clear dungeon flag (re-established by
-                // DungeonDetected if the new zone is still a dungeon instance).
-                _inDungeon = false;
-
-                // Keep session alive only if the boss is actively being fought
-                // (alive + taken damage).  Dead boss (CurrentHp=0) must NOT
-                // prevent cleanup — otherwise _inDungeon leaks to town.
-                bool bossFightInProgress = _currentTarget is { IsBoss: true, MaxHp: > 0, CurrentHp: > 0 }
-                    && _currentTarget.CurrentHp < _currentTarget.MaxHp;
-                if (!bossFightInProgress)
-                {
-                    if (_sessionActive)
-                        _sessionActive = false;
-                    _currentTarget = null;
-                    _currentTargetId = 0;
-                }
-            }
-            _selfEntityId = eid;
-            _selfDetectedOnce = true;
-        }
+        ClearDpsState(resetDungeon: false, resetSelfIdentity: false);
     }
 
-    private void OnDungeonChanged(int id)
-    {
-        bool isDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id);
-        bool enteringNewDungeon = isDungeon && (!_inDungeon || _dungeonId != id);
-
-        if (enteringNewDungeon)
-            ResetForDungeonEnter();
-
-        _dungeonId = id > 0 ? id : (int?)null;
-        _inDungeon = isDungeon;
-    }
-
-    private void ResetForDungeonEnter()
+    private void ClearDpsState(bool resetDungeon, bool resetSelfIdentity)
     {
         _meter.Reset();
-        _party.ClearPartyForDungeonEnter();
         _buffTracker.Reset();
         _countdownExpired = false;
         _combatRecordSaved = false;
         _sessionId = null;
+        if (resetDungeon)
+        {
+            _inDungeon = false;
+            _dungeonId = null;
+            _zoneId = 0;
+        }
         _currentTargetId = 0;
         _currentTarget = null;
         _knownBosses.Clear();
@@ -266,8 +198,71 @@ internal sealed class DpsPipeline : IDisposable
         _sessionActive = false;
         _peakByActor.Clear();
         _peakDpsThisSess = 0;
-        _selfDetectedOnce = false;
-        _selfEntityId = 0;
+        if (resetSelfIdentity)
+        {
+            _selfDetectedOnce = false;
+            _selfEntityId = 0;
+        }
+    }
+
+    private void OnPartyMemberSeen(PartyMember m)
+    {
+        _party.Upsert(m);
+
+        // Trigger async skill/score fetch from Plaync API for visible player rows.
+        if (!string.IsNullOrEmpty(m.Nickname)
+            && m.ServerId > 0
+            && (m.IsSelf || m.IsPartyMember || m.IsPartyRequest))
+        {
+            Api.SkillLevelCache.Instance.EnsureLoaded(m.Nickname, m.ServerId, immediateFallback: true);
+        }
+
+        // Detection triggers immediate refresh to show the new member row.
+
+        // Zone change detection: entityId is per-zone — when it changes,
+        // the player entered a new map.  Same entityId = stat update (buff etc.)
+        // which must NOT disrupt lookup-tab rows.
+        if (m.IsSelf)
+        {
+            int eid = (int)m.CharacterId;
+            if (_selfDetectedOnce && eid != _selfEntityId)
+            {
+                // Zone changed — always clear dungeon flag (re-established by
+                // DungeonDetected if the new zone is still a dungeon instance).
+                _inDungeon = false;
+
+                ResetDpsTab();
+            }
+            _selfEntityId = eid;
+            _selfDetectedOnce = true;
+        }
+    }
+
+    private void OnDungeonChanged(int id)
+    {
+        bool isDungeon = id > 0 && Dps.Protocol.SkillDatabase.Shared.IsDungeon(id);
+        bool enteringNewDungeon = isDungeon && (!_inDungeon || _dungeonId != id);
+
+        if (enteringNewDungeon)
+            ResetForDungeonEnter();
+
+        _dungeonId = id > 0 ? id : (int?)null;
+        _inDungeon = isDungeon;
+    }
+
+    private void OnZoneMoved(uint zoneId)
+    {
+        if (zoneId != 0 && _zoneId == zoneId) return;
+        _zoneId = zoneId;
+        ResetDpsTab();
+        _inDungeon = false;
+        _dungeonId = null;
+    }
+
+    private void ResetForDungeonEnter()
+    {
+        _party.ClearPartyForDungeonEnter();
+        ClearDpsState(resetDungeon: false, resetSelfIdentity: true);
     }
 
     /// Track boss/dummy spawns (matches A2Power _mobs dictionary).
@@ -1131,9 +1126,9 @@ internal sealed class DpsPipeline : IDisposable
                 if (cp == 0 && apiData.CombatPower > 0) cp = apiData.CombatPower;
                 if (score == 0 && apiData.CombatScore > 0) score = apiData.CombatScore;
             }
-            else if (sid > 0 && ExternalLookupsAllowed)
+            else if (sid > 0)
             {
-                Api.SkillLevelCache.Instance.EnsureLoaded(cleanName, sid);
+                Api.SkillLevelCache.Instance.EnsureLoaded(cleanName, sid, immediateFallback: score == 0);
             }
             long peak = _peakByActor.TryGetValue(p.EntityId, out var pk) ? pk : p.Dps;
             long avg  = elapsedSec > 0 ? (long)(p.TotalDamage / elapsedSec) : p.Dps;
@@ -1237,9 +1232,9 @@ internal sealed class DpsPipeline : IDisposable
                 if (pmCp == 0 && pmApi.CombatPower > 0) pmCp = pmApi.CombatPower;
                 if (pmScore == 0 && pmApi.CombatScore > 0) pmScore = pmApi.CombatScore;
             }
-            else if (pmSid > 0 && ExternalLookupsAllowed)
+            else if (pmSid > 0)
             {
-                Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, pmSid);
+                Api.SkillLevelCache.Instance.EnsureLoaded(pm.Nickname, pmSid, immediateFallback: pmScore == 0);
             }
 
             string pmDisplayName = !string.IsNullOrEmpty(pmSname) && !pm.Nickname.Contains('[') ? $"{pm.Nickname}[{pmSname}]" : pm.Nickname;

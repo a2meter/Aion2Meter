@@ -48,16 +48,18 @@ internal sealed class SkillLevelCache
         int sid = data.ServerId > 0 ? data.ServerId : serverId;
         var identity = PlayncClient.NormalizeCharacterQuery(nickname, sid, data.ServerName);
         if (identity.ServerId <= 0 || string.IsNullOrWhiteSpace(identity.Name)) return;
-        string key = BuildKey(identity.Name, identity.ServerId);
-        _cache[key] = data;
-        _lastAttempt.TryRemove(key, out _);
-        _pending.TryRemove(key, out _);
+        StoreUnderKey(identity.Name, identity.ServerId, data);
+
+        var requested = PlayncClient.NormalizeCharacterQuery(nickname, serverId, data.ServerName);
+        if (requested.ServerId > 0 && !string.IsNullOrWhiteSpace(requested.Name))
+            StoreUnderKey(requested.Name, requested.ServerId, data);
+
         RaiseDataUpdated();
     }
 
     /// Trigger an async fetch if not already cached or in-flight.
-    /// Uses the full CombatScore calculation engine (same as original A2Viewer).
-    public void EnsureLoaded(string nickname, int serverId)
+    /// Uses profile data as an immediate fallback, then the full score engine.
+    public void EnsureLoaded(string nickname, int serverId, bool immediateFallback = false)
     {
         if (string.IsNullOrWhiteSpace(nickname)) return;
 
@@ -69,7 +71,7 @@ internal sealed class SkillLevelCache
         string key = BuildKey(cleanName, identity.ServerId);
         if (_cache.ContainsKey(key)) return;
         var now = DateTime.UtcNow;
-        if (_lastAttempt.TryGetValue(key, out var lastAttempt) && now - lastAttempt < RetryDelay)
+        if (!immediateFallback && _lastAttempt.TryGetValue(key, out var lastAttempt) && now - lastAttempt < RetryDelay)
             return;
         if (!_pending.TryAdd(key, 0)) return; // already fetching
         _lastAttempt[key] = now;
@@ -81,8 +83,20 @@ internal sealed class SkillLevelCache
                 await FetchGate.WaitAsync().ConfigureAwait(false);
                 try
                 {
+                    if (immediateFallback)
+                    {
+                        var fallback = await PlayncClient.FetchCharacterData(cleanName, identity.ServerId).ConfigureAwait(false);
+                        if (fallback is { CombatScore: > 0 })
+                        {
+                            Store(cleanName, identity.ServerId, fallback);
+                            return;
+                        }
+                        if (fallback != null && IsUsable(fallback))
+                            Store(cleanName, identity.ServerId, fallback);
+                    }
+
                     var scoreResult = await Calc.CombatScore.QueryCombatScore(identity.ServerId, cleanName).ConfigureAwait(false);
-                    if (scoreResult != null)
+                    if (scoreResult != null && scoreResult.Score > 0)
                     {
                         Store(cleanName, identity.ServerId, new CharacterSkillData
                         {
@@ -94,6 +108,12 @@ internal sealed class SkillLevelCache
                             SkillLevels = scoreResult.SkillLevels,
                             DpSkills = scoreResult.DpSkills,
                         });
+                    }
+                    else
+                    {
+                        var fallback = await PlayncClient.FetchCharacterData(cleanName, identity.ServerId).ConfigureAwait(false);
+                        if (fallback != null && IsUsable(fallback))
+                            Store(cleanName, identity.ServerId, fallback);
                     }
                 }
                 finally
@@ -117,6 +137,21 @@ internal sealed class SkillLevelCache
         try { DataUpdated?.Invoke(); }
         catch { }
     }
+
+    private void StoreUnderKey(string nickname, int serverId, CharacterSkillData data)
+    {
+        string key = BuildKey(nickname, serverId);
+        _cache[key] = data;
+        _lastAttempt.TryRemove(key, out _);
+        _pending.TryRemove(key, out _);
+    }
+
+    private static bool IsUsable(CharacterSkillData? data)
+        => data != null
+           && (data.CombatScore > 0
+               || data.CombatPower > 0
+               || data.SkillLevels.Count > 0
+               || data.DpSkills.Count > 0);
 
     private static string BuildKey(string nickname, int serverId) => $"{nickname}:{serverId}";
 }

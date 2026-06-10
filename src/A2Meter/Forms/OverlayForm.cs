@@ -254,7 +254,6 @@ internal sealed class OverlayForm : Form
         var list = new List<OverlayRenderer.PartyRow>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         PartyMember[] snapshot = _party.SnapshotMembers();
-        bool allowExternalLookups = _pipeline?.ExternalLookupsAllowed ?? true;
         foreach (var pm in snapshot)
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
@@ -277,9 +276,9 @@ internal sealed class OverlayForm : Form
                 if (cp == 0 && api.CombatPower > 0) cp = api.CombatPower;
                 if (score == 0 && api.CombatScore > 0) score = api.CombatScore;
             }
-            else if (sid > 0 && allowExternalLookups)
+            else if (sid > 0)
             {
-                Api.SkillLevelCache.Instance.EnsureLoaded(lookupName, sid);
+                Api.SkillLevelCache.Instance.EnsureLoaded(lookupName, sid, immediateFallback: true);
             }
 
             string displayName = !string.IsNullOrEmpty(sname) && !lookupName.Contains('[') ? $"{lookupName}[{sname}]" : lookupName;
@@ -467,7 +466,7 @@ internal sealed class OverlayForm : Form
         RequestRender();
     }
 
-    public void TriggerClearShortcut()  => _pipeline?.Reset();
+    public void TriggerClearShortcut()  => _pipeline?.ResetDpsTab();
     public void TriggerSwitchTab()
     {
         if (_renderer == null) return;

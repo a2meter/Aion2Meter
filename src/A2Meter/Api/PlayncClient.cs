@@ -325,13 +325,11 @@ internal static class PlayncClient
             int combatScore = 0;
             if (info.TryGetProperty("profile", out var profile))
             {
-                combatPower = GetInt(profile, "combatPower");
-                combatScore = GetInt(profile, "combatScore");
-                if (combatScore == 0) combatScore = GetInt(profile, "artifactScore");
-                if (combatScore == 0) combatScore = GetInt(profile, "characterScore");
+                combatPower = FindInt(profile, "combatPower", "characterCombatPower");
+                combatScore = FindInt(profile, "combatScore", "artifactScore", "characterScore", "atulScore", "atoolScore");
                 Log($"  Profile: CP={combatPower}, Score={combatScore}");
                 // Dump profile keys for debugging field names.
-                if (combatPower == 0 && profile.ValueKind == JsonValueKind.Object)
+                if (combatPower == 0 && combatScore == 0 && profile.ValueKind == JsonValueKind.Object)
                 {
                     var keys = new List<string>();
                     foreach (var prop in profile.EnumerateObject())
@@ -349,6 +347,10 @@ internal static class PlayncClient
                     Log($"  Info has no 'profile'. Keys: {string.Join(", ", keys)}");
                 }
             }
+            if (combatPower == 0)
+                combatPower = FindInt(info, "combatPower", "characterCombatPower");
+            if (combatScore == 0)
+                combatScore = FindInt(info, "combatScore", "artifactScore", "characterScore", "atulScore", "atoolScore");
 
             // Extract skill list from equipment response.
             var skills = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -400,9 +402,52 @@ internal static class PlayncClient
     private static int GetInt(JsonElement el, string prop)
     {
         if (!el.TryGetProperty(prop, out var v)) return 0;
-        if (v.ValueKind == JsonValueKind.Number) return v.GetInt32();
-        if (v.ValueKind == JsonValueKind.String && int.TryParse(v.GetString(), out var n)) return n;
+        return TryReadInt(v, out var n) ? n : 0;
+    }
+
+    private static int FindInt(JsonElement el, params string[] props)
+    {
+        var names = new HashSet<string>(props, StringComparer.OrdinalIgnoreCase);
+        return FindIntCore(el, names);
+    }
+
+    private static int FindIntCore(JsonElement el, HashSet<string> props)
+    {
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in el.EnumerateObject())
+            {
+                if (props.Contains(prop.Name) && TryReadInt(prop.Value, out var direct) && direct > 0)
+                    return direct;
+            }
+            foreach (var prop in el.EnumerateObject())
+            {
+                int nested = FindIntCore(prop.Value, props);
+                if (nested > 0) return nested;
+            }
+        }
+        else if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in el.EnumerateArray())
+            {
+                int nested = FindIntCore(item, props);
+                if (nested > 0) return nested;
+            }
+        }
         return 0;
+    }
+
+    private static bool TryReadInt(JsonElement v, out int n)
+    {
+        if (v.ValueKind == JsonValueKind.Number)
+            return v.TryGetInt32(out n);
+        if (v.ValueKind == JsonValueKind.String)
+        {
+            string text = (v.GetString() ?? "").Replace(",", "").Trim();
+            return int.TryParse(text, out n);
+        }
+        n = 0;
+        return false;
     }
 
     private static List<JsonElement> GetNestedArray(JsonElement root, string obj, string arr)

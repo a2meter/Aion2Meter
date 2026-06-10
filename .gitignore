@@ -5,6 +5,10 @@
 *.suo
 *.user
 *.sln.docstates
+.vs/
+.omc/
+.omx/
+*.lscache
 
 # Build results
 
@@ -112,6 +116,8 @@ UpgradeLog*.htm
 # SQL Server files
 App_Data/*.mdf
 App_Data/*.ldf
+*.sqlite-shm
+*.sqlite-wal
 
 # =========================
 # Windows detritus
