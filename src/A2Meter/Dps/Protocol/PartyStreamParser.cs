@@ -44,6 +44,17 @@ internal sealed class PartyStreamParser
     public void Feed(ReadOnlySpan<byte> data)
     {
         if (data.Length == 0) return;
+
+        // ProtocolPipeline feeds this parser from StreamProcessor's message
+        // hook. In that path the bytes are already framed, so waiting for the
+        // next sync marker leaves party roster packets buffered until overflow.
+        if (LooksLikeDispatchedFrame(data))
+        {
+            try { ProcessPacket(data.ToArray()); }
+            catch { /* never let one bad packet kill the stream */ }
+            return;
+        }
+
         _buffer.AddRange(data.ToArray());
         Flush();
     }
@@ -140,6 +151,17 @@ internal sealed class PartyStreamParser
     }
 
     // ─── opcode scans ────────────────────────────────────────────────
+
+    private static bool LooksLikeDispatchedFrame(ReadOnlySpan<byte> data)
+    {
+        if (data.Length <= 3) return false;
+
+        var (declaredLen, varintLen) = ReadVarInt(data);
+        if (varintLen < 0) return false;
+
+        int msgLen = declaredLen + varintLen - 4;
+        return msgLen > 0 && msgLen <= data.Length;
+    }
 
     private void ScanDungeonIdRaw(byte[] packet)
     {
