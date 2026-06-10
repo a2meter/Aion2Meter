@@ -29,6 +29,10 @@ internal sealed class ProtocolPipeline : IDisposable
     private readonly CancellationTokenSource _segmentCts = new();
     private readonly Task _segmentConsumer;
     private readonly Action<string>? _log;
+    private readonly HashSet<DamageEventKey> _managedDamageEvents = new();
+    private readonly HashSet<BuffEventKey> _managedBuffEvents = new();
+    private readonly HashSet<BuffRefreshEventKey> _managedBuffRefreshEvents = new();
+    private bool _recordManagedEvents;
 
     /// entityId → (nickname, jobCode) populated by UserInfo packets.
     /// Damage events arrive before/after name packets in any order, so we
@@ -77,14 +81,18 @@ internal sealed class ProtocolPipeline : IDisposable
         _processor  = new PacketProcessor(
             messageHook: (data, off, len) =>
             {
-                if (_native != null)
+                BeginMessageDispatch();
+                try
                 {
-                    _native.Dispatch(data, off, len);
-                    _dispatcher.DispatchSupplemental(data, off, len);
-                }
-                else
-                {
+                    _recordManagedEvents = true;
                     _dispatcher.Dispatch(data, off, len);
+                    _recordManagedEvents = false;
+                    _native?.Dispatch(data, off, len);
+                }
+                finally
+                {
+                    _recordManagedEvents = false;
+                    EndMessageDispatch();
                 }
                 _party.Feed(new ReadOnlySpan<byte>(data, off, len));
             },
@@ -107,17 +115,34 @@ internal sealed class ProtocolPipeline : IDisposable
 
         _source.SegmentReceived += EnqueueSegment;
 
-        // Wire events from whichever engine is active.
+        // Managed parser is the dynamic protocol source. Its opcodes and boss
+        // flags come from A2Web, so game packet/tag changes do not require a
+        // PacketEngine.dll rebuild. Native PacketEngine remains supplemental
+        // for packet families that the managed parser does not yet cover.
+        _dispatcher.Damage        += OnManagedDamage;
+        _dispatcher.UserInfo      += OnUserInfo;
+        _dispatcher.MobSpawn      += OnMobSpawn;
+        _dispatcher.BossHp        += OnBossHp;
+        _dispatcher.Buff          += OnManagedBuff;
+        _dispatcher.BuffRefresh   += OnManagedBuffRefresh;
+        _dispatcher.CombatState   += OnCombatState;
+        _dispatcher.RemainHp      += OnRemainHp;
+        _dispatcher.NpcGroggy     += OnNpcGroggy;
+        _dispatcher.TargetOn      += OnTargetOn;
+        _dispatcher.TargetOff     += OnTargetOff;
+        _dispatcher.ZoneMove      += OnZoneMove;
+        _dispatcher.EntityRemoved += OnEntityRemoved;
+
         if (_native != null)
         {
-            _native.Damage        += OnDamage;
+            _native.Damage        += OnNativeDamage;
             _native.UserInfo      += OnUserInfo;
             _native.MobSpawn      += OnMobSpawn;
             _native.BossHp        += OnBossHp;
             _native.CombatPower   += OnCombatPower;
             _native.Summon        += OnSummon;
-            _native.Buff          += OnBuff;
-            _native.BuffRefresh   += OnBuffRefresh;
+            _native.Buff          += OnNativeBuff;
+            _native.BuffRefresh   += OnNativeBuffRefresh;
             _native.CombatState   += OnCombatState;
             _native.RemainHp      += OnRemainHp;
             _native.NpcGroggy     += OnNpcGroggy;
@@ -126,22 +151,6 @@ internal sealed class ProtocolPipeline : IDisposable
             _native.ZoneMove      += OnZoneMove;
             _native.PartyEvent    += OnNativePartyEvent;
             _native.EntityRemoved += OnEntityRemoved;
-        }
-        else
-        {
-            _dispatcher.Damage        += OnDamage;
-            _dispatcher.UserInfo      += OnUserInfo;
-            _dispatcher.MobSpawn      += OnMobSpawn;
-            _dispatcher.BossHp        += OnBossHp;
-            _dispatcher.Buff          += OnBuff;
-            _dispatcher.BuffRefresh   += OnBuffRefresh;
-            _dispatcher.CombatState   += OnCombatState;
-            _dispatcher.RemainHp      += OnRemainHp;
-            _dispatcher.NpcGroggy     += OnNpcGroggy;
-            _dispatcher.TargetOn      += OnTargetOn;
-            _dispatcher.TargetOff     += OnTargetOff;
-            _dispatcher.ZoneMove      += OnZoneMove;
-            _dispatcher.EntityRemoved += OnEntityRemoved;
         }
 
         // Always wire C# dispatcher for packet types the native engine may miss.
@@ -160,6 +169,47 @@ internal sealed class ProtocolPipeline : IDisposable
         _party.PartyEjected += OnPartyLeft;
         _party.CombatPowerDetected += OnPartyCpByName;
         _party.DungeonDetected     += OnDungeonDetected;
+    }
+
+    private readonly record struct DamageEventKey(
+        int ActorId,
+        int TargetId,
+        int SkillCode,
+        byte DamageType,
+        int Damage,
+        uint SpecialFlags,
+        int MultiHitCount,
+        int MultiHitDamage,
+        int HealAmount,
+        int IsDot);
+
+    private readonly record struct BuffEventKey(
+        int EntityId,
+        int BuffId,
+        int Type,
+        uint DurationMs,
+        long Timestamp,
+        int CasterId);
+
+    private readonly record struct BuffRefreshEventKey(
+        int EntityId,
+        int BuffId,
+        uint DurationMs,
+        long Timestamp,
+        int CasterId);
+
+    private void BeginMessageDispatch()
+    {
+        _managedDamageEvents.Clear();
+        _managedBuffEvents.Clear();
+        _managedBuffRefreshEvents.Clear();
+    }
+
+    private void EndMessageDispatch()
+    {
+        _managedDamageEvents.Clear();
+        _managedBuffEvents.Clear();
+        _managedBuffRefreshEvents.Clear();
     }
 
     public void Dispose()
@@ -198,6 +248,32 @@ internal sealed class ProtocolPipeline : IDisposable
         catch (OperationCanceledException)
         {
         }
+    }
+
+    private void OnManagedDamage(int actorId, int targetId, int skillCode, byte damageType,
+                                 int damage, uint specialFlags, int multiHitCount, int multiHitDamage,
+                                 int healAmount, int isDot)
+    {
+        if (_recordManagedEvents)
+        {
+            _managedDamageEvents.Add(new DamageEventKey(actorId, targetId, skillCode, damageType,
+                damage, specialFlags, multiHitCount, multiHitDamage, healAmount, isDot));
+        }
+
+        OnDamage(actorId, targetId, skillCode, damageType, damage, specialFlags,
+            multiHitCount, multiHitDamage, healAmount, isDot);
+    }
+
+    private void OnNativeDamage(int actorId, int targetId, int skillCode, byte damageType,
+                                int damage, uint specialFlags, int multiHitCount, int multiHitDamage,
+                                int healAmount, int isDot)
+    {
+        var key = new DamageEventKey(actorId, targetId, skillCode, damageType,
+            damage, specialFlags, multiHitCount, multiHitDamage, healAmount, isDot);
+        if (_managedDamageEvents.Contains(key)) return;
+
+        OnDamage(actorId, targetId, skillCode, damageType, damage, specialFlags,
+            multiHitCount, multiHitDamage, healAmount, isDot);
     }
 
     private void OnDamage(int actorId, int targetId, int skillCode, byte damageType,
@@ -569,8 +645,34 @@ internal sealed class ProtocolPipeline : IDisposable
         (_source as IInternalEventRaise)?.RaiseDungeonChanged(dungeonId);
     }
 
+    private void OnManagedBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
+    {
+        if (_recordManagedEvents)
+            _managedBuffEvents.Add(new BuffEventKey(entityId, buffId, type, durationMs, timestamp, casterId));
+        OnBuff(entityId, buffId, type, durationMs, timestamp, casterId);
+    }
+
+    private void OnNativeBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
+    {
+        if (_managedBuffEvents.Contains(new BuffEventKey(entityId, buffId, type, durationMs, timestamp, casterId))) return;
+        OnBuff(entityId, buffId, type, durationMs, timestamp, casterId);
+    }
+
     private void OnBuff(int entityId, int buffId, int type, uint durationMs, long timestamp, int casterId)
         => (_source as IInternalEventRaise)?.RaiseBuffEvent(entityId, buffId, type, durationMs, timestamp, casterId);
+
+    private void OnManagedBuffRefresh(int entityId, int buffId, uint durationMs, long timestamp, int casterId)
+    {
+        if (_recordManagedEvents)
+            _managedBuffRefreshEvents.Add(new BuffRefreshEventKey(entityId, buffId, durationMs, timestamp, casterId));
+        OnBuffRefresh(entityId, buffId, durationMs, timestamp, casterId);
+    }
+
+    private void OnNativeBuffRefresh(int entityId, int buffId, uint durationMs, long timestamp, int casterId)
+    {
+        if (_managedBuffRefreshEvents.Contains(new BuffRefreshEventKey(entityId, buffId, durationMs, timestamp, casterId))) return;
+        OnBuffRefresh(entityId, buffId, durationMs, timestamp, casterId);
+    }
 
     private void OnBuffRefresh(int entityId, int buffId, uint durationMs, long timestamp, int casterId)
     {

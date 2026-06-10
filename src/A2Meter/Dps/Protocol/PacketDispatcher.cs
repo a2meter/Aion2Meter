@@ -152,6 +152,13 @@ internal sealed class PacketDispatcher
             return;
         }
 
+        if (afterVarint > 0 && afterVarint + 1 < length &&
+            data[offset + afterVarint] == TAG_MOB_SPAWN_1 &&
+            data[offset + afterVarint + 1] == TAG_MOB_SPAWN_2)
+        {
+            TryParseMobInfo(data, offset, length, afterVarint + 2);
+            TryParseSummon(data, offset, length, afterVarint + 2);
+        }
         TryParseCharacterLookup(data, offset, length);
     }
 
