@@ -14,7 +14,7 @@ internal sealed class Dispatcher
     private const byte TAG_BATTLE_STATS_ALT_1 = 43;
     private const byte TAG_SELF_INFO_1  = 51, TAG_SELF_INFO_2  = 54;
     private const byte TAG_OTHER_INFO_1 = 68, TAG_OTHER_INFO_2 = 54;
-    private const byte TAG_MOB_SPAWN_1  = 64, TAG_MOB_SPAWN_2  = 54;
+    private const byte TAG_MOB_SPAWN_1  = 65, TAG_MOB_SPAWN_2  = 54;
     private const byte TAG_GUARD_1      = 3,  TAG_GUARD_2      = 54;
     private const byte TAG_ENTITY_REMOVED_1 = 33, TAG_ENTITY_REMOVED_2 = 141;
     private const byte TAG_CHAR_LOOKUP_1 = 79, TAG_CHAR_LOOKUP_2 = 54;

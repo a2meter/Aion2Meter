@@ -121,6 +121,7 @@ internal sealed class OverlayRenderer : IDisposable
     {
         _partyRows.Clear();
         _partyRows.AddRange(rows);
+        EnrichExistingDpsRowsFromPartyRows();
     }
 
     // ── Hover/press tracking ──
@@ -207,13 +208,56 @@ internal sealed class OverlayRenderer : IDisposable
                         string timer, MobTarget? target, DpsCanvas.SessionSummary? summary)
     {
         _rows.Clear();
-        _rows.AddRange(rows);
+        foreach (var row in rows)
+            _rows.Add(EnrichDpsRowFromPartyRows(row));
         _totalDamage = totalDamage;
         _timerText = timer;
         _target = target is { IsBoss: true, MaxHp: > 0 }
             ? new DpsCanvas.TargetInfo(target.Name, target.CurrentHp, target.MaxHp)
             : null;
         _summary = summary;
+    }
+
+    private void EnrichExistingDpsRowsFromPartyRows()
+    {
+        if (_rows.Count == 0 || _partyRows.Count == 0) return;
+        for (int i = 0; i < _rows.Count; i++)
+            _rows[i] = EnrichDpsRowFromPartyRows(_rows[i]);
+    }
+
+    private DpsCanvas.PlayerRow EnrichDpsRowFromPartyRows(DpsCanvas.PlayerRow row)
+    {
+        if (_partyRows.Count == 0) return row;
+
+        string rowName = StripServerSuffix(row.Name);
+        if (string.IsNullOrWhiteSpace(rowName)) return row;
+
+        foreach (var party in _partyRows)
+        {
+            if (!string.Equals(StripServerSuffix(party.Name), rowName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            int serverId = row.ServerId > 0 ? row.ServerId : party.ServerId;
+            string serverName = !string.IsNullOrWhiteSpace(row.ServerName) ? row.ServerName : party.ServerName;
+            if (string.IsNullOrWhiteSpace(serverName) && serverId > 0)
+                serverName = ServerMap.GetName(serverId);
+
+            string displayName = row.Name;
+            if (!string.IsNullOrWhiteSpace(serverName) && !displayName.Contains('['))
+                displayName = $"{displayName}[{serverName}]";
+
+            return row with
+            {
+                Name = displayName,
+                CombatPower = row.CombatPower > 0 ? row.CombatPower : party.CombatPower,
+                CombatScore = row.CombatScore > 0 ? row.CombatScore : party.CombatScore,
+                ServerId = serverId,
+                ServerName = serverName,
+                JobIconKey = !string.IsNullOrWhiteSpace(row.JobIconKey) ? row.JobIconKey : party.JobIconKey,
+            };
+        }
+
+        return row;
     }
 
     // ── State setters ──
@@ -1554,5 +1598,12 @@ internal sealed class OverlayRenderer : IDisposable
         int open = row.Name.IndexOf('[');
         string baseName = open > 0 ? row.Name[..open] : row.Name;
         return string.IsNullOrEmpty(shortServer) ? baseName : $"{baseName}[{shortServer}]";
+    }
+
+    private static string StripServerSuffix(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        int open = name.IndexOf('[');
+        return (open > 0 ? name[..open] : name).Trim();
     }
 }

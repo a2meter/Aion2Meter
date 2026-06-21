@@ -804,37 +804,37 @@ internal sealed class DpsPipeline : IDisposable
                     p.CombatPower = initialLookup.CombatPower;
             }
 
-            string cleanName = StripServerSuffix(p.Name);
             int sid = p.ServerId;
             string sname = p.ServerName;
             int cp = p.CombatPower;
             int score = p.CombatScore;
-            var identity = Api.PlayncClient.NormalizeCharacterQuery(p.Name, sid, sname);
-            cleanName = identity.Name;
-            if (sid <= 0 && identity.ServerId > 0) sid = identity.ServerId;
-            if (string.IsNullOrEmpty(sname)) sname = identity.ServerName;
+            var identity = NormalizeIdentity(p.Name, sid, sname);
+            string cleanName = identity.Name;
+            sid = identity.ServerId;
+            sname = identity.ServerName;
+            p.Name = cleanName;
 
             if (_party.TryGetLookupForCombatActor(p.EntityId, cleanName, out var lookup))
             {
                 if (cp == 0 && lookup.CombatPower > 0) cp = lookup.CombatPower;
-                if (lookup.ServerId > 0 && sid == 0) { sid = lookup.ServerId; sname = lookup.ServerName; }
+                var lookupIdentity = NormalizeIdentity(lookup.Nickname, lookup.ServerId, lookup.ServerName);
+                if (lookupIdentity.ServerId > 0 && sid == 0) { sid = lookupIdentity.ServerId; sname = lookupIdentity.ServerName; }
                 if (lookup.JobCode > 0) p.JobCode = lookup.JobCode;
             }
             else
             {
                 foreach (var pm in _party.SnapshotMembers())
                 {
-                    if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                    var pmIdentity = NormalizeIdentity(pm.Nickname, pm.ServerId, pm.ServerName);
+                    if (string.Equals(pmIdentity.Name, cleanName, StringComparison.OrdinalIgnoreCase))
                     {
                         if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
-                        if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
+                        if (pmIdentity.ServerId > 0 && sid == 0) { sid = pmIdentity.ServerId; sname = pmIdentity.ServerName; }
                         if (pm.JobCode > 0) p.JobCode = pm.JobCode;
                         break;
                     }
                 }
             }
-            if (string.IsNullOrEmpty(sname) && sid > 0)
-                sname = Protocol.ServerMap.GetName(sid);
 
             var apiData = Api.SkillLevelCache.Instance.Get(cleanName, sid);
             if (apiData != null)
@@ -1093,12 +1093,17 @@ internal sealed class DpsPipeline : IDisposable
             int score = p.CombatScore;
             int sid = p.ServerId;
             string sname = p.ServerName;
-            string cleanName = StripServerSuffix(p.Name);
+            var identity = NormalizeIdentity(p.Name, sid, sname);
+            string cleanName = identity.Name;
+            sid = identity.ServerId;
+            sname = identity.ServerName;
+            p.Name = cleanName;
             // Prefer lookup-tab data when it exists; it can survive dungeon-entry resets.
             if (_party.TryGetLookupForCombatActor(p.EntityId, cleanName, out var lookup))
             {
                 if (cp == 0 && lookup.CombatPower > 0) cp = lookup.CombatPower;
-                if (lookup.ServerId > 0 && sid == 0) { sid = lookup.ServerId; sname = lookup.ServerName; }
+                var lookupIdentity = NormalizeIdentity(lookup.Nickname, lookup.ServerId, lookup.ServerName);
+                if (lookupIdentity.ServerId > 0 && sid == 0) { sid = lookupIdentity.ServerId; sname = lookupIdentity.ServerName; }
                 if (lookup.JobCode > 0) p.JobCode = lookup.JobCode;
             }
             else
@@ -1107,17 +1112,16 @@ internal sealed class DpsPipeline : IDisposable
                 // Snapshot Values to avoid InvalidOperationException from concurrent Upsert.
                 foreach (var pm in _party.SnapshotMembers())
                 {
-                    if (string.Equals(StripServerSuffix(pm.Nickname), cleanName, StringComparison.Ordinal))
+                    var pmIdentity = NormalizeIdentity(pm.Nickname, pm.ServerId, pm.ServerName);
+                    if (string.Equals(pmIdentity.Name, cleanName, StringComparison.OrdinalIgnoreCase))
                     {
                         if (cp == 0 && pm.CombatPower > 0) cp = pm.CombatPower;
-                        if (pm.ServerId > 0 && sid == 0) { sid = pm.ServerId; sname = pm.ServerName; }
+                        if (pmIdentity.ServerId > 0 && sid == 0) { sid = pmIdentity.ServerId; sname = pmIdentity.ServerName; }
                         if (pm.JobCode > 0) p.JobCode = pm.JobCode;
                         break;
                     }
                 }
             }
-            if (string.IsNullOrEmpty(sname) && sid > 0)
-                sname = ServerMap.GetName(sid);
 
             // Enrich CP/Score from API cache if packet-derived values are 0.
             var apiData = Api.SkillLevelCache.Instance.Get(cleanName, sid);
@@ -1214,17 +1218,16 @@ internal sealed class DpsPipeline : IDisposable
         foreach (var pm in _party.SnapshotMembers())
         {
             if (string.IsNullOrEmpty(pm.Nickname)) continue;
-            string cleanNick = StripServerSuffix(pm.Nickname);
+            var pmIdentity = NormalizeIdentity(pm.Nickname, pm.ServerId, pm.ServerName);
+            string cleanNick = pmIdentity.Name;
             if (existingNames.Contains(cleanNick)) continue;
             if (!pm.IsSelf && !pm.IsPartyMember) continue;
             existingNames.Add(cleanNick);
 
             int pmCp = pm.CombatPower;
             int pmScore = 0;
-            int pmSid = pm.ServerId;
-            string pmSname = pm.ServerName;
-            if (string.IsNullOrEmpty(pmSname) && pmSid > 0)
-                pmSname = ServerMap.GetName(pmSid);
+            int pmSid = pmIdentity.ServerId;
+            string pmSname = pmIdentity.ServerName;
 
             var pmApi = Api.SkillLevelCache.Instance.Get(pm.Nickname, pmSid);
             if (pmApi != null)
@@ -1264,6 +1267,15 @@ internal sealed class DpsPipeline : IDisposable
     {
         var s = (int)Math.Max(0, seconds);
         return $"{s / 60}:{s % 60:00}";
+    }
+
+    private static Api.PlayncClient.CharacterQuery NormalizeIdentity(string name, int serverId, string serverName = "")
+    {
+        var identity = Api.PlayncClient.NormalizeCharacterQuery(name, serverId, serverName);
+        string resolvedServerName = identity.ServerName;
+        if (string.IsNullOrEmpty(resolvedServerName) && identity.ServerId > 0)
+            resolvedServerName = ServerMap.GetName(identity.ServerId);
+        return identity with { ServerName = resolvedServerName };
     }
 
     private static string StripServerSuffix(string name)

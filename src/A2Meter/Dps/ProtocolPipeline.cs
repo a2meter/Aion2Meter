@@ -46,6 +46,11 @@ internal sealed class ProtocolPipeline : IDisposable
     /// entityId → serverId buffered from CharacterLookup packets.
     private readonly ConcurrentDictionary<int, int> _serverIds = new();
 
+    /// clean nickname → (serverId, combatPower). Some packets carry server/CP
+    /// by name before or instead of an entity-bound UserInfo packet.
+    private readonly ConcurrentDictionary<string, (int ServerId, int CombatPower)> _nameHints =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// petEntityId → ownerEntityId. Populated by Summon events so that
     /// summon damage is attributed to the summoning player.
     private readonly ConcurrentDictionary<int, int> _summons = new();
@@ -132,6 +137,7 @@ internal sealed class ProtocolPipeline : IDisposable
         _dispatcher.TargetOff     += OnTargetOff;
         _dispatcher.ZoneMove      += OnZoneMove;
         _dispatcher.EntityRemoved += OnEntityRemoved;
+        _dispatcher.Summon        += OnSummon;
 
         if (_native != null)
         {
@@ -334,19 +340,28 @@ internal sealed class ProtocolPipeline : IDisposable
 
     private void OnUserInfo(int entityId, string nickname, int serverId, int jobCode, int isSelf)
     {
+        var hintKey = CleanNameKey(nickname);
+        if (serverId <= 0 && _nameHints.TryGetValue(hintKey, out var hint) && hint.ServerId > 0)
+            serverId = hint.ServerId;
+
         _identities[entityId] = (nickname, jobCode);
         if (serverId > 0)
             _serverIds[entityId] = serverId;
         // Replay any buffered CombatPower so it's never lost regardless of packet order.
-        int cp = _combatPowers.TryGetValue(entityId, out var c) ? c : 0;
+        int cp = _combatPowers.TryGetValue(entityId, out var c) ? c
+            : _nameHints.TryGetValue(hintKey, out hint) ? hint.CombatPower
+            : 0;
+        if (cp > 0)
+            _combatPowers[entityId] = cp;
         TriggerPartyMemberSeen(new PartyMember
         {
             CharacterId = (uint)entityId,
             Nickname    = nickname,
             ServerId    = serverId,
-            ServerName  = ServerMap.GetName(serverId),
+            ServerName  = serverId > 0 ? ServerMap.GetName(serverId) : "",
             JobCode     = jobCode,
             IsSelf      = isSelf == 1,
+            IsLookup    = isSelf != 1 && serverId > 0,
             CombatPower = cp,
         });
     }
@@ -472,18 +487,51 @@ internal sealed class ProtocolPipeline : IDisposable
         OnPartyMember(member);
     }
 
-    /// CP-by-name doesn't carry an entityId. Best we can do is enrich any future
-    /// member with the same nickname+server via the existing hint cache, which
-    /// PartyStreamParser already maintains internally.
+    /// Some server/CP packets are keyed by nickname instead of entityId. Keep
+    /// those hints and replay them onto known identities so DPS rows can resolve
+    /// server name, combat power, and score without guessing from API results.
     private void OnPartyCpByName(string nickname, int serverId, int cp)
     {
+        var identity = Api.PlayncClient.NormalizeCharacterQuery(nickname, serverId);
+        if (string.IsNullOrWhiteSpace(identity.Name) || identity.ServerId <= 0)
+            return;
+
+        nickname = identity.Name;
+        serverId = identity.ServerId;
+        string serverName = string.IsNullOrEmpty(identity.ServerName) ? ServerMap.GetName(serverId) : identity.ServerName;
+        var hintKey = CleanNameKey(nickname);
+        _nameHints[hintKey] = (serverId, cp);
+
         TriggerPartyMemberSeen(new PartyMember
         {
             Nickname    = nickname,
             ServerId    = serverId,
-            ServerName  = ServerMap.GetName(serverId),
+            ServerName  = serverName,
             CombatPower = cp,
+            IsLookup    = true,
         });
+
+        foreach (var kvp in _identities)
+        {
+            if (!string.Equals(CleanNameKey(kvp.Value.Name), hintKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            int entityId = kvp.Key;
+            _serverIds[entityId] = serverId;
+            if (cp > 0)
+                _combatPowers[entityId] = cp;
+
+            TriggerPartyMemberSeen(new PartyMember
+            {
+                CharacterId = (uint)entityId,
+                Nickname    = kvp.Value.Name,
+                ServerId    = serverId,
+                ServerName  = serverName,
+                JobCode     = kvp.Value.JobCode,
+                CombatPower = cp,
+                IsLookup    = true,
+            });
+        }
     }
 
     private void OnCombatPower(int entityId, int combatPower)
@@ -501,6 +549,7 @@ internal sealed class ProtocolPipeline : IDisposable
             ServerName  = serverId > 0 ? ServerMap.GetName(serverId) : "",
             JobCode     = id.JobCode,
             CombatPower = combatPower,
+            IsLookup    = serverId > 0,
         });
     }
 
@@ -610,6 +659,13 @@ internal sealed class ProtocolPipeline : IDisposable
     private void TriggerCombatHit(int actorId, int targetId, string? name, int jobCode, long damage, uint hitFlags, bool isHeal, string? skill, int extraHits, bool isDot, int[]? specs = null)
         => (_source as IInternalEventRaise)?.RaiseCombatHit(
             new CombatHitArgs(actorId, targetId, name ?? "", jobCode, damage, hitFlags, isHeal, skill, extraHits, isDot, specs));
+
+    private static string CleanNameKey(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        int idx = name.IndexOf('[');
+        return (idx > 0 ? name[..idx] : name).Trim();
+    }
 
     private static bool IsDummy(string? name)
         => name != null && (name.Contains("허수아비") || name.Contains("샌드백"));
