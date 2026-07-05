@@ -1584,6 +1584,7 @@ internal sealed class OverlayRenderer : IDisposable
         ["정령성"] = new D2DColor(0.812f, 0.420f, 0.816f, 1f),
         ["치유성"] = new D2DColor(0.906f, 0.812f, 0.490f, 1f),
         ["호법성"] = new D2DColor(0.894f, 0.647f, 0.357f, 1f),
+        ["권성"]  = new D2DColor(0.000f, 0.702f, 0.780f, 1f),
     };
 
     private static D2DColor JobAccentFromName(string jobName)

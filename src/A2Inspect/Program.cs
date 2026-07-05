@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using PacketDotNet;
 using SharpPcap;
@@ -107,6 +108,9 @@ Console.WriteLine();
 var skills     = SkillDatabase.Shared;
 var dispatcher = new PacketDispatcher(skills, msg => Console.Error.WriteLine(msg));
 var party      = new PartyStreamParser();
+var dumpName   = Environment.GetEnvironmentVariable("A2INSPECT_DUMP_NAME");
+var dumpNeedle = string.IsNullOrWhiteSpace(dumpName) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(dumpName);
+int dumpNameFrames = 0;
 int nPartyList = 0, nPartyUpdate = 0, nPartyAccept = 0, nPartyRequest = 0, nPartyLeft = 0, nPartyEjected = 0, nDungeon = 0, nPartyCp = 0;
 var samplePartyList = new List<string>();
 party.PartyList    += list => { nPartyList++;   if (samplePartyList.Count < 3) samplePartyList.Add($"list[{list.Count}] " + string.Join(", ", list.Select(m => $"{m.Nickname}({m.JobName} Lv{m.Level} CP{m.CombatPower}/{m.ServerName})"))); };
@@ -121,6 +125,7 @@ int nDamage = 0, nUserInfo = 0, nMobSpawn = 0, nBossHp = 0, nBuff = 0, nCp = 0, 
 var sampleDamage = new List<string>();
 var sampleUser   = new List<string>();
 var sampleMob    = new List<string>();
+var sampleBossHp = new List<string>();
 
 dispatcher.EnableUnparsedDump(false);
 dispatcher.Damage += (a, t, sk, dt, dmg, fl, mhc, mhd, heal, dot) =>
@@ -142,7 +147,11 @@ dispatcher.MobSpawn += (mid, mc, hp, isBoss) =>
     nMobSpawn++;
     if (sampleMob.Count < 5) sampleMob.Add($"mobId={mid} code={mc} hp={hp} boss={isBoss}");
 };
-dispatcher.BossHp        += (e, hp) => nBossHp++;
+dispatcher.BossHp        += (e, hp) =>
+{
+    nBossHp++;
+    if (sampleBossHp.Count < 12) sampleBossHp.Add($"entity={e} hp={hp}");
+};
 dispatcher.Buff          += (e, b, t, d, ts, c) => nBuff++;
 dispatcher.CombatPower   += (e, cp) => nCp++;
 dispatcher.CombatPowerByName += (n, sid, cp) => nCpName++;
@@ -150,7 +159,12 @@ dispatcher.EntityRemoved += e => nEntityRem++;
 
 var flows = new Dictionary<(IPAddress, int, IPAddress, int), TcpReassembler>();
 StreamProcessor stream = new StreamProcessor(
-    (data, off, len) => { dispatcher.Dispatch(data, off, len); party.Feed(new ReadOnlySpan<byte>(data, off, len)); },
+    (data, off, len) =>
+    {
+        DumpNamedFrame(data, off, len, dumpNeedle, ref dumpNameFrames);
+        dispatcher.Dispatch(data, off, len);
+        party.Feed(new ReadOnlySpan<byte>(data, off, len));
+    },
     msg => Console.Error.WriteLine("[stream] " + msg));
 
 foreach (var path in files) WalkPcap(path, OnSegment2);
@@ -343,6 +357,7 @@ Console.WriteLine();
 if (sampleDamage.Count > 0) { Console.WriteLine("Sample damage:");   foreach (var s in sampleDamage) Console.WriteLine("  " + s); }
 if (sampleUser.Count   > 0) { Console.WriteLine("Sample userinfo:"); foreach (var s in sampleUser) Console.WriteLine("  " + s); }
 if (sampleMob.Count    > 0) { Console.WriteLine("Sample mobspawn:"); foreach (var s in sampleMob)  Console.WriteLine("  " + s); }
+if (sampleBossHp.Count > 0) { Console.WriteLine("Sample bosshp:");   foreach (var s in sampleBossHp) Console.WriteLine("  " + s); }
 
 // ── pass 5: scan large dispatched messages for skill code patterns ──
 Console.WriteLine();
@@ -456,4 +471,44 @@ void WalkPcap(string path, Action<DateTime, IPAddress, int, IPAddress, int, uint
         }
         catch { }
     }
+}
+
+static void DumpNamedFrame(byte[] data, int off, int len, byte[] needle, ref int frameCount)
+{
+    if (needle.Length == 0 || frameCount >= 20) return;
+
+    var span = new ReadOnlySpan<byte>(data, off, len);
+    int first = span.IndexOf(needle);
+    if (first < 0) return;
+
+    frameCount++;
+    Console.WriteLine($"[dump-name] frame#{frameCount} len={len} firstNameOffset={first}");
+    Console.WriteLine($"[dump-name] head {HexWindow(span, 0, Math.Min(96, span.Length))}");
+
+    int pos = first;
+    int occurrence = 0;
+    while (pos >= 0 && occurrence < 8)
+    {
+        occurrence++;
+        int start = Math.Max(0, pos - 48);
+        int end = Math.Min(span.Length, pos + needle.Length + 96);
+        Console.WriteLine($"[dump-name] occ#{occurrence} off={pos} {HexWindow(span, start, end - start)}");
+
+        int nextStart = pos + needle.Length;
+        if (nextStart >= span.Length) break;
+        int next = span[nextStart..].IndexOf(needle);
+        pos = next < 0 ? -1 : nextStart + next;
+    }
+}
+
+static string HexWindow(ReadOnlySpan<byte> span, int start, int count)
+{
+    var slice = span.Slice(start, count);
+    var sb = new StringBuilder(slice.Length * 3);
+    for (int i = 0; i < slice.Length; i++)
+    {
+        if (i > 0) sb.Append(' ');
+        sb.Append(slice[i].ToString("X2"));
+    }
+    return sb.ToString();
 }

@@ -22,6 +22,7 @@ internal static class DataManager
     {
         "검성.png", "궁성.png", "마도성.png", "살성.png",
         "수호성.png", "정령성.png", "치유성.png", "호법성.png",
+        "권성.png",
     };
 
     public static readonly string DataDir =

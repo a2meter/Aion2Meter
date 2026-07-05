@@ -674,6 +674,13 @@ internal sealed class PacketDispatcher
                         UserInfo?.Invoke((int)entityId, nick, serverId, jobCode, 1);
                         return true;
                     }
+
+                    if (TryReadSelfInfoWithoutNameMarker(data, p, end, out var name, out var selfServerId, out var selfJobCode, out var extra))
+                    {
+                        string nick = AppendServerName(name, selfServerId);
+                        UserInfo?.Invoke((int)entityId, nick, selfServerId, selfJobCode, extra == 1 ? 1 : 0);
+                        return true;
+                    }
                 }
             }
         }
@@ -705,6 +712,57 @@ internal sealed class PacketDispatcher
         UserInfo?.Invoke((int)entityId2, nick2, serverId2, jobCode2, 0);
         return true;
     }
+
+    private bool TryReadSelfInfoWithoutNameMarker(
+        byte[] data,
+        int from,
+        int end,
+        out string name,
+        out int serverId,
+        out int jobCode,
+        out int extra)
+    {
+        name = "";
+        serverId = -1;
+        jobCode = -1;
+        extra = 0;
+
+        int limit = Math.Min(from + 16, end);
+        for (int i = from; i < limit; i++)
+        {
+            int nameLen = data[i];
+            if (nameLen < 1 || nameLen > MAX_NAME_LENGTH) continue;
+            int nameStart = i + 1;
+            int afterName = nameStart + nameLen;
+            if (afterName + 7 > end) continue;
+
+            string candidate = ProtocolUtils.DecodeGameString(data, nameStart, nameLen);
+            if (string.IsNullOrEmpty(candidate) || ProtocolUtils.IsAllDigits(candidate)) continue;
+
+            int sid = data[afterName] | (data[afterName + 1] << 8);
+            if (!IsAllowedServerId(sid)) continue;
+
+            int job = data[afterName + 2]
+                | (data[afterName + 3] << 8)
+                | (data[afterName + 4] << 16)
+                | (data[afterName + 5] << 24);
+            if (job <= 0 || job > 255) continue;
+
+            int extraByte = data[afterName + 6];
+            if (extraByte > 2) continue;
+
+            name = candidate;
+            serverId = sid;
+            jobCode = job;
+            extra = extraByte;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsAllowedServerId(int serverId)
+        => serverId > 0 && (ValidServerIds == null || ValidServerIds.Count == 0 || ValidServerIds.Contains(serverId));
 
     private static (string Name, int AfterName)? ReadPlayerName(byte[] data, int from, int end)
     {
@@ -772,7 +830,7 @@ internal sealed class PacketDispatcher
         int jobCode = data[p]; p++;
         p += 3; // zeros
         p++;    // 0x01
-        p++;    // isSelf byte (1=self, 2=other)
+        p++; // local-like flag from lookup packet; not authoritative self info.
         int level = data[p]; p++;
         p += 7; // zeros
         int entityId = data[p] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24); p += 4;
@@ -788,6 +846,9 @@ internal sealed class PacketDispatcher
         }
 
         string nick = AppendServerName(name, serverId);
+        // CharacterLookup is an inspected/lookup identity packet. INGMeter does
+        // not treat it as local-player proof even when this byte is 1.
+        UserInfo?.Invoke(entityId, nick, serverId, jobCode, 0);
         CharacterLookup?.Invoke(entityId, nick, serverId, jobCode, level, combatPower);
 
         // Equipment scan: pattern [LE32 itemId (100M-900M)][9x 0x00][byte level 1-50]

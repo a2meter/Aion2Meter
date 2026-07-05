@@ -1,0 +1,1390 @@
+﻿{
+    "version":  1,
+    "generated_at":  "2026-07-01T06:41:36.803Z",
+    "description":  "INGMeter dungeon id to boss mob_code mapping.",
+    "dungeons":  [
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "크라오 동굴",
+                         "dungeon_id":  600002,
+                         "bosses":  [
+                                        {
+                                            "name":  "완성체 베르크",
+                                            "mob_code":  2310171,
+                                            "level":  22
+                                        },
+                                        {
+                                            "name":  "강화된 하르콘",
+                                            "mob_code":  2310104,
+                                            "level":  22
+                                        },
+                                        {
+                                            "name":  "방치된 가디오톤",
+                                            "mob_code":  2310108,
+                                            "level":  22
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "우루구구 협곡",
+                         "dungeon_id":  600011,
+                         "bosses":  [
+                                        {
+                                            "name":  "수호대장 라우르",
+                                            "mob_code":  2310206,
+                                            "level":  30
+                                        },
+                                        {
+                                            "name":  "심판자 우라훔",
+                                            "mob_code":  2310207,
+                                            "level":  30
+                                        },
+                                        {
+                                            "name":  "신성한 아울도르",
+                                            "mob_code":  2310218,
+                                            "level":  30
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "불의 신전",
+                         "dungeon_id":  600021,
+                         "bosses":  [
+                                        {
+                                            "name":  "붉은불꽃 이그누스",
+                                            "mob_code":  2310311,
+                                            "level":  37
+                                        },
+                                        {
+                                            "name":  "검은연기 무르트",
+                                            "mob_code":  2310312,
+                                            "level":  37
+                                        },
+                                        {
+                                            "name":  "크로메데의 욕망",
+                                            "mob_code":  2310371,
+                                            "level":  37
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "드라웁니르",
+                         "dungeon_id":  600031,
+                         "bosses":  [
+                                        {
+                                            "name":  "초월한 바카르마",
+                                            "mob_code":  2310471,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "몽환의 라크슈미",
+                                            "mob_code":  2310401,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "포식자 사라스와티",
+                                            "mob_code":  2310403,
+                                            "level":  45
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "바크론의 공중섬",
+                         "dungeon_id":  600071,
+                         "bosses":  [
+                                        {
+                                            "name":  "티에",
+                                            "mob_code":  2310810,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "타몬",
+                                            "mob_code":  2310811,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "바크론",
+                                            "mob_code":  2310812,
+                                            "level":  53
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "사나운 뿔 암굴",
+                         "dungeon_id":  600091,
+                         "bosses":  [
+                                        {
+                                            "name":  "번견 쿠하푸",
+                                            "mob_code":  2310908,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "강령술사 두안카",
+                                            "mob_code":  2310909,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "사나운 뿔 누아쿰",
+                                            "mob_code":  2310910,
+                                            "level":  63
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "죽은 드라마타의 둥지",
+                         "dungeon_id":  600041,
+                         "bosses":  [
+                                        {
+                                            "name":  "부화의 나야트만",
+                                            "mob_code":  2300508,
+                                            "level":  65
+                                        },
+                                        {
+                                            "name":  "관리자 나지움",
+                                            "mob_code":  2300507,
+                                            "level":  65
+                                        },
+                                        {
+                                            "name":  "부패한 두르바티",
+                                            "mob_code":  2300509,
+                                            "level":  65
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "무의 요람",
+                         "dungeon_id":  600121,
+                         "bosses":  [
+                                        {
+                                            "name":  "다차원의 벨티라스",
+                                            "mob_code":  2311302,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "엄숙한 발칸",
+                                            "mob_code":  2311303,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "고뇌하는 바카르마",
+                                            "mob_code":  2311301,
+                                            "level":  70
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "환영의 회랑",
+                         "dungeon_id":  600131,
+                         "bosses":  [
+                                        {
+                                            "name":  "글래스베인",
+                                            "mob_code":  2311401,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "나사라크",
+                                            "mob_code":  2311402,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "나트하라",
+                                            "mob_code":  2311403,
+                                            "level":  74
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "푸른 숨의 섬",
+                         "dungeon_id":  600141,
+                         "bosses":  [
+                                        {
+                                            "name":  "현명한 바움누트",
+                                            "mob_code":  2300189,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "팽창하는 자이르페",
+                                            "mob_code":  2300190,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "깨어난 알투라돈",
+                                            "mob_code":  2300188,
+                                            "level":  78
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "크라오 동굴",
+                         "dungeon_id":  600001,
+                         "bosses":  [
+                                        {
+                                            "name":  "완성체 베르크",
+                                            "mob_code":  2300171,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "강화된 하르콘",
+                                            "mob_code":  2300104,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "방치된 가디오톤",
+                                            "mob_code":  2300108,
+                                            "level":  45
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "드라웁니르",
+                         "dungeon_id":  600032,
+                         "bosses":  [
+                                        {
+                                            "name":  "초월한 바카르마",
+                                            "mob_code":  2300471,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "몽환의 라크슈미",
+                                            "mob_code":  2300401,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "포식자 사라스와티",
+                                            "mob_code":  2300403,
+                                            "level":  45
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "우루구구 협곡",
+                         "dungeon_id":  600012,
+                         "bosses":  [
+                                        {
+                                            "name":  "수호대장 라우르",
+                                            "mob_code":  2300206,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "심판자 우라훔",
+                                            "mob_code":  2300207,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "신성한 아울도르",
+                                            "mob_code":  2300218,
+                                            "level":  53
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "바크론의 공중섬",
+                         "dungeon_id":  600072,
+                         "bosses":  [
+                                        {
+                                            "name":  "티에",
+                                            "mob_code":  2300810,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "타몬",
+                                            "mob_code":  2300811,
+                                            "level":  53
+                                        },
+                                        {
+                                            "name":  "바크론",
+                                            "mob_code":  2300812,
+                                            "level":  53
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "불의 신전",
+                         "dungeon_id":  600022,
+                         "bosses":  [
+                                        {
+                                            "name":  "붉은불꽃 이그누스",
+                                            "mob_code":  2300311,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "검은연기 무르트",
+                                            "mob_code":  2300312,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "크로메데의 욕망",
+                                            "mob_code":  2300371,
+                                            "level":  63
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "사나운 뿔 암굴",
+                         "dungeon_id":  600092,
+                         "bosses":  [
+                                        {
+                                            "name":  "번견 쿠하푸",
+                                            "mob_code":  2300908,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "강령술사 두안카",
+                                            "mob_code":  2300909,
+                                            "level":  63
+                                        },
+                                        {
+                                            "name":  "사나운 뿔 누아쿰",
+                                            "mob_code":  2300910,
+                                            "level":  63
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "죽은 드라마타의 둥지",
+                         "dungeon_id":  600042,
+                         "bosses":  [
+                                        {
+                                            "name":  "부화의 나야트만",
+                                            "mob_code":  2310508,
+                                            "level":  65
+                                        },
+                                        {
+                                            "name":  "관리자 나지움",
+                                            "mob_code":  2310507,
+                                            "level":  65
+                                        },
+                                        {
+                                            "name":  "부패한 두르바티",
+                                            "mob_code":  2310509,
+                                            "level":  65
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "무의 요람",
+                         "dungeon_id":  600122,
+                         "bosses":  [
+                                        {
+                                            "name":  "다차원의 벨티라스",
+                                            "mob_code":  2301302,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "엄숙한 발칸",
+                                            "mob_code":  2301303,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "고뇌하는 바카르마",
+                                            "mob_code":  2301301,
+                                            "level":  70
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "환영의 회랑",
+                         "dungeon_id":  600132,
+                         "bosses":  [
+                                        {
+                                            "name":  "글래스베인",
+                                            "mob_code":  2301401,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "나사라크",
+                                            "mob_code":  2301402,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "나트하라",
+                                            "mob_code":  2301403,
+                                            "level":  74
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "푸른 숨의 섬",
+                         "dungeon_id":  600142,
+                         "bosses":  [
+                                        {
+                                            "name":  "현명한 바움누트",
+                                            "mob_code":  2300219,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "팽창하는 자이르페",
+                                            "mob_code":  2300230,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "깨어난 알투라돈",
+                                            "mob_code":  2300200,
+                                            "level":  78
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "크라오 동굴",
+                         "dungeon_id":  600004,
+                         "bosses":  [
+                                        {
+                                            "name":  "완성체 베르크",
+                                            "mob_code":  2320171,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "강화된 하르콘",
+                                            "mob_code":  2320104,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "방치된 가디오톤",
+                                            "mob_code":  2320108,
+                                            "level":  70
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "드라웁니르",
+                         "dungeon_id":  600033,
+                         "bosses":  [
+                                        {
+                                            "name":  "초월한 바카르마",
+                                            "mob_code":  2320471,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "몽환의 라크슈미",
+                                            "mob_code":  2320401,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "포식자 사라스와티",
+                                            "mob_code":  2320403,
+                                            "level":  70
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "우루구구 협곡",
+                         "dungeon_id":  600013,
+                         "bosses":  [
+                                        {
+                                            "name":  "수호대장 라우르",
+                                            "mob_code":  2320206,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "심판자 우라훔",
+                                            "mob_code":  2320207,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "신성한 아울도르",
+                                            "mob_code":  2320218,
+                                            "level":  72
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "바크론의 공중섬",
+                         "dungeon_id":  600073,
+                         "bosses":  [
+                                        {
+                                            "name":  "티에",
+                                            "mob_code":  2320810,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "타몬",
+                                            "mob_code":  2320811,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "바크론",
+                                            "mob_code":  2320812,
+                                            "level":  72
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "불의 신전",
+                         "dungeon_id":  600023,
+                         "bosses":  [
+                                        {
+                                            "name":  "붉은불꽃 이그누스",
+                                            "mob_code":  2320311,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "검은연기 무르트",
+                                            "mob_code":  2320312,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "크로메데의 욕망",
+                                            "mob_code":  2320371,
+                                            "level":  74
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "사나운 뿔 암굴",
+                         "dungeon_id":  600093,
+                         "bosses":  [
+                                        {
+                                            "name":  "번견 쿠하푸",
+                                            "mob_code":  2320908,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "강령술사 두안카",
+                                            "mob_code":  2320909,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "사나운 뿔 누아쿰",
+                                            "mob_code":  2320910,
+                                            "level":  74
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "죽은 드라마타의 둥지",
+                         "dungeon_id":  610044,
+                         "bosses":  [
+                                        {
+                                            "name":  "부화의 나야트만",
+                                            "mob_code":  2300154,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "관리자 나지움",
+                                            "mob_code":  2300153,
+                                            "level":  74
+                                        },
+                                        {
+                                            "name":  "부패한 두르바티",
+                                            "mob_code":  2300155,
+                                            "level":  74
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "무의 요람",
+                         "dungeon_id":  600123,
+                         "bosses":  [
+                                        {
+                                            "name":  "다차원의 벨티라스",
+                                            "mob_code":  2321302,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "엄숙한 발칸",
+                                            "mob_code":  2321303,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "고뇌하는 바카르마",
+                                            "mob_code":  2321301,
+                                            "level":  76
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "환영의 회랑",
+                         "dungeon_id":  600133,
+                         "bosses":  [
+                                        {
+                                            "name":  "글래스베인",
+                                            "mob_code":  2321401,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "나사라크",
+                                            "mob_code":  2321402,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "나트하라",
+                                            "mob_code":  2321403,
+                                            "level":  80
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "푸른 숨의 섬",
+                         "dungeon_id":  600143,
+                         "bosses":  [
+                                        {
+                                            "name":  "현명한 바움누트",
+                                            "mob_code":  2300244,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "팽창하는 자이르페",
+                                            "mob_code":  2300245,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "깨어난 알투라돈",
+                                            "mob_code":  2300243,
+                                            "level":  82
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "탐험",
+                         "stage":  null,
+                         "name":  "타락한 데바의 성",
+                         "dungeon_id":  600151,
+                         "bosses":  [
+                                        {
+                                            "name":  "의지의 투르겐",
+                                            "mob_code":  2301601,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "금기의 마수 그리오사",
+                                            "mob_code":  2301602,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "위악의 바실루스",
+                                            "mob_code":  2301603,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "타락한 데바의 성",
+                         "dungeon_id":  600152,
+                         "bosses":  [
+                                        {
+                                            "name":  "의지의 투르겐",
+                                            "mob_code":  2301701,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "금기의 마수 그리오사",
+                                            "mob_code":  2301702,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "위악의 바실루스",
+                                            "mob_code":  2301703,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "원정",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "타락한 데바의 성",
+                         "dungeon_id":  600153,
+                         "bosses":  [
+                                        {
+                                            "name":  "의지의 투르겐",
+                                            "mob_code":  2301721,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "금기의 마수 그리오사",
+                                            "mob_code":  2301722,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "위악의 바실루스",
+                                            "mob_code":  2301723,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  "어려움",
+                         "stage":  1,
+                         "name":  "데우스 연구기지",
+                         "dungeon_id":  600053,
+                         "bosses":  [
+                                        {
+                                            "name":  "겔코스",
+                                            "mob_code":  2330616,
+                                            "level":  46
+                                        },
+                                        {
+                                            "name":  "나즈문",
+                                            "mob_code":  2330615,
+                                            "level":  46
+                                        },
+                                        {
+                                            "name":  "아티엘",
+                                            "mob_code":  2330601,
+                                            "level":  46
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  2,
+                         "name":  "데우스 연구기지",
+                         "dungeon_id":  600055,
+                         "bosses":  [
+                                        {
+                                            "name":  "겔코스",
+                                            "mob_code":  2340616,
+                                            "level":  47
+                                        },
+                                        {
+                                            "name":  "나즈문",
+                                            "mob_code":  2340615,
+                                            "level":  47
+                                        },
+                                        {
+                                            "name":  "아티엘",
+                                            "mob_code":  2340601,
+                                            "level":  47
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  3,
+                         "name":  "데우스 연구기지",
+                         "dungeon_id":  600058,
+                         "bosses":  [
+                                        {
+                                            "name":  "겔코스",
+                                            "mob_code":  2343616,
+                                            "level":  55
+                                        },
+                                        {
+                                            "name":  "나즈문",
+                                            "mob_code":  2343615,
+                                            "level":  55
+                                        },
+                                        {
+                                            "name":  "아티엘",
+                                            "mob_code":  2343601,
+                                            "level":  55
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  4,
+                         "name":  "데우스 연구기지",
+                         "dungeon_id":  610052,
+                         "bosses":  [
+                                        {
+                                            "name":  "겔코스",
+                                            "mob_code":  2347616,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "나즈문",
+                                            "mob_code":  2347615,
+                                            "level":  70
+                                        },
+                                        {
+                                            "name":  "아티엘",
+                                            "mob_code":  2347601,
+                                            "level":  70
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  1,
+                         "name":  "조각난 아르카니스",
+                         "dungeon_id":  600063,
+                         "bosses":  [
+                                        {
+                                            "name":  "거짓의 실리아토르",
+                                            "mob_code":  2330707,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "고통의 루탈리스",
+                                            "mob_code":  2330708,
+                                            "level":  45
+                                        },
+                                        {
+                                            "name":  "공허의 탈리스라",
+                                            "mob_code":  2330709,
+                                            "level":  45
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  2,
+                         "name":  "조각난 아르카니스",
+                         "dungeon_id":  600065,
+                         "bosses":  [
+                                        {
+                                            "name":  "거짓의 실리아토르",
+                                            "mob_code":  2350707,
+                                            "level":  47
+                                        },
+                                        {
+                                            "name":  "고통의 루탈리스",
+                                            "mob_code":  2350708,
+                                            "level":  47
+                                        },
+                                        {
+                                            "name":  "공허의 탈리스라",
+                                            "mob_code":  2350709,
+                                            "level":  47
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  3,
+                         "name":  "조각난 아르카니스",
+                         "dungeon_id":  600068,
+                         "bosses":  [
+                                        {
+                                            "name":  "거짓의 실리아토르",
+                                            "mob_code":  2353707,
+                                            "level":  55
+                                        },
+                                        {
+                                            "name":  "고통의 루탈리스",
+                                            "mob_code":  2353708,
+                                            "level":  55
+                                        },
+                                        {
+                                            "name":  "공허의 탈리스라",
+                                            "mob_code":  2353709,
+                                            "level":  55
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  4,
+                         "name":  "조각난 아르카니스",
+                         "dungeon_id":  610062,
+                         "bosses":  [
+                                        {
+                                            "name":  "거짓의 실리아토르",
+                                            "mob_code":  2356707,
+                                            "level":  67
+                                        },
+                                        {
+                                            "name":  "고통의 루탈리스",
+                                            "mob_code":  2356708,
+                                            "level":  67
+                                        },
+                                        {
+                                            "name":  "공허의 탈리스라",
+                                            "mob_code":  2356709,
+                                            "level":  67
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  1,
+                         "name":  "가라앉은 생명의 신전",
+                         "dungeon_id":  610010,
+                         "bosses":  [
+                                        {
+                                            "name":  "노래하는 엘라이드",
+                                            "mob_code":  2301503,
+                                            "level":  68
+                                        },
+                                        {
+                                            "name":  "심해의 파이디온",
+                                            "mob_code":  2301502,
+                                            "level":  68
+                                        },
+                                        {
+                                            "name":  "가라앉은 에몬",
+                                            "mob_code":  2301501,
+                                            "level":  68
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  2,
+                         "name":  "가라앉은 생명의 신전",
+                         "dungeon_id":  610011,
+                         "bosses":  [
+                                        {
+                                            "name":  "노래하는 엘라이드",
+                                            "mob_code":  2300002,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "심해의 파이디온",
+                                            "mob_code":  2300001,
+                                            "level":  72
+                                        },
+                                        {
+                                            "name":  "가라앉은 에몬",
+                                            "mob_code":  2300000,
+                                            "level":  72
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  3,
+                         "name":  "가라앉은 생명의 신전",
+                         "dungeon_id":  610012,
+                         "bosses":  [
+                                        {
+                                            "name":  "노래하는 엘라이드",
+                                            "mob_code":  2300017,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "심해의 파이디온",
+                                            "mob_code":  2300016,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "가라앉은 에몬",
+                                            "mob_code":  2300015,
+                                            "level":  76
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  4,
+                         "name":  "가라앉은 생명의 신전",
+                         "dungeon_id":  610013,
+                         "bosses":  [
+                                        {
+                                            "name":  "노래하는 엘라이드",
+                                            "mob_code":  2300133,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "심해의 파이디온",
+                                            "mob_code":  2300132,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "가라앉은 에몬",
+                                            "mob_code":  2300131,
+                                            "level":  82
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  1,
+                         "name":  "붉은 연심의 거울",
+                         "dungeon_id":  610020,
+                         "bosses":  [
+                                        {
+                                            "name":  "로타르",
+                                            "mob_code":  2300259,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "롭스티노",
+                                            "mob_code":  2300260,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "크로메데의 심연",
+                                            "mob_code":  2300261,
+                                            "level":  78
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  2,
+                         "name":  "붉은 연심의 거울",
+                         "dungeon_id":  610021,
+                         "bosses":  [
+                                        {
+                                            "name":  "로타르",
+                                            "mob_code":  2300299,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "롭스티노",
+                                            "mob_code":  2300300,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "크로메데의 심연",
+                                            "mob_code":  2300317,
+                                            "level":  80
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  3,
+                         "name":  "붉은 연심의 거울",
+                         "dungeon_id":  610022,
+                         "bosses":  [
+                                        {
+                                            "name":  "로타르",
+                                            "mob_code":  2300334,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "롭스티노",
+                                            "mob_code":  2300335,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "크로메데의 심연",
+                                            "mob_code":  2300336,
+                                            "level":  82
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  4,
+                         "name":  "붉은 연심의 거울",
+                         "dungeon_id":  610023,
+                         "bosses":  [
+                                        {
+                                            "name":  "로타르",
+                                            "mob_code":  2300353,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "롭스티노",
+                                            "mob_code":  2300354,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "크로메데의 심연",
+                                            "mob_code":  2300355,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  1,
+                         "name":  "심연의 뿔 암굴",
+                         "dungeon_id":  610070,
+                         "bosses":  [
+                                        {
+                                            "name":  "카푸",
+                                            "mob_code":  2300473,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "다칸",
+                                            "mob_code":  2300474,
+                                            "level":  78
+                                        },
+                                        {
+                                            "name":  "가르가움",
+                                            "mob_code":  2300475,
+                                            "level":  78
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  2,
+                         "name":  "심연의 뿔 암굴",
+                         "dungeon_id":  610071,
+                         "bosses":  [
+                                        {
+                                            "name":  "카푸",
+                                            "mob_code":  2300491,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "다칸",
+                                            "mob_code":  2300492,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "가르가움",
+                                            "mob_code":  2300493,
+                                            "level":  80
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  3,
+                         "name":  "심연의 뿔 암굴",
+                         "dungeon_id":  610072,
+                         "bosses":  [
+                                        {
+                                            "name":  "카푸",
+                                            "mob_code":  2300527,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "다칸",
+                                            "mob_code":  2300528,
+                                            "level":  82
+                                        },
+                                        {
+                                            "name":  "가르가움",
+                                            "mob_code":  2300529,
+                                            "level":  82
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "초월",
+                         "difficulty":  null,
+                         "stage":  4,
+                         "name":  "심연의 뿔 암굴",
+                         "dungeon_id":  610073,
+                         "bosses":  [
+                                        {
+                                            "name":  "카푸",
+                                            "mob_code":  2300544,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "다칸",
+                                            "mob_code":  2300545,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "가르가움",
+                                            "mob_code":  2300546,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "성역",
+                         "difficulty":  null,
+                         "stage":  null,
+                         "name":  "심연의 재련 : 루드라",
+                         "dungeon_id":  600082,
+                         "bosses":  [
+                                        {
+                                            "name":  "영겁의 루드라",
+                                            "mob_code":  2301014,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "중앙 심연 융합로",
+                                            "mob_code":  2301008,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "심연의 날개 케투",
+                                            "mob_code":  2301007,
+                                            "level":  76
+                                        },
+                                        {
+                                            "name":  "이격의 라후",
+                                            "mob_code":  2301006,
+                                            "level":  76
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "성역",
+                         "difficulty":  null,
+                         "stage":  null,
+                         "name":  "침식의 정화소",
+                         "dungeon_id":  620011,
+                         "bosses":  [
+                                        {
+                                            "name":  "포식하는 뉴트라",
+                                            "mob_code":  2301209,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "검은 피 블라트",
+                                            "mob_code":  2301207,
+                                            "level":  80
+                                        },
+                                        {
+                                            "name":  "중합체 바고트",
+                                            "mob_code":  2301208,
+                                            "level":  80
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "성역",
+                         "difficulty":  "어려움",
+                         "stage":  null,
+                         "name":  "무스펠의 성배",
+                         "dungeon_id":  620021,
+                         "bosses":  [
+                                        {
+                                            "name":  "염화의 수호검",
+                                            "mob_code":  2301055,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "이스카리엘",
+                                            "mob_code":  2301059,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "칼드릭스",
+                                            "mob_code":  2301060,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "염화의 수호검",
+                                            "mob_code":  2301067,
+                                            "level":  85
+                                        }
+                                    ]
+                     },
+                     {
+                         "category":  "성역",
+                         "difficulty":  "보통",
+                         "stage":  null,
+                         "name":  "무스펠의 성배",
+                         "dungeon_id":  620022,
+                         "bosses":  [
+                                        {
+                                            "name":  "염화의 수호검",
+                                            "mob_code":  2301055,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "이스카리엘",
+                                            "mob_code":  2301089,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "칼드릭스",
+                                            "mob_code":  2301090,
+                                            "level":  85
+                                        },
+                                        {
+                                            "name":  "염화의 수호검",
+                                            "mob_code":  2301067,
+                                            "level":  85
+                                        }
+                                    ]
+                     }
+                 ]
+}

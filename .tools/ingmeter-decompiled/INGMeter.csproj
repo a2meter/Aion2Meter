@@ -1,0 +1,802 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>INGMeter</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>True</UseWPF>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="assets\skills\17270000.png" />
+    <None Remove="assets\skills\12130000.png" />
+    <None Remove="assets\skills\17750000.png" />
+    <None Remove="assets\skills\19260000.png" />
+    <None Remove="themes\palettes\bluemisttheme.baml" />
+    <None Remove="assets\skills\18710000.png" />
+    <None Remove="themes\palettes\darktheme.baml" />
+    <None Remove="characterconsentwindow.baml" />
+    <None Remove="assets\skills\19120000.png" />
+    <None Remove="assets\skills\11290000.png" />
+    <None Remove="assets\skills\17760000.png" />
+    <None Remove="assets\skills\13350000.png" />
+    <None Remove="assets\skills\15750000.png" />
+    <None Remove="assets\skills\18160000.png" />
+    <None Remove="assets\skills\13090000.png" />
+    <None Remove="assets\skills\19310000.png" />
+    <None Remove="assets\skills\13360000.png" />
+    <None Remove="assets\skills\15720000.png" />
+    <None Remove="assets\skills\16750000.png" />
+    <None Remove="assets\skills\14060000.png" />
+    <None Remove="assets\skills\14760000.png" />
+    <None Remove="themes\skins\aetherveiltheme.baml" />
+    <None Remove="assets\skills\16260000.png" />
+    <None Remove="assets\skills\11320000.png" />
+    <None Remove="assets\skills\19730000.png" />
+    <None Remove="namelogwindow.baml" />
+    <None Remove="assets\skills\12350000.png" />
+    <None Remove="assets\skills\14750000.png" />
+    <None Remove="assets\skills\19080000.png" />
+    <None Remove="assets\skills\13120000.png" />
+    <None Remove="assets\skills\15050000.png" />
+    <None Remove="themes\palettes\emeraldtheme.baml" />
+    <None Remove="assets\skills\19170000.png" />
+    <None Remove="assets\skills\15080000.png" />
+    <None Remove="assets\skills\19280000.png" />
+    <None Remove="assets\skills\18730000.png" />
+    <None Remove="assets\skills\17280000.png" />
+    <None Remove="assets\skills\19100000.png" />
+    <None Remove="assets\skills\17740000.png" />
+    <None Remove="assets\skills\15250000.png" />
+    <None Remove="assets\skills\15770000.png" />
+    <None Remove="assets\skills\18140000.png" />
+    <None Remove="assets\skills\18090000.png" />
+    <None Remove="assets\skills\17050000.png" />
+    <None Remove="assets\skills\19330000.png" />
+    <None Remove="assets\skills\15280000.png" />
+    <None Remove="assets\skills\13340000.png" />
+    <None Remove="assets\skills\15740000.png" />
+    <None Remove="assets\skills\18170000.png" />
+    <None Remove="assets\skills\17080000.png" />
+    <None Remove="assets\skills\19300000.png" />
+    <None Remove="assets\skills\14040000.png" />
+    <None Remove="assets\skills\16240000.png" />
+    <None Remove="assets\skills\11340000.png" />
+    <None Remove="assets\skills\14090000.png" />
+    <None Remove="assets\skills\14770000.png" />
+    <None Remove="assets\skills\18290000.png" />
+    <None Remove="assets\skills\18330000.png" />
+    <None Remove="assets\skills\19720000.png" />
+    <None Remove="assets\skills\15030000.png" />
+    <None Remove="themes\skins\neontheme.baml" />
+    <None Remove="assets\skills\11080000.png" />
+    <None Remove="assets\skills\16040000.png" />
+    <None Remove="assets\skills\19470000.png" />
+    <None Remove="assets\skills\15060000.png" />
+    <None Remove="assets\skills\13280000.png" />
+    <None Remove="assets\skills\11430000.png" />
+    <None Remove="assets\skills\12440000.png" />
+    <None Remove="assets\skills\11280000.png" />
+    <None Remove="assets\skills\17070000.png" />
+    <None Remove="assets\skills\19350000.png" />
+    <None Remove="assets\skills\15760000.png" />
+    <None Remove="assets\skills\18150000.png" />
+    <None Remove="assets\skills\13080000.png" />
+    <None Remove="assets\skills\19320000.png" />
+    <None Remove="assets\skills\14020000.png" />
+    <None Remove="assets\skills\16220000.png" />
+    <None Remove="assets\skills\11360000.png" />
+    <None Remove="assets\skills\14070000.png" />
+    <None Remove="assets\skills\13160000.png" />
+    <None Remove="assets\skills\11030000.png" />
+    <None Remove="assets\skills\15010000.png" />
+    <None Remove="assets\skills\18780000.png" />
+    <None Remove="assets\skills\13230000.png" />
+    <None Remove="assets\skills\16060000.png" />
+    <None Remove="assets\skills\15040000.png" />
+    <None Remove="assets\skills\12090000.png" />
+    <None Remove="assets\skills\11410000.png" />
+    <None Remove="assets\skills\15210000.png" />
+    <None Remove="assets\skills\11440000.png" />
+    <None Remove="assets\skills\17010000.png" />
+    <None Remove="assets\skills\19370000.png" />
+    <None Remove="settingswindow.baml" />
+    <None Remove="assets\skills\17040000.png" />
+    <None Remove="assets\skills\19340000.png" />
+    <None Remove="assets\skills\12220000.png" />
+    <None Remove="assets\skills\14180000.png" />
+    <None Remove="assets\skills\14050000.png" />
+    <None Remove="assets\skills\19790000.png" />
+    <None Remove="assets\skills\16250000.png" />
+    <None Remove="assets\skills\18370000.png" />
+    <None Remove="assets\skills\11010000.png" />
+    <None Remove="assets\skills\13210000.png" />
+    <None Remove="assets\skills\12780000.png" />
+    <None Remove="assets\skills\14380000.png" />
+    <None Remove="assets\skills\19430000.png" />
+    <None Remove="assets\skills\17410000.png" />
+    <None Remove="assets\skills\18790000.png" />
+    <None Remove="assets\skills\16050000.png" />
+    <None Remove="assets\skills\19460000.png" />
+    <None Remove="assets\skills\15230000.png" />
+    <None Remove="assets\skills\11420000.png" />
+    <None Remove="assets\skills\13010000.png" />
+    <None Remove="assets\skills\17030000.png" />
+    <None Remove="assets\skills\19390000.png" />
+    <None Remove="assets\skills\16780000.png" />
+    <None Remove="assets\skills\18190000.png" />
+    <None Remove="assets\skills\17390000.png" />
+    <None Remove="assets\skills\17060000.png" />
+    <None Remove="assets\skills\14160000.png" />
+    <None Remove="assets\skills\18420000.png" />
+    <None Remove="assets\skills\14780000.png" />
+    <None Remove="assets\skills\14030000.png" />
+    <None Remove="assets\skills\13790000.png" />
+    <None Remove="assets\skills\15390000.png" />
+    <None Remove="assets\skills\19000100.png" />
+    <None Remove="assets\skills\19030000.png" />
+    <None Remove="assets\skills\16360000.png" />
+    <None Remove="assets\skills\14190000.png" />
+    <None Remove="assets\skills\16230000.png" />
+    <None Remove="assets\skills\17190000.png" />
+    <None Remove="assets\skills\19780000.png" />
+    <None Remove="assets\skills\14220000.png" />
+    <None Remove="assets\skills\18800000.png" />
+    <None Remove="assets\skills\14800000.png" />
+    <None Remove="assets\skills\13270000.png" />
+    <None Remove="assets\skills\11020000.png" />
+    <None Remove="assets\skills\16020000.png" />
+    <None Remove="themes\skins\crayonsplashtheme.baml" />
+    <None Remove="assets\skills\19410000.png" />
+    <None Remove="assets\skills\14270000.png" />
+    <None Remove="assets\skills\17430000.png" />
+    <None Remove="assets\skills\13220000.png" />
+    <None Remove="assets\skills\16070000.png" />
+    <None Remove="encounterhistorywindow.baml" />
+    <None Remove="assets\skills\19180000.png" />
+    <None Remove="assets\skills\16190000.png" />
+    <None Remove="assets\skills\11190000.png" />
+    <None Remove="assets\skills\11400000.png" />
+    <None Remove="assets\skills\13030000.png" />
+    <None Remove="assets\skills\18020000.png" />
+    <None Remove="themes\palettes\violettheme.baml" />
+    <None Remove="assets\skills\13390000.png" />
+    <None Remove="assets\skills\16800000.png" />
+    <None Remove="assets\skills\15200000.png" />
+    <None Remove="assets\skills\17370000.png" />
+    <None Remove="combatdetailwindow.baml" />
+    <None Remove="assets\skills\19380000.png" />
+    <None Remove="privacyconsentwindow.baml" />
+    <None Remove="assets\skills\11390000.png" />
+    <None Remove="assets\skills\14010000.png" />
+    <None Remove="assets\skills\13770000.png" />
+    <None Remove="assets\skills\19010000.png" />
+    <None Remove="assets\skills\12230000.png" />
+    <None Remove="assets\skills\16340000.png" />
+    <None Remove="assets\skills\15400000.png" />
+    <None Remove="assets\skills\14170000.png" />
+    <None Remove="assets\skills\16210000.png" />
+    <None Remove="assets\skills\13780000.png" />
+    <None Remove="assets\skills\11050000.png" />
+    <None Remove="assets\skills\16370000.png" />
+    <None Remove="assets\img\neon_boss_emblem.png" />
+    <None Remove="assets\skills\12020000.png" />
+    <None Remove="assets\skills\13250000.png" />
+    <None Remove="assets\skills\12740000.png" />
+    <None Remove="assets\skills\14340000.png" />
+    <None Remove="themes\skins\abysstheme.baml" />
+    <None Remove="assets\skills\11780000.png" />
+    <None Remove="assets\skills\16140000.png" />
+    <None Remove="assets\skills\12770000.png" />
+    <None Remove="assets\skills\16010000.png" />
+    <None Remove="assets\skills\19420000.png" />
+    <None Remove="assets\skills\12190000.png" />
+    <None Remove="assets\skills\11250000.png" />
+    <None Remove="assets\skills\17400000.png" />
+    <None Remove="bufftimerwindow.baml" />
+    <None Remove="assets\skills\13050000.png" />
+    <None Remove="assets\skills\17780000.png" />
+    <None Remove="assets\skills\12800000.png" />
+    <None Remove="assets\skills\11200000.png" />
+    <None Remove="assets\skills\15150000.png" />
+    <None Remove="assets\skills\12410000.png" />
+    <None Remove="assets\skills\15220000.png" />
+    <None Remove="assets\skills\11180000.png" />
+    <None Remove="assets\skills\19800000.png" />
+    <None Remove="assets\skills\15800000.png" />
+    <None Remove="assets\skills\17350000.png" />
+    <None Remove="assets\skills\15160000.png" />
+    <None Remove="assets\skills\17020000.png" />
+    <None Remove="assets\skills\15780000.png" />
+    <None Remove="assets\skills\12240000.png" />
+    <None Remove="assets\skills\14120000.png" />
+    <None Remove="assets\skills\13750000.png" />
+    <None Remove="assets\skills\19070000.png" />
+    <None Remove="assets\skills\14150000.png" />
+    <None Remove="assets\skills\11380000.png" />
+    <None Remove="assets\skills\17150000.png" />
+    <None Remove="assets\skills\13760000.png" />
+    <None Remove="assets\skills\19020000.png" />
+    <None Remove="assets\skills\13180000.png" />
+    <None Remove="assets\skills\17800000.png" />
+    <None Remove="assets\skills\12040000.png" />
+    <None Remove="assets\skills\12720000.png" />
+    <None Remove="assets\skills\14360000.png" />
+    <None Remove="assets\skills\11060000.png" />
+    <None Remove="assets\skills\19230000.png" />
+    <None Remove="assets\skills\12010000.png" />
+    <None Remove="assets\skills\13260000.png" />
+    <None Remove="assets\skills\12750000.png" />
+    <None Remove="assets\skills\14350000.png" />
+    <None Remove="assets\skills\16030000.png" />
+    <None Remove="assets\skills\19400000.png" />
+    <None Remove="assets\skills\11270000.png" />
+    <None Remove="assets\skills\17420000.png" />
+    <None Remove="assets\skills\16150000.png" />
+    <None Remove="assets\skills\13070000.png" />
+    <None Remove="assets\skills\18060000.png" />
+    <None Remove="assets\skills\15130000.png" />
+    <None Remove="assets\skills\12430000.png" />
+    <None Remove="assets\skills\11800000.png" />
+    <None Remove="assets\skills\16720000.png" />
+    <None Remove="assets\skills\13020000.png" />
+    <None Remove="assets\skills\18030000.png" />
+    <None Remove="mainwindow.baml" />
+    <None Remove="assets\skills\15140000.png" />
+    <None Remove="assets\skills\14100000.png" />
+    <None Remove="assets\skills\12320000.png" />
+    <None Remove="assets\skills\18220000.png" />
+    <None Remove="assets\skills\13730000.png" />
+    <None Remove="assets\skills\19050000.png" />
+    <None Remove="assets\skills\12270000.png" />
+    <None Remove="assets\skills\16300000.png" />
+    <None Remove="assets\skills\14130000.png" />
+    <None Remove="assets\skills\18410000.png" />
+    <None Remove="themedmessageboxwindow.baml" />
+    <None Remove="assets\skills\13740000.png" />
+    <None Remove="assets\skills\13800000.png" />
+    <None Remove="assets\skills\16330000.png" />
+    <None Remove="assets\skills\12060000.png" />
+    <None Remove="assets\skills\11770000.png" />
+    <None Remove="assets\skills\12700000.png" />
+    <None Remove="assets\skills\11040000.png" />
+    <None Remove="assets\skills\19250000.png" />
+    <None Remove="assets\skills\18740000.png" />
+    <None Remove="assets\skills\12030000.png" />
+    <None Remove="assets\skills\11740000.png" />
+    <None Remove="assets\skills\16100000.png" />
+    <None Remove="assets\skills\12730000.png" />
+    <None Remove="assets\skills\14370000.png" />
+    <None Remove="assets\skills\17730000.png" />
+    <None Remove="themes\skins\skindefaults.baml" />
+    <None Remove="assets\skills\17440000.png" />
+    <None Remove="assets\skills\11130000.png" />
+    <None Remove="assets\skills\18040000.png" />
+    <None Remove="assets\skills\11240000.png" />
+    <None Remove="assets\skills\15110000.png" />
+    <None Remove="assets\skills\13330000.png" />
+    <None Remove="assets\skills\16700000.png" />
+    <None Remove="assets\skills\19550000.png" />
+    <None Remove="assets\skills\13040000.png" />
+    <None Remove="assets\skills\18010000.png" />
+    <None Remove="assets\skills\15120000.png" />
+    <None Remove="assets\skills\16730000.png" />
+    <None Remove="assets\skills\19560000.png" />
+    <None Remove="assets\skills\17320000.png" />
+    <None Remove="assets\skills\12300000.png" />
+    <None Remove="assets\skills\14700000.png" />
+    <None Remove="assets\skills\18240000.png" />
+    <None Remove="assets\skills\13710000.png" />
+    <None Remove="assets\skills\15310000.png" />
+    <None Remove="assets\skills\12250000.png" />
+    <None Remove="assets\skills\14110000.png" />
+    <None Remove="assets\skills\19750000.png" />
+    <None Remove="assets\skills\18210000.png" />
+    <None Remove="assets\skills\13720000.png" />
+    <None Remove="assets\skills\15360000.png" />
+    <None Remove="assets\skills\19060000.png" />
+    <None Remove="assets\skills\17160000.png" />
+    <None Remove="assets\skills\12100000.png" />
+    <None Remove="assets\skills\19270000.png" />
+    <None Remove="assets\skills\16120000.png" />
+    <None Remove="assets\skills\12710000.png" />
+    <None Remove="assets\skills\14310000.png" />
+    <None Remove="assets\skills\17710000.png" />
+    <None Remove="assets\skills\19220000.png" />
+    <None Remove="assets\skills\18750000.png" />
+    <None Remove="assets\skills\16110000.png" />
+    <None Remove="assets\skills\11110000.png" />
+    <None Remove="assets\skills\17720000.png" />
+    <None Remove="assets\img\combatpower.png" />
+    <None Remove="packetlogwindow.baml" />
+    <None Remove="assets\skills\13310000.png" />
+    <None Remove="assets\skills\15710000.png" />
+    <None Remove="assets\skills\18120000.png" />
+    <None Remove="assets\skills\11120000.png" />
+    <None Remove="assets\skills\16760000.png" />
+    <None Remove="assets\skills\19530000.png" />
+    <None Remove="assets\skills\13060000.png" />
+    <None Remove="assets\skills\18070000.png" />
+    <None Remove="assets\skills\15100000.png" />
+    <None Remove="assets\skills\16710000.png" />
+    <None Remove="assets\skills\19540000.png" />
+    <None Remove="assets\skills\17300000.png" />
+    <None Remove="themes\skins\bloomtheme.baml" />
+    <None Remove="assets\skills\14720000.png" />
+    <None Remove="assets\skills\15330000.png" />
+    <None Remove="assets\skills\19090000.png" />
+    <None Remove="assets\skills\13110000.png" />
+    <None Remove="assets\skills\19770000.png" />
+    <None Remove="assets\skills\12310000.png" />
+    <None Remove="assets\skills\14710000.png" />
+    <None Remove="assets\skills\18230000.png" />
+    <None Remove="assets\skills\13700000.png" />
+    <None Remove="assets\skills\15300000.png" />
+    <None Remove="assets\skills\19040000.png" />
+    <None Remove="themes\base\themeshapedefaults.baml" />
+    <None Remove="assets\skills\19740000.png" />
+    <None Remove="assets\skills\17100000.png" />
+    <None Remove="assets\skills\12120000.png" />
+    <None Remove="assets\skills\15090000.png" />
+    <None Remove="assets\skills\19290000.png" />
+    <None Remove="assets\skills\18700000.png" />
+    <None Remove="assets\skills\12070000.png" />
+    <None Remove="assets\skills\11700000.png" />
+    <None Remove="assets\skills\14330000.png" />
+    <None Remove="assets\skills\17290000.png" />
+    <None Remove="assets\skills\19130000.png" />
+    <None Remove="assets\skills\12110000.png" />
+    <None Remove="assets\skills\17770000.png" />
+    <None Remove="assets\skills\19240000.png" />
+    <None Remove="assets\skills\18770000.png" />
+    <None Remove="assets\skills\16130000.png" />
+    <None Remove="assets\skills\11170000.png" />
+    <None Remove="assets\skills\17700000.png" />
+    <None Remove="assets\skills\18080000.png" />
+    <None Remove="assets\skills\13370000.png" />
+    <None Remove="assets\skills\15730000.png" />
+    <None Remove="assets\skills\18100000.png" />
+    <None Remove="assets\skills\11100000.png" />
+    <None Remove="assets\skills\16740000.png" />
+    <None Remove="assets\skills\19510000.png" />
+    <None Remove="app.baml" />
+    <None Remove="assets\skills\18050000.png" />
+    <None Remove="assets\skills\17090000.png" />
+    <None Remove="assets\skills\13300000.png" />
+    <None Remove="assets\skills\15700000.png" />
+    <None Remove="assets\skills\18130000.png" />
+    <None Remove="assets\skills\16770000.png" />
+    <None Remove="assets\skills\19520000.png" />
+    <None Remove="aioning.ico" />
+    <None Remove="assets\skills\14080000.png" />
+    <None Remove="assets\skills\12340000.png" />
+    <None Remove="assets\skills\14740000.png" />
+    <None Remove="assets\skills\13130000.png" />
+    <None Remove="assets\skills\18300000.png" />
+    <None Remove="assets\skills\11300000.png" />
+    <None Remove="assets\skills\19710000.png" />
+    <None Remove="assets\skills\14730000.png" />
+    <None Remove="assets\skills\18250000.png" />
+    <None Remove="assets\skills\15320000.png" />
+    <None Remove="packetdetailswindow.baml" />
+    <None Remove="assets\skills\13100000.png" />
+    <None Remove="assets\img\abyss_boss_backdrop.png" />
+    <None Remove="assets\skills\19760000.png" />
+    <None Remove="assets\skills\11090000.png" />
+    <None Remove="assets\skills\17120000.png" />
+    <None Remove="themes\palettes\rosetheme.baml" />
+    <None Remove="assets\img\abyss_boss_emblem.png" />
+    <None Remove="assets\skills\18720000.png" />
+    <None Remove="assets\skills\11720000.png" />
+    <None Remove="assets\skills\16080000.png" />
+    <None Remove="themes\palettes\midnighttheme.baml" />
+    <None Remove="INGMeter.assets.lookup_skill_catalog.json" />
+    <EmbeddedResource Include="assets\skills\17270000.png" LogicalName="assets/skills/17270000.png" />
+    <EmbeddedResource Include="assets\skills\12130000.png" LogicalName="assets/skills/12130000.png" />
+    <EmbeddedResource Include="assets\skills\17750000.png" LogicalName="assets/skills/17750000.png" />
+    <EmbeddedResource Include="assets\skills\19260000.png" LogicalName="assets/skills/19260000.png" />
+    <EmbeddedResource Include="themes\palettes\bluemisttheme.baml" LogicalName="themes/palettes/bluemisttheme.baml" />
+    <EmbeddedResource Include="assets\skills\18710000.png" LogicalName="assets/skills/18710000.png" />
+    <EmbeddedResource Include="themes\palettes\darktheme.baml" LogicalName="themes/palettes/darktheme.baml" />
+    <EmbeddedResource Include="characterconsentwindow.baml" LogicalName="characterconsentwindow.baml" />
+    <EmbeddedResource Include="assets\skills\19120000.png" LogicalName="assets/skills/19120000.png" />
+    <EmbeddedResource Include="assets\skills\11290000.png" LogicalName="assets/skills/11290000.png" />
+    <EmbeddedResource Include="assets\skills\17760000.png" LogicalName="assets/skills/17760000.png" />
+    <EmbeddedResource Include="assets\skills\13350000.png" LogicalName="assets/skills/13350000.png" />
+    <EmbeddedResource Include="assets\skills\15750000.png" LogicalName="assets/skills/15750000.png" />
+    <EmbeddedResource Include="assets\skills\18160000.png" LogicalName="assets/skills/18160000.png" />
+    <EmbeddedResource Include="assets\skills\13090000.png" LogicalName="assets/skills/13090000.png" />
+    <EmbeddedResource Include="assets\skills\19310000.png" LogicalName="assets/skills/19310000.png" />
+    <EmbeddedResource Include="assets\skills\13360000.png" LogicalName="assets/skills/13360000.png" />
+    <EmbeddedResource Include="assets\skills\15720000.png" LogicalName="assets/skills/15720000.png" />
+    <EmbeddedResource Include="assets\skills\16750000.png" LogicalName="assets/skills/16750000.png" />
+    <EmbeddedResource Include="assets\skills\14060000.png" LogicalName="assets/skills/14060000.png" />
+    <EmbeddedResource Include="assets\skills\14760000.png" LogicalName="assets/skills/14760000.png" />
+    <EmbeddedResource Include="themes\skins\aetherveiltheme.baml" LogicalName="themes/skins/aetherveiltheme.baml" />
+    <EmbeddedResource Include="assets\skills\16260000.png" LogicalName="assets/skills/16260000.png" />
+    <EmbeddedResource Include="assets\skills\11320000.png" LogicalName="assets/skills/11320000.png" />
+    <EmbeddedResource Include="assets\skills\19730000.png" LogicalName="assets/skills/19730000.png" />
+    <EmbeddedResource Include="namelogwindow.baml" LogicalName="namelogwindow.baml" />
+    <EmbeddedResource Include="assets\skills\12350000.png" LogicalName="assets/skills/12350000.png" />
+    <EmbeddedResource Include="assets\skills\14750000.png" LogicalName="assets/skills/14750000.png" />
+    <EmbeddedResource Include="assets\skills\19080000.png" LogicalName="assets/skills/19080000.png" />
+    <EmbeddedResource Include="assets\skills\13120000.png" LogicalName="assets/skills/13120000.png" />
+    <EmbeddedResource Include="assets\skills\15050000.png" LogicalName="assets/skills/15050000.png" />
+    <EmbeddedResource Include="themes\palettes\emeraldtheme.baml" LogicalName="themes/palettes/emeraldtheme.baml" />
+    <EmbeddedResource Include="assets\skills\19170000.png" LogicalName="assets/skills/19170000.png" />
+    <EmbeddedResource Include="assets\skills\15080000.png" LogicalName="assets/skills/15080000.png" />
+    <EmbeddedResource Include="assets\skills\19280000.png" LogicalName="assets/skills/19280000.png" />
+    <EmbeddedResource Include="assets\skills\18730000.png" LogicalName="assets/skills/18730000.png" />
+    <EmbeddedResource Include="assets\skills\17280000.png" LogicalName="assets/skills/17280000.png" />
+    <EmbeddedResource Include="assets\skills\19100000.png" LogicalName="assets/skills/19100000.png" />
+    <EmbeddedResource Include="assets\skills\17740000.png" LogicalName="assets/skills/17740000.png" />
+    <EmbeddedResource Include="assets\skills\15250000.png" LogicalName="assets/skills/15250000.png" />
+    <EmbeddedResource Include="assets\skills\15770000.png" LogicalName="assets/skills/15770000.png" />
+    <EmbeddedResource Include="assets\skills\18140000.png" LogicalName="assets/skills/18140000.png" />
+    <EmbeddedResource Include="assets\skills\18090000.png" LogicalName="assets/skills/18090000.png" />
+    <EmbeddedResource Include="assets\skills\17050000.png" LogicalName="assets/skills/17050000.png" />
+    <EmbeddedResource Include="assets\skills\19330000.png" LogicalName="assets/skills/19330000.png" />
+    <EmbeddedResource Include="assets\skills\15280000.png" LogicalName="assets/skills/15280000.png" />
+    <EmbeddedResource Include="assets\skills\13340000.png" LogicalName="assets/skills/13340000.png" />
+    <EmbeddedResource Include="assets\skills\15740000.png" LogicalName="assets/skills/15740000.png" />
+    <EmbeddedResource Include="assets\skills\18170000.png" LogicalName="assets/skills/18170000.png" />
+    <EmbeddedResource Include="assets\skills\17080000.png" LogicalName="assets/skills/17080000.png" />
+    <EmbeddedResource Include="assets\skills\19300000.png" LogicalName="assets/skills/19300000.png" />
+    <EmbeddedResource Include="assets\skills\14040000.png" LogicalName="assets/skills/14040000.png" />
+    <EmbeddedResource Include="assets\skills\16240000.png" LogicalName="assets/skills/16240000.png" />
+    <EmbeddedResource Include="assets\skills\11340000.png" LogicalName="assets/skills/11340000.png" />
+    <EmbeddedResource Include="assets\skills\14090000.png" LogicalName="assets/skills/14090000.png" />
+    <EmbeddedResource Include="assets\skills\14770000.png" LogicalName="assets/skills/14770000.png" />
+    <EmbeddedResource Include="assets\skills\18290000.png" LogicalName="assets/skills/18290000.png" />
+    <EmbeddedResource Include="assets\skills\18330000.png" LogicalName="assets/skills/18330000.png" />
+    <EmbeddedResource Include="assets\skills\19720000.png" LogicalName="assets/skills/19720000.png" />
+    <EmbeddedResource Include="assets\skills\15030000.png" LogicalName="assets/skills/15030000.png" />
+    <EmbeddedResource Include="themes\skins\neontheme.baml" LogicalName="themes/skins/neontheme.baml" />
+    <EmbeddedResource Include="assets\skills\11080000.png" LogicalName="assets/skills/11080000.png" />
+    <EmbeddedResource Include="assets\skills\16040000.png" LogicalName="assets/skills/16040000.png" />
+    <EmbeddedResource Include="assets\skills\19470000.png" LogicalName="assets/skills/19470000.png" />
+    <EmbeddedResource Include="assets\skills\15060000.png" LogicalName="assets/skills/15060000.png" />
+    <EmbeddedResource Include="assets\skills\13280000.png" LogicalName="assets/skills/13280000.png" />
+    <EmbeddedResource Include="assets\skills\11430000.png" LogicalName="assets/skills/11430000.png" />
+    <EmbeddedResource Include="assets\skills\12440000.png" LogicalName="assets/skills/12440000.png" />
+    <EmbeddedResource Include="assets\skills\11280000.png" LogicalName="assets/skills/11280000.png" />
+    <EmbeddedResource Include="assets\skills\17070000.png" LogicalName="assets/skills/17070000.png" />
+    <EmbeddedResource Include="assets\skills\19350000.png" LogicalName="assets/skills/19350000.png" />
+    <EmbeddedResource Include="assets\skills\15760000.png" LogicalName="assets/skills/15760000.png" />
+    <EmbeddedResource Include="assets\skills\18150000.png" LogicalName="assets/skills/18150000.png" />
+    <EmbeddedResource Include="assets\skills\13080000.png" LogicalName="assets/skills/13080000.png" />
+    <EmbeddedResource Include="assets\skills\19320000.png" LogicalName="assets/skills/19320000.png" />
+    <EmbeddedResource Include="assets\skills\14020000.png" LogicalName="assets/skills/14020000.png" />
+    <EmbeddedResource Include="assets\skills\16220000.png" LogicalName="assets/skills/16220000.png" />
+    <EmbeddedResource Include="assets\skills\11360000.png" LogicalName="assets/skills/11360000.png" />
+    <EmbeddedResource Include="assets\skills\14070000.png" LogicalName="assets/skills/14070000.png" />
+    <EmbeddedResource Include="assets\skills\13160000.png" LogicalName="assets/skills/13160000.png" />
+    <EmbeddedResource Include="assets\skills\11030000.png" LogicalName="assets/skills/11030000.png" />
+    <EmbeddedResource Include="assets\skills\15010000.png" LogicalName="assets/skills/15010000.png" />
+    <EmbeddedResource Include="assets\skills\18780000.png" LogicalName="assets/skills/18780000.png" />
+    <EmbeddedResource Include="assets\skills\13230000.png" LogicalName="assets/skills/13230000.png" />
+    <EmbeddedResource Include="assets\skills\16060000.png" LogicalName="assets/skills/16060000.png" />
+    <EmbeddedResource Include="assets\skills\15040000.png" LogicalName="assets/skills/15040000.png" />
+    <EmbeddedResource Include="assets\skills\12090000.png" LogicalName="assets/skills/12090000.png" />
+    <EmbeddedResource Include="assets\skills\11410000.png" LogicalName="assets/skills/11410000.png" />
+    <EmbeddedResource Include="assets\skills\15210000.png" LogicalName="assets/skills/15210000.png" />
+    <EmbeddedResource Include="assets\skills\11440000.png" LogicalName="assets/skills/11440000.png" />
+    <EmbeddedResource Include="assets\skills\17010000.png" LogicalName="assets/skills/17010000.png" />
+    <EmbeddedResource Include="assets\skills\19370000.png" LogicalName="assets/skills/19370000.png" />
+    <EmbeddedResource Include="settingswindow.baml" LogicalName="settingswindow.baml" />
+    <EmbeddedResource Include="assets\skills\17040000.png" LogicalName="assets/skills/17040000.png" />
+    <EmbeddedResource Include="assets\skills\19340000.png" LogicalName="assets/skills/19340000.png" />
+    <EmbeddedResource Include="assets\skills\12220000.png" LogicalName="assets/skills/12220000.png" />
+    <EmbeddedResource Include="assets\skills\14180000.png" LogicalName="assets/skills/14180000.png" />
+    <EmbeddedResource Include="assets\skills\14050000.png" LogicalName="assets/skills/14050000.png" />
+    <EmbeddedResource Include="assets\skills\19790000.png" LogicalName="assets/skills/19790000.png" />
+    <EmbeddedResource Include="assets\skills\16250000.png" LogicalName="assets/skills/16250000.png" />
+    <EmbeddedResource Include="assets\skills\18370000.png" LogicalName="assets/skills/18370000.png" />
+    <EmbeddedResource Include="assets\skills\11010000.png" LogicalName="assets/skills/11010000.png" />
+    <EmbeddedResource Include="assets\skills\13210000.png" LogicalName="assets/skills/13210000.png" />
+    <EmbeddedResource Include="assets\skills\12780000.png" LogicalName="assets/skills/12780000.png" />
+    <EmbeddedResource Include="assets\skills\14380000.png" LogicalName="assets/skills/14380000.png" />
+    <EmbeddedResource Include="assets\skills\19430000.png" LogicalName="assets/skills/19430000.png" />
+    <EmbeddedResource Include="assets\skills\17410000.png" LogicalName="assets/skills/17410000.png" />
+    <EmbeddedResource Include="assets\skills\18790000.png" LogicalName="assets/skills/18790000.png" />
+    <EmbeddedResource Include="assets\skills\16050000.png" LogicalName="assets/skills/16050000.png" />
+    <EmbeddedResource Include="assets\skills\19460000.png" LogicalName="assets/skills/19460000.png" />
+    <EmbeddedResource Include="assets\skills\15230000.png" LogicalName="assets/skills/15230000.png" />
+    <EmbeddedResource Include="assets\skills\11420000.png" LogicalName="assets/skills/11420000.png" />
+    <EmbeddedResource Include="assets\skills\13010000.png" LogicalName="assets/skills/13010000.png" />
+    <EmbeddedResource Include="assets\skills\17030000.png" LogicalName="assets/skills/17030000.png" />
+    <EmbeddedResource Include="assets\skills\19390000.png" LogicalName="assets/skills/19390000.png" />
+    <EmbeddedResource Include="assets\skills\16780000.png" LogicalName="assets/skills/16780000.png" />
+    <EmbeddedResource Include="assets\skills\18190000.png" LogicalName="assets/skills/18190000.png" />
+    <EmbeddedResource Include="assets\skills\17390000.png" LogicalName="assets/skills/17390000.png" />
+    <EmbeddedResource Include="assets\skills\17060000.png" LogicalName="assets/skills/17060000.png" />
+    <EmbeddedResource Include="assets\skills\14160000.png" LogicalName="assets/skills/14160000.png" />
+    <EmbeddedResource Include="assets\skills\18420000.png" LogicalName="assets/skills/18420000.png" />
+    <EmbeddedResource Include="assets\skills\14780000.png" LogicalName="assets/skills/14780000.png" />
+    <EmbeddedResource Include="assets\skills\14030000.png" LogicalName="assets/skills/14030000.png" />
+    <EmbeddedResource Include="assets\skills\13790000.png" LogicalName="assets/skills/13790000.png" />
+    <EmbeddedResource Include="assets\skills\15390000.png" LogicalName="assets/skills/15390000.png" />
+    <EmbeddedResource Include="assets\skills\19000100.png" LogicalName="assets/skills/19000100.png" />
+    <EmbeddedResource Include="assets\skills\19030000.png" LogicalName="assets/skills/19030000.png" />
+    <EmbeddedResource Include="assets\skills\16360000.png" LogicalName="assets/skills/16360000.png" />
+    <EmbeddedResource Include="assets\skills\14190000.png" LogicalName="assets/skills/14190000.png" />
+    <EmbeddedResource Include="assets\skills\16230000.png" LogicalName="assets/skills/16230000.png" />
+    <EmbeddedResource Include="assets\skills\17190000.png" LogicalName="assets/skills/17190000.png" />
+    <EmbeddedResource Include="assets\skills\19780000.png" LogicalName="assets/skills/19780000.png" />
+    <EmbeddedResource Include="assets\skills\14220000.png" LogicalName="assets/skills/14220000.png" />
+    <EmbeddedResource Include="assets\skills\18800000.png" LogicalName="assets/skills/18800000.png" />
+    <EmbeddedResource Include="assets\skills\14800000.png" LogicalName="assets/skills/14800000.png" />
+    <EmbeddedResource Include="assets\skills\13270000.png" LogicalName="assets/skills/13270000.png" />
+    <EmbeddedResource Include="assets\skills\11020000.png" LogicalName="assets/skills/11020000.png" />
+    <EmbeddedResource Include="assets\skills\16020000.png" LogicalName="assets/skills/16020000.png" />
+    <EmbeddedResource Include="themes\skins\crayonsplashtheme.baml" LogicalName="themes/skins/crayonsplashtheme.baml" />
+    <EmbeddedResource Include="assets\skills\19410000.png" LogicalName="assets/skills/19410000.png" />
+    <EmbeddedResource Include="assets\skills\14270000.png" LogicalName="assets/skills/14270000.png" />
+    <EmbeddedResource Include="assets\skills\17430000.png" LogicalName="assets/skills/17430000.png" />
+    <EmbeddedResource Include="assets\skills\13220000.png" LogicalName="assets/skills/13220000.png" />
+    <EmbeddedResource Include="assets\skills\16070000.png" LogicalName="assets/skills/16070000.png" />
+    <EmbeddedResource Include="encounterhistorywindow.baml" LogicalName="encounterhistorywindow.baml" />
+    <EmbeddedResource Include="assets\skills\19180000.png" LogicalName="assets/skills/19180000.png" />
+    <EmbeddedResource Include="assets\skills\16190000.png" LogicalName="assets/skills/16190000.png" />
+    <EmbeddedResource Include="assets\skills\11190000.png" LogicalName="assets/skills/11190000.png" />
+    <EmbeddedResource Include="assets\skills\11400000.png" LogicalName="assets/skills/11400000.png" />
+    <EmbeddedResource Include="assets\skills\13030000.png" LogicalName="assets/skills/13030000.png" />
+    <EmbeddedResource Include="assets\skills\18020000.png" LogicalName="assets/skills/18020000.png" />
+    <EmbeddedResource Include="themes\palettes\violettheme.baml" LogicalName="themes/palettes/violettheme.baml" />
+    <EmbeddedResource Include="assets\skills\13390000.png" LogicalName="assets/skills/13390000.png" />
+    <EmbeddedResource Include="assets\skills\16800000.png" LogicalName="assets/skills/16800000.png" />
+    <EmbeddedResource Include="assets\skills\15200000.png" LogicalName="assets/skills/15200000.png" />
+    <EmbeddedResource Include="assets\skills\17370000.png" LogicalName="assets/skills/17370000.png" />
+    <EmbeddedResource Include="combatdetailwindow.baml" LogicalName="combatdetailwindow.baml" />
+    <EmbeddedResource Include="assets\skills\19380000.png" LogicalName="assets/skills/19380000.png" />
+    <EmbeddedResource Include="privacyconsentwindow.baml" LogicalName="privacyconsentwindow.baml" />
+    <EmbeddedResource Include="assets\skills\11390000.png" LogicalName="assets/skills/11390000.png" />
+    <EmbeddedResource Include="assets\skills\14010000.png" LogicalName="assets/skills/14010000.png" />
+    <EmbeddedResource Include="assets\skills\13770000.png" LogicalName="assets/skills/13770000.png" />
+    <EmbeddedResource Include="assets\skills\19010000.png" LogicalName="assets/skills/19010000.png" />
+    <EmbeddedResource Include="assets\skills\12230000.png" LogicalName="assets/skills/12230000.png" />
+    <EmbeddedResource Include="assets\skills\16340000.png" LogicalName="assets/skills/16340000.png" />
+    <EmbeddedResource Include="assets\skills\15400000.png" LogicalName="assets/skills/15400000.png" />
+    <EmbeddedResource Include="assets\skills\14170000.png" LogicalName="assets/skills/14170000.png" />
+    <EmbeddedResource Include="assets\skills\16210000.png" LogicalName="assets/skills/16210000.png" />
+    <EmbeddedResource Include="assets\skills\13780000.png" LogicalName="assets/skills/13780000.png" />
+    <EmbeddedResource Include="assets\skills\11050000.png" LogicalName="assets/skills/11050000.png" />
+    <EmbeddedResource Include="assets\skills\16370000.png" LogicalName="assets/skills/16370000.png" />
+    <EmbeddedResource Include="assets\img\neon_boss_emblem.png" LogicalName="assets/img/neon_boss_emblem.png" />
+    <EmbeddedResource Include="assets\skills\12020000.png" LogicalName="assets/skills/12020000.png" />
+    <EmbeddedResource Include="assets\skills\13250000.png" LogicalName="assets/skills/13250000.png" />
+    <EmbeddedResource Include="assets\skills\12740000.png" LogicalName="assets/skills/12740000.png" />
+    <EmbeddedResource Include="assets\skills\14340000.png" LogicalName="assets/skills/14340000.png" />
+    <EmbeddedResource Include="themes\skins\abysstheme.baml" LogicalName="themes/skins/abysstheme.baml" />
+    <EmbeddedResource Include="assets\skills\11780000.png" LogicalName="assets/skills/11780000.png" />
+    <EmbeddedResource Include="assets\skills\16140000.png" LogicalName="assets/skills/16140000.png" />
+    <EmbeddedResource Include="assets\skills\12770000.png" LogicalName="assets/skills/12770000.png" />
+    <EmbeddedResource Include="assets\skills\16010000.png" LogicalName="assets/skills/16010000.png" />
+    <EmbeddedResource Include="assets\skills\19420000.png" LogicalName="assets/skills/19420000.png" />
+    <EmbeddedResource Include="assets\skills\12190000.png" LogicalName="assets/skills/12190000.png" />
+    <EmbeddedResource Include="assets\skills\11250000.png" LogicalName="assets/skills/11250000.png" />
+    <EmbeddedResource Include="assets\skills\17400000.png" LogicalName="assets/skills/17400000.png" />
+    <EmbeddedResource Include="bufftimerwindow.baml" LogicalName="bufftimerwindow.baml" />
+    <EmbeddedResource Include="assets\skills\13050000.png" LogicalName="assets/skills/13050000.png" />
+    <EmbeddedResource Include="assets\skills\17780000.png" LogicalName="assets/skills/17780000.png" />
+    <EmbeddedResource Include="assets\skills\12800000.png" LogicalName="assets/skills/12800000.png" />
+    <EmbeddedResource Include="assets\skills\11200000.png" LogicalName="assets/skills/11200000.png" />
+    <EmbeddedResource Include="assets\skills\15150000.png" LogicalName="assets/skills/15150000.png" />
+    <EmbeddedResource Include="assets\skills\12410000.png" LogicalName="assets/skills/12410000.png" />
+    <EmbeddedResource Include="assets\skills\15220000.png" LogicalName="assets/skills/15220000.png" />
+    <EmbeddedResource Include="assets\skills\11180000.png" LogicalName="assets/skills/11180000.png" />
+    <EmbeddedResource Include="assets\skills\19800000.png" LogicalName="assets/skills/19800000.png" />
+    <EmbeddedResource Include="assets\skills\15800000.png" LogicalName="assets/skills/15800000.png" />
+    <EmbeddedResource Include="assets\skills\17350000.png" LogicalName="assets/skills/17350000.png" />
+    <EmbeddedResource Include="assets\skills\15160000.png" LogicalName="assets/skills/15160000.png" />
+    <EmbeddedResource Include="assets\skills\17020000.png" LogicalName="assets/skills/17020000.png" />
+    <EmbeddedResource Include="assets\skills\15780000.png" LogicalName="assets/skills/15780000.png" />
+    <EmbeddedResource Include="assets\skills\12240000.png" LogicalName="assets/skills/12240000.png" />
+    <EmbeddedResource Include="assets\skills\14120000.png" LogicalName="assets/skills/14120000.png" />
+    <EmbeddedResource Include="assets\skills\13750000.png" LogicalName="assets/skills/13750000.png" />
+    <EmbeddedResource Include="assets\skills\19070000.png" LogicalName="assets/skills/19070000.png" />
+    <EmbeddedResource Include="assets\skills\14150000.png" LogicalName="assets/skills/14150000.png" />
+    <EmbeddedResource Include="assets\skills\11380000.png" LogicalName="assets/skills/11380000.png" />
+    <EmbeddedResource Include="assets\skills\17150000.png" LogicalName="assets/skills/17150000.png" />
+    <EmbeddedResource Include="assets\skills\13760000.png" LogicalName="assets/skills/13760000.png" />
+    <EmbeddedResource Include="assets\skills\19020000.png" LogicalName="assets/skills/19020000.png" />
+    <EmbeddedResource Include="assets\skills\13180000.png" LogicalName="assets/skills/13180000.png" />
+    <EmbeddedResource Include="assets\skills\17800000.png" LogicalName="assets/skills/17800000.png" />
+    <EmbeddedResource Include="assets\skills\12040000.png" LogicalName="assets/skills/12040000.png" />
+    <EmbeddedResource Include="assets\skills\12720000.png" LogicalName="assets/skills/12720000.png" />
+    <EmbeddedResource Include="assets\skills\14360000.png" LogicalName="assets/skills/14360000.png" />
+    <EmbeddedResource Include="assets\skills\11060000.png" LogicalName="assets/skills/11060000.png" />
+    <EmbeddedResource Include="assets\skills\19230000.png" LogicalName="assets/skills/19230000.png" />
+    <EmbeddedResource Include="assets\skills\12010000.png" LogicalName="assets/skills/12010000.png" />
+    <EmbeddedResource Include="assets\skills\13260000.png" LogicalName="assets/skills/13260000.png" />
+    <EmbeddedResource Include="assets\skills\12750000.png" LogicalName="assets/skills/12750000.png" />
+    <EmbeddedResource Include="assets\skills\14350000.png" LogicalName="assets/skills/14350000.png" />
+    <EmbeddedResource Include="assets\skills\16030000.png" LogicalName="assets/skills/16030000.png" />
+    <EmbeddedResource Include="assets\skills\19400000.png" LogicalName="assets/skills/19400000.png" />
+    <EmbeddedResource Include="assets\skills\11270000.png" LogicalName="assets/skills/11270000.png" />
+    <EmbeddedResource Include="assets\skills\17420000.png" LogicalName="assets/skills/17420000.png" />
+    <EmbeddedResource Include="assets\skills\16150000.png" LogicalName="assets/skills/16150000.png" />
+    <EmbeddedResource Include="assets\skills\13070000.png" LogicalName="assets/skills/13070000.png" />
+    <EmbeddedResource Include="assets\skills\18060000.png" LogicalName="assets/skills/18060000.png" />
+    <EmbeddedResource Include="assets\skills\15130000.png" LogicalName="assets/skills/15130000.png" />
+    <EmbeddedResource Include="assets\skills\12430000.png" LogicalName="assets/skills/12430000.png" />
+    <EmbeddedResource Include="assets\skills\11800000.png" LogicalName="assets/skills/11800000.png" />
+    <EmbeddedResource Include="assets\skills\16720000.png" LogicalName="assets/skills/16720000.png" />
+    <EmbeddedResource Include="assets\skills\13020000.png" LogicalName="assets/skills/13020000.png" />
+    <EmbeddedResource Include="assets\skills\18030000.png" LogicalName="assets/skills/18030000.png" />
+    <EmbeddedResource Include="mainwindow.baml" LogicalName="mainwindow.baml" />
+    <EmbeddedResource Include="assets\skills\15140000.png" LogicalName="assets/skills/15140000.png" />
+    <EmbeddedResource Include="assets\skills\14100000.png" LogicalName="assets/skills/14100000.png" />
+    <EmbeddedResource Include="assets\skills\12320000.png" LogicalName="assets/skills/12320000.png" />
+    <EmbeddedResource Include="assets\skills\18220000.png" LogicalName="assets/skills/18220000.png" />
+    <EmbeddedResource Include="assets\skills\13730000.png" LogicalName="assets/skills/13730000.png" />
+    <EmbeddedResource Include="assets\skills\19050000.png" LogicalName="assets/skills/19050000.png" />
+    <EmbeddedResource Include="assets\skills\12270000.png" LogicalName="assets/skills/12270000.png" />
+    <EmbeddedResource Include="assets\skills\16300000.png" LogicalName="assets/skills/16300000.png" />
+    <EmbeddedResource Include="assets\skills\14130000.png" LogicalName="assets/skills/14130000.png" />
+    <EmbeddedResource Include="assets\skills\18410000.png" LogicalName="assets/skills/18410000.png" />
+    <EmbeddedResource Include="themedmessageboxwindow.baml" LogicalName="themedmessageboxwindow.baml" />
+    <EmbeddedResource Include="assets\skills\13740000.png" LogicalName="assets/skills/13740000.png" />
+    <EmbeddedResource Include="assets\skills\13800000.png" LogicalName="assets/skills/13800000.png" />
+    <EmbeddedResource Include="assets\skills\16330000.png" LogicalName="assets/skills/16330000.png" />
+    <EmbeddedResource Include="assets\skills\12060000.png" LogicalName="assets/skills/12060000.png" />
+    <EmbeddedResource Include="assets\skills\11770000.png" LogicalName="assets/skills/11770000.png" />
+    <EmbeddedResource Include="assets\skills\12700000.png" LogicalName="assets/skills/12700000.png" />
+    <EmbeddedResource Include="assets\skills\11040000.png" LogicalName="assets/skills/11040000.png" />
+    <EmbeddedResource Include="assets\skills\19250000.png" LogicalName="assets/skills/19250000.png" />
+    <EmbeddedResource Include="assets\skills\18740000.png" LogicalName="assets/skills/18740000.png" />
+    <EmbeddedResource Include="assets\skills\12030000.png" LogicalName="assets/skills/12030000.png" />
+    <EmbeddedResource Include="assets\skills\11740000.png" LogicalName="assets/skills/11740000.png" />
+    <EmbeddedResource Include="assets\skills\16100000.png" LogicalName="assets/skills/16100000.png" />
+    <EmbeddedResource Include="assets\skills\12730000.png" LogicalName="assets/skills/12730000.png" />
+    <EmbeddedResource Include="assets\skills\14370000.png" LogicalName="assets/skills/14370000.png" />
+    <EmbeddedResource Include="assets\skills\17730000.png" LogicalName="assets/skills/17730000.png" />
+    <EmbeddedResource Include="themes\skins\skindefaults.baml" LogicalName="themes/skins/skindefaults.baml" />
+    <EmbeddedResource Include="assets\skills\17440000.png" LogicalName="assets/skills/17440000.png" />
+    <EmbeddedResource Include="assets\skills\11130000.png" LogicalName="assets/skills/11130000.png" />
+    <EmbeddedResource Include="assets\skills\18040000.png" LogicalName="assets/skills/18040000.png" />
+    <EmbeddedResource Include="assets\skills\11240000.png" LogicalName="assets/skills/11240000.png" />
+    <EmbeddedResource Include="assets\skills\15110000.png" LogicalName="assets/skills/15110000.png" />
+    <EmbeddedResource Include="assets\skills\13330000.png" LogicalName="assets/skills/13330000.png" />
+    <EmbeddedResource Include="assets\skills\16700000.png" LogicalName="assets/skills/16700000.png" />
+    <EmbeddedResource Include="assets\skills\19550000.png" LogicalName="assets/skills/19550000.png" />
+    <EmbeddedResource Include="assets\skills\13040000.png" LogicalName="assets/skills/13040000.png" />
+    <EmbeddedResource Include="assets\skills\18010000.png" LogicalName="assets/skills/18010000.png" />
+    <EmbeddedResource Include="assets\skills\15120000.png" LogicalName="assets/skills/15120000.png" />
+    <EmbeddedResource Include="assets\skills\16730000.png" LogicalName="assets/skills/16730000.png" />
+    <EmbeddedResource Include="assets\skills\19560000.png" LogicalName="assets/skills/19560000.png" />
+    <EmbeddedResource Include="assets\skills\17320000.png" LogicalName="assets/skills/17320000.png" />
+    <EmbeddedResource Include="assets\skills\12300000.png" LogicalName="assets/skills/12300000.png" />
+    <EmbeddedResource Include="assets\skills\14700000.png" LogicalName="assets/skills/14700000.png" />
+    <EmbeddedResource Include="assets\skills\18240000.png" LogicalName="assets/skills/18240000.png" />
+    <EmbeddedResource Include="assets\skills\13710000.png" LogicalName="assets/skills/13710000.png" />
+    <EmbeddedResource Include="assets\skills\15310000.png" LogicalName="assets/skills/15310000.png" />
+    <EmbeddedResource Include="assets\skills\12250000.png" LogicalName="assets/skills/12250000.png" />
+    <EmbeddedResource Include="assets\skills\14110000.png" LogicalName="assets/skills/14110000.png" />
+    <EmbeddedResource Include="assets\skills\19750000.png" LogicalName="assets/skills/19750000.png" />
+    <EmbeddedResource Include="assets\skills\18210000.png" LogicalName="assets/skills/18210000.png" />
+    <EmbeddedResource Include="assets\skills\13720000.png" LogicalName="assets/skills/13720000.png" />
+    <EmbeddedResource Include="assets\skills\15360000.png" LogicalName="assets/skills/15360000.png" />
+    <EmbeddedResource Include="assets\skills\19060000.png" LogicalName="assets/skills/19060000.png" />
+    <EmbeddedResource Include="assets\skills\17160000.png" LogicalName="assets/skills/17160000.png" />
+    <EmbeddedResource Include="assets\skills\12100000.png" LogicalName="assets/skills/12100000.png" />
+    <EmbeddedResource Include="assets\skills\19270000.png" LogicalName="assets/skills/19270000.png" />
+    <EmbeddedResource Include="assets\skills\16120000.png" LogicalName="assets/skills/16120000.png" />
+    <EmbeddedResource Include="assets\skills\12710000.png" LogicalName="assets/skills/12710000.png" />
+    <EmbeddedResource Include="assets\skills\14310000.png" LogicalName="assets/skills/14310000.png" />
+    <EmbeddedResource Include="assets\skills\17710000.png" LogicalName="assets/skills/17710000.png" />
+    <EmbeddedResource Include="assets\skills\19220000.png" LogicalName="assets/skills/19220000.png" />
+    <EmbeddedResource Include="assets\skills\18750000.png" LogicalName="assets/skills/18750000.png" />
+    <EmbeddedResource Include="assets\skills\16110000.png" LogicalName="assets/skills/16110000.png" />
+    <EmbeddedResource Include="assets\skills\11110000.png" LogicalName="assets/skills/11110000.png" />
+    <EmbeddedResource Include="assets\skills\17720000.png" LogicalName="assets/skills/17720000.png" />
+    <EmbeddedResource Include="assets\img\combatpower.png" LogicalName="assets/img/combatpower.png" />
+    <EmbeddedResource Include="packetlogwindow.baml" LogicalName="packetlogwindow.baml" />
+    <EmbeddedResource Include="assets\skills\13310000.png" LogicalName="assets/skills/13310000.png" />
+    <EmbeddedResource Include="assets\skills\15710000.png" LogicalName="assets/skills/15710000.png" />
+    <EmbeddedResource Include="assets\skills\18120000.png" LogicalName="assets/skills/18120000.png" />
+    <EmbeddedResource Include="assets\skills\11120000.png" LogicalName="assets/skills/11120000.png" />
+    <EmbeddedResource Include="assets\skills\16760000.png" LogicalName="assets/skills/16760000.png" />
+    <EmbeddedResource Include="assets\skills\19530000.png" LogicalName="assets/skills/19530000.png" />
+    <EmbeddedResource Include="assets\skills\13060000.png" LogicalName="assets/skills/13060000.png" />
+    <EmbeddedResource Include="assets\skills\18070000.png" LogicalName="assets/skills/18070000.png" />
+    <EmbeddedResource Include="assets\skills\15100000.png" LogicalName="assets/skills/15100000.png" />
+    <EmbeddedResource Include="assets\skills\16710000.png" LogicalName="assets/skills/16710000.png" />
+    <EmbeddedResource Include="assets\skills\19540000.png" LogicalName="assets/skills/19540000.png" />
+    <EmbeddedResource Include="assets\skills\17300000.png" LogicalName="assets/skills/17300000.png" />
+    <EmbeddedResource Include="themes\skins\bloomtheme.baml" LogicalName="themes/skins/bloomtheme.baml" />
+    <EmbeddedResource Include="assets\skills\14720000.png" LogicalName="assets/skills/14720000.png" />
+    <EmbeddedResource Include="assets\skills\15330000.png" LogicalName="assets/skills/15330000.png" />
+    <EmbeddedResource Include="assets\skills\19090000.png" LogicalName="assets/skills/19090000.png" />
+    <EmbeddedResource Include="assets\skills\13110000.png" LogicalName="assets/skills/13110000.png" />
+    <EmbeddedResource Include="assets\skills\19770000.png" LogicalName="assets/skills/19770000.png" />
+    <EmbeddedResource Include="assets\skills\12310000.png" LogicalName="assets/skills/12310000.png" />
+    <EmbeddedResource Include="assets\skills\14710000.png" LogicalName="assets/skills/14710000.png" />
+    <EmbeddedResource Include="assets\skills\18230000.png" LogicalName="assets/skills/18230000.png" />
+    <EmbeddedResource Include="assets\skills\13700000.png" LogicalName="assets/skills/13700000.png" />
+    <EmbeddedResource Include="assets\skills\15300000.png" LogicalName="assets/skills/15300000.png" />
+    <EmbeddedResource Include="assets\skills\19040000.png" LogicalName="assets/skills/19040000.png" />
+    <EmbeddedResource Include="themes\base\themeshapedefaults.baml" LogicalName="themes/base/themeshapedefaults.baml" />
+    <EmbeddedResource Include="assets\skills\19740000.png" LogicalName="assets/skills/19740000.png" />
+    <EmbeddedResource Include="assets\skills\17100000.png" LogicalName="assets/skills/17100000.png" />
+    <EmbeddedResource Include="assets\skills\12120000.png" LogicalName="assets/skills/12120000.png" />
+    <EmbeddedResource Include="assets\skills\15090000.png" LogicalName="assets/skills/15090000.png" />
+    <EmbeddedResource Include="assets\skills\19290000.png" LogicalName="assets/skills/19290000.png" />
+    <EmbeddedResource Include="assets\skills\18700000.png" LogicalName="assets/skills/18700000.png" />
+    <EmbeddedResource Include="assets\skills\12070000.png" LogicalName="assets/skills/12070000.png" />
+    <EmbeddedResource Include="assets\skills\11700000.png" LogicalName="assets/skills/11700000.png" />
+    <EmbeddedResource Include="assets\skills\14330000.png" LogicalName="assets/skills/14330000.png" />
+    <EmbeddedResource Include="assets\skills\17290000.png" LogicalName="assets/skills/17290000.png" />
+    <EmbeddedResource Include="assets\skills\19130000.png" LogicalName="assets/skills/19130000.png" />
+    <EmbeddedResource Include="assets\skills\12110000.png" LogicalName="assets/skills/12110000.png" />
+    <EmbeddedResource Include="assets\skills\17770000.png" LogicalName="assets/skills/17770000.png" />
+    <EmbeddedResource Include="assets\skills\19240000.png" LogicalName="assets/skills/19240000.png" />
+    <EmbeddedResource Include="assets\skills\18770000.png" LogicalName="assets/skills/18770000.png" />
+    <EmbeddedResource Include="assets\skills\16130000.png" LogicalName="assets/skills/16130000.png" />
+    <EmbeddedResource Include="assets\skills\11170000.png" LogicalName="assets/skills/11170000.png" />
+    <EmbeddedResource Include="assets\skills\17700000.png" LogicalName="assets/skills/17700000.png" />
+    <EmbeddedResource Include="assets\skills\18080000.png" LogicalName="assets/skills/18080000.png" />
+    <EmbeddedResource Include="assets\skills\13370000.png" LogicalName="assets/skills/13370000.png" />
+    <EmbeddedResource Include="assets\skills\15730000.png" LogicalName="assets/skills/15730000.png" />
+    <EmbeddedResource Include="assets\skills\18100000.png" LogicalName="assets/skills/18100000.png" />
+    <EmbeddedResource Include="assets\skills\11100000.png" LogicalName="assets/skills/11100000.png" />
+    <EmbeddedResource Include="assets\skills\16740000.png" LogicalName="assets/skills/16740000.png" />
+    <EmbeddedResource Include="assets\skills\19510000.png" LogicalName="assets/skills/19510000.png" />
+    <EmbeddedResource Include="app.baml" LogicalName="app.baml" />
+    <EmbeddedResource Include="assets\skills\18050000.png" LogicalName="assets/skills/18050000.png" />
+    <EmbeddedResource Include="assets\skills\17090000.png" LogicalName="assets/skills/17090000.png" />
+    <EmbeddedResource Include="assets\skills\13300000.png" LogicalName="assets/skills/13300000.png" />
+    <EmbeddedResource Include="assets\skills\15700000.png" LogicalName="assets/skills/15700000.png" />
+    <EmbeddedResource Include="assets\skills\18130000.png" LogicalName="assets/skills/18130000.png" />
+    <EmbeddedResource Include="assets\skills\16770000.png" LogicalName="assets/skills/16770000.png" />
+    <EmbeddedResource Include="assets\skills\19520000.png" LogicalName="assets/skills/19520000.png" />
+    <EmbeddedResource Include="aioning.ico" LogicalName="aioning.ico" />
+    <EmbeddedResource Include="assets\skills\14080000.png" LogicalName="assets/skills/14080000.png" />
+    <EmbeddedResource Include="assets\skills\12340000.png" LogicalName="assets/skills/12340000.png" />
+    <EmbeddedResource Include="assets\skills\14740000.png" LogicalName="assets/skills/14740000.png" />
+    <EmbeddedResource Include="assets\skills\13130000.png" LogicalName="assets/skills/13130000.png" />
+    <EmbeddedResource Include="assets\skills\18300000.png" LogicalName="assets/skills/18300000.png" />
+    <EmbeddedResource Include="assets\skills\11300000.png" LogicalName="assets/skills/11300000.png" />
+    <EmbeddedResource Include="assets\skills\19710000.png" LogicalName="assets/skills/19710000.png" />
+    <EmbeddedResource Include="assets\skills\14730000.png" LogicalName="assets/skills/14730000.png" />
+    <EmbeddedResource Include="assets\skills\18250000.png" LogicalName="assets/skills/18250000.png" />
+    <EmbeddedResource Include="assets\skills\15320000.png" LogicalName="assets/skills/15320000.png" />
+    <EmbeddedResource Include="packetdetailswindow.baml" LogicalName="packetdetailswindow.baml" />
+    <EmbeddedResource Include="assets\skills\13100000.png" LogicalName="assets/skills/13100000.png" />
+    <EmbeddedResource Include="assets\img\abyss_boss_backdrop.png" LogicalName="assets/img/abyss_boss_backdrop.png" />
+    <EmbeddedResource Include="assets\skills\19760000.png" LogicalName="assets/skills/19760000.png" />
+    <EmbeddedResource Include="assets\skills\11090000.png" LogicalName="assets/skills/11090000.png" />
+    <EmbeddedResource Include="assets\skills\17120000.png" LogicalName="assets/skills/17120000.png" />
+    <EmbeddedResource Include="themes\palettes\rosetheme.baml" LogicalName="themes/palettes/rosetheme.baml" />
+    <EmbeddedResource Include="assets\img\abyss_boss_emblem.png" LogicalName="assets/img/abyss_boss_emblem.png" />
+    <EmbeddedResource Include="assets\skills\18720000.png" LogicalName="assets/skills/18720000.png" />
+    <EmbeddedResource Include="assets\skills\11720000.png" LogicalName="assets/skills/11720000.png" />
+    <EmbeddedResource Include="assets\skills\16080000.png" LogicalName="assets/skills/16080000.png" />
+    <EmbeddedResource Include="themes\palettes\midnighttheme.baml" LogicalName="themes/palettes/midnighttheme.baml" />
+    <EmbeddedResource Include="INGMeter.assets.lookup_skill_catalog.json" LogicalName="INGMeter.assets.lookup_skill_catalog.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Core">
+      <HintPath>C:\Users\Administrator\AppData\Local\aion.ing.INGMeter\current\Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Velopack">
+      <HintPath>C:\Users\Administrator\AppData\Local\aion.ing.INGMeter\current\Velopack.dll</HintPath>
+    </Reference>
+    <Reference Include="NuGet.Versioning">
+      <HintPath>C:\Users\Administrator\AppData\Local\aion.ing.INGMeter\current\NuGet.Versioning.dll</HintPath>
+    </Reference>
+    <Reference Include="Capture">
+      <HintPath>C:\Users\Administrator\AppData\Local\aion.ing.INGMeter\current\Capture.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

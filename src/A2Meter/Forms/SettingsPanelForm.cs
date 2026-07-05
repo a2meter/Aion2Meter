@@ -451,7 +451,7 @@ internal sealed class SettingsPanelForm : Form
             tab.Add(SectionLabel("직업별 색상"), sH);
 
             {
-                string[] jobNames = { "검성", "궁성", "마도성", "살성", "수호성", "정령성", "치유성", "호법성" };
+                string[] jobNames = { "검성", "궁성", "마도성", "살성", "수호성", "정령성", "치유성", "호법성", "권성" };
                 int numRows = (int)Math.Ceiling(jobNames.Length / 4.0);
                 int gridH = numRows * gH;
                 var gridPanel = new Panel { BackColor = Color.Transparent };

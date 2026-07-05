@@ -1,0 +1,26 @@
+{
+  "sessionId": "20260705-182209",
+  "startedAt": "2026-07-05T09:22:09.6298869Z",
+  "endedAt": "2026-07-05T09:24:15.0307655Z",
+  "adapter": {
+    "name": "\\Device\\NPF_{8C15413F-736E-47EB-B79B-940484E6B039}",
+    "description": "Bluetooth Device (Personal Area Network)",
+    "friendlyName": "Bluetooth \uB124\uD2B8\uC6CC\uD06C \uC5F0\uACB0",
+    "mac": "FCB0DE8E2962"
+  },
+  "filter": "tcp port 13328",
+  "port": 13328,
+  "portRange": null,
+  "rotateMb": 500,
+  "rotateMin": 10,
+  "host": {
+    "machine": "JADE",
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "libpcapVersion": "6.3.1.0"
+  },
+  "packetsTotal": 9356,
+  "bytesTotal": 1406681,
+  "files": [
+    "capture-182210.pcapng"
+  ]
+}

@@ -19,6 +19,13 @@ internal sealed class SkillDatabase
         ( 29_000_000u, 31_000_000u),
     };
 
+    private static readonly Dictionary<int, string> DungeonNameOverrides = new()
+    {
+        [620011] = "침식의 정화소",
+        [620021] = "무스펠의 성배(어려움)",
+        [620022] = "무스펠의 성배(보통)",
+    };
+
     private readonly Dictionary<int, string> _skills = new();
     private readonly Dictionary<int, string> _buffs  = new();
     private readonly Dictionary<int, string> _mobNames = new();
@@ -29,12 +36,17 @@ internal sealed class SkillDatabase
 
     public SkillDatabase()
     {
-        LoadFromServer();
+        LoadFromSnapshot(GameDataClient.Snapshot);
     }
 
-    private void LoadFromServer()
+    internal SkillDatabase(GameDataSnapshot snapshot)
     {
-        var snapshot = GameDataClient.Snapshot;
+        LoadFromSnapshot(snapshot);
+    }
+
+    private void LoadFromSnapshot(GameDataSnapshot snapshot)
+    {
+        snapshot ??= new GameDataSnapshot();
         ProtocolOpcodeConfig.Configure(snapshot.Opcodes);
 
         foreach (var s in snapshot.Skills)
@@ -48,9 +60,7 @@ internal sealed class SkillDatabase
         foreach (var d in snapshot.Dungeons)
         {
             if (d.Id == 0) continue;
-            var display = string.IsNullOrWhiteSpace(d.BaseName)
-                ? d.Name
-                : $"{d.BaseName} {d.Tier}".Trim();
+            var display = GetDungeonDisplayName(d);
             if (!string.IsNullOrWhiteSpace(display)) _dungeons[d.Id] = display;
         }
 
@@ -59,6 +69,19 @@ internal sealed class SkillDatabase
             if (m.Id == 0) continue;
             if (!string.IsNullOrWhiteSpace(m.Name)) _mobNames[m.Id] = m.Name;
             _mobIsBoss[m.Id] = m.IsBoss != 0;
+        }
+
+        foreach (var boss in snapshot.DungeonBosses)
+        {
+            var mobId = boss.MobId.GetValueOrDefault();
+            if (mobId == 0) continue;
+
+            _mobIsBoss[mobId] = true;
+            if (!string.IsNullOrWhiteSpace(boss.BossName) &&
+                (!_mobNames.TryGetValue(mobId, out var existing) || string.IsNullOrWhiteSpace(existing)))
+            {
+                _mobNames[mobId] = boss.BossName;
+            }
         }
     }
 
@@ -85,6 +108,50 @@ internal sealed class SkillDatabase
         int r10k = code / 10000 * 10000;
         if (r10k != code && predicate(r10k)) return r10k;
         return null;
+    }
+
+    private static string GetDungeonDisplayName(GameDungeonRow dungeon)
+    {
+        if (DungeonNameOverrides.TryGetValue(dungeon.Id, out var overrideName))
+            return overrideName;
+
+        var name = dungeon.Name?.Trim() ?? "";
+        var baseName = dungeon.BaseName?.Trim() ?? "";
+        var tier = dungeon.Tier?.Trim() ?? "";
+
+        if (!string.IsNullOrWhiteSpace(baseName) && !IsDefaultTier(tier) &&
+            (string.IsNullOrWhiteSpace(name) || string.Equals(name, baseName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return FormatDungeonTierName(baseName, tier);
+        }
+
+        if (!string.IsNullOrWhiteSpace(name) && LooksLikeDisplayName(name))
+            return name;
+
+        if (!string.IsNullOrWhiteSpace(baseName))
+        {
+            if (IsDefaultTier(tier)) return baseName;
+            return FormatDungeonTierName(baseName, tier);
+        }
+
+        return name;
+    }
+
+    private static string FormatDungeonTierName(string baseName, string tier)
+        => LooksLikeDisplayName(baseName) || LooksLikeDisplayName(tier)
+            ? $"{baseName}({tier})"
+            : $"{baseName} {tier}".Trim();
+
+    private static bool IsDefaultTier(string tier)
+        => string.IsNullOrWhiteSpace(tier) || string.Equals(tier.Trim(), "기본", StringComparison.OrdinalIgnoreCase);
+
+    private static bool LooksLikeDisplayName(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (ch >= '\uAC00' && ch <= '\uD7A3') return true;
+        }
+        return value.Contains('(') || value.Contains(')');
     }
 
     public static bool IsSkillCodeInRange(int code)

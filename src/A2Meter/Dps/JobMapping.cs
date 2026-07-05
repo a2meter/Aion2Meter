@@ -2,9 +2,8 @@ using System.Collections.Generic;
 
 namespace A2Meter.Dps;
 
-/// Aion 2 job-code mappings, ported verbatim from the original.
-/// The packet protocol carries fine-grained codes (5..36, four per archetype);
-/// the UI groups them into the eight 성 archetypes (0..7).
+/// Aion 2 job-code mappings. The packet protocol carries fine-grained codes,
+/// four per archetype; the UI groups them by Korean job name.
 internal static class JobMapping
 {
     public static readonly Dictionary<int, int> GameToUi = new()
@@ -17,12 +16,14 @@ internal static class JobMapping
         [25] = 2, [26] = 2, [27] = 2, [28] = 2,   // 마도성
         [29] = 6, [30] = 6, [31] = 6, [32] = 6,   // 치유성
         [33] = 7, [34] = 7, [35] = 7, [36] = 7,   // 호법성
+        [37] = 8, [38] = 8, [39] = 8, [40] = 8,   // 권성
     };
 
     public static readonly Dictionary<int, string> UiToName = new()
     {
         [0] = "검성",  [1] = "궁성",  [2] = "마도성", [3] = "살성",
         [4] = "수호성", [5] = "정령성", [6] = "치유성", [7] = "호법성",
+        [8] = "권성",
     };
 
     public static readonly Dictionary<int, string> GameToName = new()
@@ -35,6 +36,7 @@ internal static class JobMapping
         [25] = "마도성", [26] = "마도성", [27] = "마도성", [28] = "마도성",
         [29] = "치유성", [30] = "치유성", [31] = "치유성", [32] = "치유성",
         [33] = "호법성", [34] = "호법성", [35] = "호법성", [36] = "호법성",
+        [37] = "권성",  [38] = "권성",  [39] = "권성",  [40] = "권성",
     };
 
     public static int GameToUiIndex(int gameCode) =>

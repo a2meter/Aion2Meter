@@ -97,6 +97,7 @@ internal sealed class AppSettings
         public string 정령성 { get; set; } = "#CF6BD0";
         public string 치유성 { get; set; } = "#E7CF7D";
         public string 호법성 { get; set; } = "#E4A55B";
+        public string 권성  { get; set; } = "#00B3C7";
 
         public string GetHex(string jobName) => jobName switch
         {
@@ -108,6 +109,7 @@ internal sealed class AppSettings
             "정령성" => 정령성,
             "치유성" => 치유성,
             "호법성" => 호법성,
+            "권성"  => 권성,
             _       => "#B3B3B3",
         };
 
@@ -123,6 +125,7 @@ internal sealed class AppSettings
                 case "정령성": 정령성 = hex; break;
                 case "치유성": 치유성 = hex; break;
                 case "호법성": 호법성 = hex; break;
+                case "권성":  권성 = hex; break;
             }
         }
     }

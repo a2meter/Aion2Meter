@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Core</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="INGMeter.assets.skills_ko.json" />
+    <None Remove="INGMeter.assets.mobs.json" />
+    <None Remove="INGMeter.assets.dungeons.json" />
+    <None Remove="INGMeter.assets.dungeon_boss_mob_codes.json" />
+    <None Remove="INGMeter.assets.buffs_ko.json" />
+    <None Remove="INGMeter.assets.rdps_party_buff_effects.json" />
+    <None Remove="INGMeter.assets.rdps_skill_catalog.json" />
+    <EmbeddedResource Include="INGMeter.assets.skills_ko.json" LogicalName="INGMeter.assets.skills_ko.json" />
+    <EmbeddedResource Include="INGMeter.assets.mobs.json" LogicalName="INGMeter.assets.mobs.json" />
+    <EmbeddedResource Include="INGMeter.assets.dungeons.json" LogicalName="INGMeter.assets.dungeons.json" />
+    <EmbeddedResource Include="INGMeter.assets.dungeon_boss_mob_codes.json" LogicalName="INGMeter.assets.dungeon_boss_mob_codes.json" />
+    <EmbeddedResource Include="INGMeter.assets.buffs_ko.json" LogicalName="INGMeter.assets.buffs_ko.json" />
+    <EmbeddedResource Include="INGMeter.assets.rdps_party_buff_effects.json" LogicalName="INGMeter.assets.rdps_party_buff_effects.json" />
+    <EmbeddedResource Include="INGMeter.assets.rdps_skill_catalog.json" LogicalName="INGMeter.assets.rdps_skill_catalog.json" />
+  </ItemGroup>
+  <ItemGroup />
+</Project>

@@ -199,6 +199,10 @@ internal sealed class DpsMeter
             a.Name = name;
             a.JobCode = jobCode;
         }
+        else if (a.JobCode < 0 && jobCode >= 0)
+        {
+            a.JobCode = jobCode;
+        }
     }
 
     private static void Apply(ActorAccum a, long damage, uint hitFlags, bool isHeal, string? skillName, int extraHits, bool isDot, int[]? specs = null)

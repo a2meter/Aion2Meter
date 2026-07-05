@@ -592,6 +592,13 @@ internal sealed class Dispatcher
                         _state.FireUserInfo((int)entityId, nick, serverId, jobCode, 1);
                         return true;
                     }
+
+                    if (TryReadSelfInfoWithoutNameMarker(data, p, end, out var name, out var selfServerId, out var selfJobCode, out var extra))
+                    {
+                        string nick = AppendServerName(name, selfServerId);
+                        _state.FireUserInfo((int)entityId, nick, selfServerId, selfJobCode, extra == 1 ? 1 : 0);
+                        return true;
+                    }
                 }
             }
         }
@@ -620,6 +627,54 @@ internal sealed class Dispatcher
         string nick2 = AppendServerName(name2.Value.Name, serverId2);
         _state.FireUserInfo((int)entityId2, nick2, serverId2, jobCode2, 0);
         return true;
+    }
+
+    private static bool TryReadSelfInfoWithoutNameMarker(
+        byte[] data,
+        int from,
+        int end,
+        out string name,
+        out int serverId,
+        out int jobCode,
+        out int extra)
+    {
+        name = "";
+        serverId = -1;
+        jobCode = -1;
+        extra = 0;
+
+        int limit = Math.Min(from + 16, end);
+        for (int i = from; i < limit; i++)
+        {
+            int nameLen = data[i];
+            if (nameLen < 1 || nameLen > MAX_NAME_LENGTH) continue;
+            int nameStart = i + 1;
+            int afterName = nameStart + nameLen;
+            if (afterName + 7 > end) continue;
+
+            string candidate = ProtocolUtils.DecodeGameString(data, nameStart, nameLen);
+            if (string.IsNullOrEmpty(candidate) || ProtocolUtils.IsAllDigits(candidate)) continue;
+
+            int sid = data[afterName] | (data[afterName + 1] << 8);
+            if (!ServerMap.IsValidServerId(sid)) continue;
+
+            int job = data[afterName + 2]
+                | (data[afterName + 3] << 8)
+                | (data[afterName + 4] << 16)
+                | (data[afterName + 5] << 24);
+            if (job <= 0 || job > 255) continue;
+
+            int extraByte = data[afterName + 6];
+            if (extraByte > 2) continue;
+
+            name = candidate;
+            serverId = sid;
+            jobCode = job;
+            extra = extraByte;
+            return true;
+        }
+
+        return false;
     }
 
     private static (string Name, int AfterName)? ReadPlayerName(byte[] data, int from, int end)
@@ -683,7 +738,7 @@ internal sealed class Dispatcher
         int jobCode = data[p]; p++;
         p += 3;
         p++;
-        p++;
+        p++; // local-like flag from lookup packet; not authoritative self info.
         int level = data[p]; p++;
         p += 7;
         int entityId = data[p] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24); p += 4;

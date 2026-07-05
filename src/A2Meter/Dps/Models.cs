@@ -78,6 +78,8 @@ internal sealed class MobTarget
     public DateTime LastSelfHitAt { get; set; } = DateTime.MinValue;
     /// True when the mob death has been confirmed (HP=0 or entity removed).
     public bool   DeathConfirmed { get; set; }
+    /// UTC timestamp of the last HP=0 sample. Used to debounce transient zero-HP samples.
+    public DateTime LastZeroHpAt { get; set; } = DateTime.MinValue;
 
     // ── HP sample tracking for cumulative damage death detection (A2Power) ──
     /// Last server-reported HP value from BossHp packet.

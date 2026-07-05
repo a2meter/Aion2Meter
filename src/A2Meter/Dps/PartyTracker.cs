@@ -16,6 +16,7 @@ internal sealed class PartyTracker
     private readonly HashSet<string> _partyNames = new(StringComparer.Ordinal);
     private uint _nextSyntheticId = 0x80000000;
     private long _nextPartyRequestOrder;
+    private PartyMember? _selfIdentity;
 
     /// EntityId of the local player (set when UserInfo isSelf=1 arrives).
     public int? SelfEntityId { get; private set; }
@@ -47,6 +48,28 @@ internal sealed class PartyTracker
         }
     }
 
+    public bool TryGetSelfIdentity(out PartyMember member)
+    {
+        lock (_sync)
+        {
+            if (_selfIdentity != null)
+            {
+                member = Clone(_selfIdentity);
+                return true;
+            }
+
+            foreach (var candidate in _members.Values)
+            {
+                if (!candidate.IsSelf) continue;
+                member = Clone(candidate);
+                return true;
+            }
+        }
+
+        member = null!;
+        return false;
+    }
+
     /// Check if a given entityId belongs to a confirmed party member (or self).
     public bool IsInParty(uint entityId)
     {
@@ -73,9 +96,6 @@ internal sealed class PartyTracker
             bool hasProtocolId = member.CharacterId != 0;
             uint key = ResolveMemberKey(member, out var existing);
 
-            if (member.IsSelf && hasProtocolId)
-                SelfEntityId = (int)member.CharacterId;
-
             if (member.IsPartyMember && !string.IsNullOrEmpty(member.Nickname))
             {
                 string partyName = CleanName(member.Nickname);
@@ -91,6 +111,9 @@ internal sealed class PartyTracker
             if (existing != null)
                 MergeExisting(member, existing);
 
+            if (member.IsSelf)
+                ApplySelfIdentityFallback(member);
+
             if (member.IsPartyMember)
             {
                 member.IsPartyRequest = false;
@@ -101,11 +124,28 @@ internal sealed class PartyTracker
                 member.PartyRequestOrder = ++_nextPartyRequestOrder;
             }
 
+            if (member.IsSelf && hasProtocolId)
+            {
+                SelfEntityId = (int)member.CharacterId;
+                ClearSelfFlagsExcept(member.CharacterId);
+            }
+
             _members[key] = member;
+            if (member.IsSelf)
+                RememberSelfIdentity(member);
             changed = true;
         }
 
         if (changed) Changed?.Invoke();
+    }
+
+    private void ClearSelfFlagsExcept(uint characterId)
+    {
+        foreach (var m in _members.Values)
+        {
+            if (m.CharacterId != characterId)
+                m.IsSelf = false;
+        }
     }
 
     private uint ResolveMemberKey(PartyMember member, out PartyMember? existing)
@@ -166,6 +206,52 @@ internal sealed class PartyTracker
         if (member.JobCode == 0 && existing.JobCode > 0) member.JobCode = existing.JobCode;
         if (member.Level == 0 && existing.Level > 0) member.Level = existing.Level;
     }
+
+    private void ApplySelfIdentityFallback(PartyMember member)
+    {
+        if (_selfIdentity == null) return;
+
+        if (IsUnknownSelfName(member.Nickname) && !IsUnknownSelfName(_selfIdentity.Nickname))
+            member.Nickname = _selfIdentity.Nickname;
+        if (member.ServerId == 0 && _selfIdentity.ServerId > 0)
+        {
+            member.ServerId = _selfIdentity.ServerId;
+            member.ServerName = _selfIdentity.ServerName;
+        }
+        if (string.IsNullOrWhiteSpace(member.ServerName) && !string.IsNullOrWhiteSpace(_selfIdentity.ServerName))
+            member.ServerName = _selfIdentity.ServerName;
+        if (member.JobCode <= 0 && _selfIdentity.JobCode > 0)
+            member.JobCode = _selfIdentity.JobCode;
+        if (member.Level == 0 && _selfIdentity.Level > 0)
+            member.Level = _selfIdentity.Level;
+        if (member.CombatPower == 0 && _selfIdentity.CombatPower > 0)
+            member.CombatPower = _selfIdentity.CombatPower;
+    }
+
+    private void RememberSelfIdentity(PartyMember member)
+    {
+        var copy = Clone(member);
+        copy.IsSelf = true;
+        _selfIdentity = copy;
+    }
+
+    private static PartyMember Clone(PartyMember member)
+        => new()
+        {
+            CharacterId = member.CharacterId,
+            ServerId = member.ServerId,
+            ServerName = member.ServerName,
+            Nickname = member.Nickname,
+            JobCode = member.JobCode,
+            JobName = member.JobName,
+            Level = member.Level,
+            CombatPower = member.CombatPower,
+            IsSelf = member.IsSelf,
+            IsPartyMember = member.IsPartyMember,
+            IsLookup = member.IsLookup,
+            IsPartyRequest = member.IsPartyRequest,
+            PartyRequestOrder = member.PartyRequestOrder,
+        };
 
     private static string? GetNameKey(PartyMember member)
         => string.IsNullOrEmpty(CleanName(member.Nickname))
@@ -257,29 +343,38 @@ internal sealed class PartyTracker
         lock (_sync)
         {
             var preservedMembers = new List<PartyMember>();
+            int? preservedSelfEntityId = null;
             foreach (var member in _members.Values)
             {
-                if (!member.IsLookup && !IsIdentityHint(member))
+                bool preserveSelf = member.IsSelf
+                    && member.CharacterId != 0
+                    && member.CharacterId <= int.MaxValue;
+                if (!preserveSelf && !member.IsLookup && !IsIdentityHint(member))
                 {
                     changed = true;
                     continue;
                 }
 
-                if (member.IsSelf || member.IsPartyMember || member.IsPartyRequest || member.PartyRequestOrder != 0)
+                if ((!preserveSelf && member.IsSelf) || member.IsPartyMember || member.IsPartyRequest || member.PartyRequestOrder != 0)
                     changed = true;
 
-                member.IsSelf = false;
+                member.IsSelf = preserveSelf;
                 member.IsPartyMember = false;
                 member.IsPartyRequest = false;
                 member.PartyRequestOrder = 0;
+                if (preserveSelf)
+                    preservedSelfEntityId = (int)member.CharacterId;
                 preservedMembers.Add(member);
             }
+
+            if (SelfEntityId != preservedSelfEntityId)
+                changed = true;
 
             _partyNames.Clear();
             _namedKeys.Clear();
             _aliases.Clear();
             _members.Clear();
-            SelfEntityId = null;
+            SelfEntityId = preservedSelfEntityId;
             _nextPartyRequestOrder = 0;
 
             foreach (var member in preservedMembers)
@@ -361,11 +456,13 @@ internal sealed class PartyTracker
         bool changed;
         lock (_sync)
         {
-            if (_members.Count == 0) return;
+            if (_members.Count == 0 && SelfEntityId is null && _selfIdentity == null) return;
             _partyNames.Clear();
             _namedKeys.Clear();
             _aliases.Clear();
             _members.Clear();
+            SelfEntityId = null;
+            _selfIdentity = null;
             _nextPartyRequestOrder = 0;
             changed = true;
         }
@@ -387,4 +484,10 @@ internal sealed class PartyTracker
            && !string.IsNullOrWhiteSpace(member.Nickname)
            && member.ServerId > 0
            && member.JobCode > 0;
+
+    private static bool IsUnknownSelfName(string? name)
+    {
+        string clean = CleanName(name);
+        return clean.Length == 0 || clean.StartsWith('#') || clean == "\uB098";
+    }
 }

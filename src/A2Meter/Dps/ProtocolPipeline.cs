@@ -19,6 +19,8 @@ namespace A2Meter.Dps;
 /// as a fallback when the DLL is absent.
 internal sealed class ProtocolPipeline : IDisposable
 {
+    private const int EstimatedBossHpThreshold = 1_000_000;
+
     private readonly IPacketSource _source;
     private readonly SkillDatabase _skills;
     private readonly PacketDispatcher _dispatcher;
@@ -67,6 +69,8 @@ internal sealed class ProtocolPipeline : IDisposable
     /// All bosses we've seen MobSpawn for, indexed by entityId, so the damage
     /// path can promote one of them to _currentTarget when hits arrive.
     private readonly System.Collections.Generic.Dictionary<int, MobTarget> _knownBosses = new();
+    private readonly System.Collections.Generic.HashSet<int> _nonBossEntities = new();
+    private readonly System.Collections.Generic.HashSet<int> _estimatedBossEntities = new();
 
     public ProtocolPipeline(IPacketSource source, SkillDatabase? skills = null, Action<string>? log = null, int initialServerPort = 0, bool forceManagedParser = false)
     {
@@ -353,6 +357,8 @@ internal sealed class ProtocolPipeline : IDisposable
             : 0;
         if (cp > 0)
             _combatPowers[entityId] = cp;
+        bool isLocalUser = isSelf == 1 && serverId > 0 && jobCode > 0;
+
         TriggerPartyMemberSeen(new PartyMember
         {
             CharacterId = (uint)entityId,
@@ -360,8 +366,8 @@ internal sealed class ProtocolPipeline : IDisposable
             ServerId    = serverId,
             ServerName  = serverId > 0 ? ServerMap.GetName(serverId) : "",
             JobCode     = jobCode,
-            IsSelf      = isSelf == 1,
-            IsLookup    = isSelf != 1 && serverId > 0,
+            IsSelf      = isLocalUser,
+            IsLookup    = !isLocalUser && serverId > 0,
             CombatPower = cp,
         });
     }
@@ -377,11 +383,21 @@ internal sealed class ProtocolPipeline : IDisposable
         var name = _skills.GetMobName(mobCode);
         if (string.IsNullOrEmpty(name))
             name = $"몹#{mobCode}";
-        if (name.StartsWith("M_PD_") || name.Contains("Invisible")) return;
+        if (name.StartsWith("M_PD_") || name.Contains("Invisible"))
+        {
+            MarkNonBossEntity(mobId, name, hp);
+            return;
+        }
 
         bool dummy = IsDummy(name);
         bool boss = isBoss != 0 || _skills.IsMobBoss(mobCode);
-        if (!boss && !dummy) return;
+        if (!boss && !dummy)
+        {
+            MarkNonBossEntity(mobId, name, hp);
+            return;
+        }
+        _nonBossEntities.Remove(mobId);
+        _estimatedBossEntities.Remove(mobId);
 
         // A2Power: GetOrAdd + DeathConfirmed 시 리셋.
         if (!_knownBosses.TryGetValue(mobId, out var t))
@@ -398,6 +414,7 @@ internal sealed class ProtocolPipeline : IDisposable
             t.FirstBossHpSample = 0;
             t.HpAtLastSample = 0;
             t.DamageAtLastHpSample = 0;
+            t.LastZeroHpAt = DateTime.MinValue;
         }
 
         t.Name = name;
@@ -556,8 +573,45 @@ internal sealed class ProtocolPipeline : IDisposable
     private void OnBossHp(int entityId, int currentHp)
     {
         // A2Power: _mobs에 없거나 IsBoss가 아니면 무시.
-        if (!_knownBosses.TryGetValue(entityId, out var t) || !t.IsBoss) return;
+        if (_nonBossEntities.Contains(entityId)) return;
+
+        if (!_knownBosses.TryGetValue(entityId, out var t))
+        {
+            if (currentHp < EstimatedBossHpThreshold) return;
+
+            t = new MobTarget
+            {
+                EntityId = entityId,
+                Name = $"Boss #{entityId}",
+                MaxHp = currentHp,
+                CurrentHp = currentHp,
+                IsBoss = true,
+            };
+            _knownBosses[entityId] = t;
+            _estimatedBossEntities.Add(entityId);
+            (_source as IInternalEventRaise)?.RaiseMobSpawned(t);
+        }
+        else if (!t.IsBoss)
+        {
+            return;
+        }
         ApplyBossHpSample(t, currentHp);
+    }
+
+    private void MarkNonBossEntity(int entityId, string name, int hp)
+    {
+        _nonBossEntities.Add(entityId);
+        if (!_estimatedBossEntities.Remove(entityId)) return;
+
+        _knownBosses.Remove(entityId);
+        (_source as IInternalEventRaise)?.RaiseMobSpawned(new MobTarget
+        {
+            EntityId = entityId,
+            Name = name,
+            MaxHp = Math.Max(0, hp),
+            CurrentHp = Math.Max(0, hp),
+            IsBoss = false,
+        });
     }
 
     private void ApplyBossHpSample(MobTarget t, long currentHp)
@@ -568,6 +622,7 @@ internal sealed class ProtocolPipeline : IDisposable
             // Boss is alive — undo death confirmation if it was set (A2Power: HP 재수신으로 처치확정 해제).
             if (t.DeathConfirmed)
                 t.DeathConfirmed = false;
+            t.LastZeroHpAt = DateTime.MinValue;
             t.HpAtLastSample = currentHp;
             t.DamageAtLastHpSample = t.TotalDamageReceived;
 
@@ -581,6 +636,7 @@ internal sealed class ProtocolPipeline : IDisposable
         else
         {
             t.DeathConfirmed = true;
+            t.LastZeroHpAt = DateTime.UtcNow;
             t.HpAtLastSample = 0;
             t.DamageAtLastHpSample = t.TotalDamageReceived;
         }
@@ -650,6 +706,8 @@ internal sealed class ProtocolPipeline : IDisposable
 
     private void OnEntityRemoved(int entityId)
     {
+        _nonBossEntities.Remove(entityId);
+        _estimatedBossEntities.Remove(entityId);
         (_source as IInternalEventRaise)?.RaiseEntityRemoved(entityId);
     }
 

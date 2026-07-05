@@ -25,6 +25,8 @@ internal sealed class DpsPipeline : IDisposable
     private const int PushIntervalMs = 100;
     /// Idle window after which an active session ends (matches original: 3s).
     private const double SessionIdleSeconds = 3.0;
+    private const double ZeroHpConfirmSeconds = 3.0;
+    private const int UnknownJobCode = 0;
 
     private MobTarget? _currentTarget;
     private int        _currentTargetId;     // _primaryTargetId in A2Power
@@ -276,6 +278,7 @@ internal sealed class DpsPipeline : IDisposable
             mob.HasSelfParticipation = false;
             mob.LastSelfHitAt = DateTime.MinValue;
             mob.DeathConfirmed = false;
+            mob.LastZeroHpAt = DateTime.MinValue;
             mob.TotalDamageReceived = 0;
             mob.HpAtLastSample = 0;
             mob.DamageAtLastHpSample = 0;
@@ -301,6 +304,7 @@ internal sealed class DpsPipeline : IDisposable
         _removedEntities.Add(entityId);
         if (!_knownBosses.TryGetValue(entityId, out var mob)) return;
         mob.DeathConfirmed = true;
+        mob.LastZeroHpAt = DateTime.UtcNow;
         mob.CurrentHp = 0;
 
         // Only end session if this was the active target.
@@ -465,6 +469,8 @@ internal sealed class DpsPipeline : IDisposable
                 actorName = lookupInfo.Nickname;
             if (lookupInfo.JobCode > 0)
                 actorJobCode = lookupInfo.JobCode;
+            else if (lookupInfo.IsSelf && actorJobCode < 0)
+                actorJobCode = UnknownJobCode;
         }
 
         // Heals: accumulate on actor only (A2Power: orAdd.HealTotal += heal).
@@ -665,10 +671,11 @@ internal sealed class DpsPipeline : IDisposable
         // 2) 3s idle + (no target / not boss / dummy / removed entity) → stop.
         // 3) Party wipe (boss HP restored to full) → stop.
         var prim = _knownBosses.GetValueOrDefault(_currentTargetId);
-        bool bossKilled = _sessionActive && prim is { IsBoss: true, MaxHp: > 0, CurrentHp: <= 0 };
-        bool idleStop = _sessionActive && (DateTime.UtcNow - _lastHitUtc).TotalSeconds > SessionIdleSeconds
-            && (prim == null || !prim.IsBoss || prim.CurrentHp <= 0
-                || _removedEntities.Contains(_currentTargetId) || IsDummy(prim.Name));
+        var now = DateTime.UtcNow;
+        bool currentTargetRemoved = _removedEntities.Contains(_currentTargetId);
+        bool bossKilled = _sessionActive && IsBossKillConfirmedForSession(prim, currentTargetRemoved, _lastHitUtc, now);
+        bool idleStop = _sessionActive && (now - _lastHitUtc).TotalSeconds > SessionIdleSeconds
+            && (prim == null || !prim.IsBoss || currentTargetRemoved || IsDummy(prim.Name));
         bool bossReset = _sessionActive && prim is { IsBoss: true, MaxHp: > 0 }
             && prim.CurrentHp >= prim.MaxHp
             && prim.HpAtLastSample > 0 && prim.HpAtLastSample < prim.MaxHp;
@@ -783,6 +790,7 @@ internal sealed class DpsPipeline : IDisposable
         if (snap.ElapsedSeconds < 2.0) return;
         if (_combatRecordSaved) return;
         _combatRecordSaved = true;
+        ReconcileFinishedBossHpForRecord(snap);
         CaptureTimelineSnapshot(snap, force: true);
 
         // Enrich snapshot players with CP/Score, skill levels, and server info before saving.
@@ -909,6 +917,15 @@ internal sealed class DpsPipeline : IDisposable
         }
     }
 
+    internal static void ReconcileFinishedBossHpForRecord(DpsSnapshot snap)
+    {
+        if (snap.Target is not { IsBoss: true, CurrentHp: <= 0 }) return;
+        if (snap.TotalPartyDamage <= 0) return;
+
+        snap.Target.MaxHp = snap.TotalPartyDamage;
+        snap.Target.CurrentHp = 0;
+    }
+
     /// Matches A2Power ResetCombatStats(): clear damage but keep actor identities.
     private void ResetCombatStats()
     {
@@ -938,6 +955,7 @@ internal sealed class DpsPipeline : IDisposable
             mob.HasSelfParticipation = false;
             mob.LastSelfHitAt = DateTime.MinValue;
             mob.DeathConfirmed = false;
+            mob.LastZeroHpAt = DateTime.MinValue;
             mob.TotalDamageReceived = 0;
             mob.HpAtLastSample = 0;
             mob.DamageAtLastHpSample = 0;
@@ -958,8 +976,18 @@ internal sealed class DpsPipeline : IDisposable
         if (mob.DeathConfirmed || mob.HpAtLastSample <= 0) return false;
         if (mob.TotalDamageReceived - mob.DamageAtLastHpSample < mob.HpAtLastSample) return false;
         mob.DeathConfirmed = true;
+        mob.LastZeroHpAt = DateTime.UtcNow;
         mob.CurrentHp = 0;
         return true;
+    }
+
+    internal static bool IsBossKillConfirmedForSession(MobTarget? mob, bool entityRemoved, DateTime lastHitUtc, DateTime now)
+    {
+        if (mob is not { IsBoss: true, MaxHp: > 0, CurrentHp: <= 0 }) return false;
+        if (entityRemoved) return true;
+        if (mob.LastZeroHpAt == DateTime.MinValue) return false;
+        return (now - mob.LastZeroHpAt).TotalSeconds >= ZeroHpConfirmSeconds
+            && (now - lastHitUtc).TotalSeconds > SessionIdleSeconds;
     }
 
     /// Correct MaxHp from first BossHp sample + accumulated damage (A2Power TryCorrectMaxHp).
@@ -1286,7 +1314,7 @@ internal sealed class DpsPipeline : IDisposable
 
     private static string JobCodeToKey(int gameCode) => JobMapping.GameToJobName(gameCode);
 
-    /// Color palette indexed by UI archetype (0..7 from JobMapping.GameToUi).
+    /// Color palette indexed by UI archetype (0..8 from JobMapping.GameToUi).
     /// Matches the original A2Viewer web overlay palette.
     private static readonly D2DColor[] UiAccents = new[]
     {
@@ -1298,6 +1326,7 @@ internal sealed class DpsPipeline : IDisposable
         new D2DColor(0.812f, 0.420f, 0.816f, 1f), // 5 정령성  #CF6BD0
         new D2DColor(0.906f, 0.812f, 0.490f, 1f), // 6 치유성  #E7CF7D
         new D2DColor(0.894f, 0.647f, 0.357f, 1f), // 7 호법성  #E4A55B
+        new D2DColor(0.000f, 0.702f, 0.780f, 1f), // 8 권성    #00B3C7
     };
 
     private static D2DColor JobAccent(int gameCode)

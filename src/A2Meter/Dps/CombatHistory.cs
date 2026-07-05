@@ -77,6 +77,29 @@ internal sealed class CombatHistory
             }
         }
 
+        int replaceIdx = _records.FindIndex(r => ShouldReplacePreviousRecord(r, record));
+        if (replaceIdx >= 0)
+        {
+            var old = _records[replaceIdx];
+            _records.RemoveAt(replaceIdx);
+            _records.Insert(0, record);
+            try
+            {
+                string oldFile = Path.Combine(HistoryDir, $"{old.Timestamp:yyyyMMdd-HHmmss}.json");
+                if (File.Exists(oldFile)) File.Delete(oldFile);
+            }
+            catch { }
+            try
+            {
+                Directory.CreateDirectory(HistoryDir);
+                string fileName = $"{record.Timestamp:yyyyMMdd-HHmmss}.json";
+                File.WriteAllText(Path.Combine(HistoryDir, fileName),
+                    JsonSerializer.Serialize(record, JsonOpts));
+            }
+            catch { }
+            return true;
+        }
+
         // Skip near-duplicate saves: same boss as the most recent record AND any
         // player has matching accumulated damage with the same-named player there.
         // This catches duplicate saves from different SessionIds for the same fight.
@@ -94,6 +117,19 @@ internal sealed class CombatHistory
         }
         catch { /* best effort */ }
         return true;
+    }
+
+    internal static bool ShouldReplacePreviousRecord(CombatRecord prev, CombatRecord curr)
+    {
+        if (prev.BossName != curr.BossName) return false;
+        if (curr.TotalDamage <= prev.TotalDamage) return false;
+
+        var prevTarget = prev.Snapshot?.Target;
+        var currTarget = curr.Snapshot?.Target;
+        if (prevTarget == null || currTarget == null) return false;
+        if (!prevTarget.IsBoss || !currTarget.IsBoss) return false;
+        if (prevTarget.EntityId == 0 || currTarget.EntityId == 0) return false;
+        return prevTarget.EntityId == currTarget.EntityId;
     }
 
     private static bool IsDuplicateOfPrevious(CombatRecord prev, CombatRecord curr)
