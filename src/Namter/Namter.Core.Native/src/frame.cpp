@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -88,6 +89,8 @@ struct IncrementalFramer::Impl {
 
     explicit Impl(FrameConfig value) : config(value) {
         if (config.max_frame_bytes == 0 || config.max_decompressed_bytes == 0 ||
+            config.max_active_provenance_runs == 0 ||
+            config.max_resync_provenance_runs == 0 ||
             config.max_frame_bytes > std::numeric_limits<size_t>::max() - 5u) {
             throw std::invalid_argument("frame limits must be positive");
         }
@@ -107,12 +110,14 @@ struct IncrementalFramer::Impl {
     CaptureProvenance first_provenance;
     CaptureProvenance last_provenance;
     std::vector<uint8_t> resync_bytes;
-    std::vector<ProvenanceRun> resync_runs;
+    std::deque<ProvenanceRun> resync_runs;
     size_t resync_head = 0;
     size_t resync_scan_cursor = 0;
     bool resync_waiting = false;
     uint64_t resync_scan_steps = 0;
     uint64_t resync_incomplete_revisits = 0;
+    uint64_t resync_provenance_compactions = 0;
+    uint64_t resync_provenance_runs_relocated = 0;
 
     void clear_regular() noexcept {
         length_size = 0;
@@ -170,23 +175,8 @@ struct IncrementalFramer::Impl {
         }
         const auto body = frame.subspan(prefix_size);
         const size_t offset = payload_offset(body);
-        if (offset == body.size()) {
-            if (budget.remaining_emitted_messages == 0 ||
-                budget.remaining_allocation_nodes == 0) {
-                return FrameDiagnosticCode::resource_limit_exceeded;
-            }
-            --budget.remaining_emitted_messages;
-            --budget.remaining_allocation_nodes;
-            output.push_back(ProtocolMessage{
-                .flow = flow,
-                .epoch = epoch,
-                .bytes = std::vector<uint8_t>(frame.begin(), frame.end()),
-                .first_provenance = first,
-                .last_provenance = last,
-                .first_timestamp_ns = first.timestamp_ns,
-                .last_timestamp_ns = last.timestamp_ns,
-            });
-            return FrameDiagnosticCode::none;
+        if (body.empty() || offset == body.size()) {
+            return FrameDiagnosticCode::invalid_frame_length;
         }
 
         if (body[offset] != 0xffu) {
@@ -297,28 +287,38 @@ struct IncrementalFramer::Impl {
             .end = resync_bytes.size(),
             .provenance = provenance,
         });
-        while (resync_runs.size() > frame_max_provenance_runs) {
+        while (resync_runs.size() > config.max_resync_provenance_runs) {
             erase_resync_prefix(resync_runs.front().end - resync_head);
         }
     }
 
-    void append_frame_run(
+    bool can_append_frame_run(const CaptureProvenance& provenance) const noexcept {
+        return (!frame_runs.empty() &&
+                same_provenance(frame_runs.back().provenance, provenance)) ||
+               frame_runs.size() < config.max_active_provenance_runs;
+    }
+
+    bool append_frame_run(
         size_t begin,
         size_t end,
         const CaptureProvenance& provenance) {
         if (begin == end) {
-            return;
+            return true;
         }
         if (!frame_runs.empty() && frame_runs.back().end == begin &&
             same_provenance(frame_runs.back().provenance, provenance)) {
             frame_runs.back().end = end;
-            return;
+            return true;
+        }
+        if (frame_runs.size() >= config.max_active_provenance_runs) {
+            return false;
         }
         frame_runs.push_back(ProvenanceRun{
             .begin = begin,
             .end = end,
             .provenance = provenance,
         });
+        return true;
     }
 
     void append_failed_frame_tail_to_resync(size_t start) {
@@ -350,18 +350,12 @@ struct IncrementalFramer::Impl {
         resync_head += std::min(count, retained_byte_count);
         resync_scan_cursor = std::max(resync_scan_cursor, resync_head);
         resync_waiting = false;
-        std::vector<ProvenanceRun> retained;
-        for (const auto& run : resync_runs) {
-            if (run.end <= resync_head) {
-                continue;
-            }
-            retained.push_back(ProvenanceRun{
-                .begin = std::max(run.begin, resync_head),
-                .end = run.end,
-                .provenance = run.provenance,
-            });
+        while (!resync_runs.empty() && resync_runs.front().end <= resync_head) {
+            resync_runs.pop_front();
         }
-        resync_runs = std::move(retained);
+        if (!resync_runs.empty() && resync_runs.front().begin < resync_head) {
+            resync_runs.front().begin = resync_head;
+        }
         if (resync_head == resync_bytes.size()) {
             resync_bytes.clear();
             resync_runs.clear();
@@ -370,7 +364,10 @@ struct IncrementalFramer::Impl {
             return;
         }
         const size_t retention_limit = config.max_frame_bytes + 5u;
-        if (resync_head >= retention_limit && resync_head * 2u >= resync_bytes.size()) {
+        if (resync_head >= retention_limit &&
+            resync_head >= resync_bytes.size() - resync_head) {
+            ++resync_provenance_compactions;
+            resync_provenance_runs_relocated += resync_runs.size();
             resync_bytes.erase(
                 resync_bytes.begin(),
                 resync_bytes.begin() + static_cast<std::ptrdiff_t>(resync_head));
@@ -463,13 +460,30 @@ struct IncrementalFramer::Impl {
                 }
 
                 const size_t frame_size = decoded.bytes_consumed + body_size;
+                size_t required_prefix_runs = 0;
+                for (size_t index = 0; index < length_size; ++index) {
+                    if (index == 0 || !same_provenance(
+                                          length_provenance[index - 1u],
+                                          length_provenance[index])) {
+                        ++required_prefix_runs;
+                    }
+                }
+                if (required_prefix_runs > config.max_active_provenance_runs) {
+                    outputs.emplace_back(diagnostic(
+                        FrameDiagnosticCode::resource_limit_exceeded,
+                        first_provenance,
+                        last_provenance));
+                    enter_resync();
+                    append_resync(bytes.subspan(offset), provenance);
+                    break;
+                }
                 frame_bytes.reserve(frame_size);
                 frame_bytes.insert(
                     frame_bytes.end(),
                     length_bytes.begin(),
                     length_bytes.begin() + static_cast<std::ptrdiff_t>(length_size));
                 for (size_t index = 0; index < length_size; ++index) {
-                    append_frame_run(index, index + 1u, length_provenance[index]);
+                    (void)append_frame_run(index, index + 1u, length_provenance[index]);
                 }
                 body_remaining = body_size;
                 state = FrameState::need_body;
@@ -478,6 +492,15 @@ struct IncrementalFramer::Impl {
             if (state == FrameState::need_body) {
                 const size_t available = bytes.size() - offset;
                 const size_t taken = std::min(body_remaining, available);
+                if (taken != 0 && !can_append_frame_run(provenance)) {
+                    outputs.emplace_back(diagnostic(
+                        FrameDiagnosticCode::resource_limit_exceeded,
+                        first_provenance,
+                        provenance));
+                    enter_resync();
+                    append_resync(bytes.subspan(offset), provenance);
+                    break;
+                }
                 const size_t frame_begin = frame_bytes.size();
                 frame_bytes.insert(
                     frame_bytes.end(),
@@ -486,7 +509,7 @@ struct IncrementalFramer::Impl {
                 offset += taken;
                 body_remaining -= taken;
                 if (taken != 0) {
-                    append_frame_run(frame_begin, frame_begin + taken, provenance);
+                    (void)append_frame_run(frame_begin, frame_begin + taken, provenance);
                     last_provenance = provenance;
                 }
                 if (body_remaining != 0) {
@@ -738,12 +761,22 @@ size_t IncrementalFramer::buffered_bytes() const noexcept {
 }
 
 FrameMetrics IncrementalFramer::metrics() const noexcept {
+    const size_t payload_bytes = buffered_bytes();
+    const size_t active_metadata =
+        impl_->frame_runs.size() * frame_provenance_run_accounted_bytes;
+    const size_t resync_metadata =
+        impl_->resync_runs.size() * frame_provenance_run_accounted_bytes;
     return FrameMetrics{
         .resync_scan_steps = impl_->resync_scan_steps,
         .resync_incomplete_revisits = impl_->resync_incomplete_revisits,
         .retained_provenance_runs = impl_->resync_runs.size(),
-        .retained_provenance_metadata_bytes =
-            impl_->resync_runs.size() * frame_provenance_run_accounted_bytes,
+        .retained_provenance_metadata_bytes = resync_metadata,
+        .active_provenance_runs = impl_->frame_runs.size(),
+        .active_provenance_metadata_bytes = active_metadata,
+        .buffered_payload_bytes = payload_bytes,
+        .buffered_accounted_bytes = payload_bytes + active_metadata + resync_metadata,
+        .resync_provenance_compactions = impl_->resync_provenance_compactions,
+        .resync_provenance_runs_relocated = impl_->resync_provenance_runs_relocated,
     };
 }
 

@@ -306,6 +306,100 @@ TEST(IncrementalFramer, OneByteResyncChunksHaveBoundedRevisitsAndProvenanceRuns)
         namter::frame_max_provenance_runs * namter::frame_provenance_run_accounted_bytes);
 }
 
+TEST(IncrementalFramer, ActiveProvenanceRunsAcceptTheCapAndRejectCapPlusOne) {
+    const auto frame = make_frame(std::vector<uint8_t>{
+        0x06, 0x00, 0x36, 0x01, 0x02, 0x03, 0x04, 0x05,
+        0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
+    });
+    ASSERT_EQ(frame.size(), 16u);
+
+    IncrementalFramer accepted(namter::FramerLimits{
+        .max_frame_bytes = frame.size(),
+        .max_decompressed_bytes = 128,
+        .max_active_provenance_runs = frame.size(),
+        .max_resync_provenance_runs = 32,
+    });
+    std::vector<FrameOutput> accepted_outputs;
+    for (size_t index = 0; index + 1u < frame.size(); ++index) {
+        accepted_outputs = append(
+            std::move(accepted_outputs),
+            accepted.process(chunk(std::span(frame).subspan(index, 1u), 100u + index)));
+    }
+    const auto before_last = accepted.metrics();
+    EXPECT_EQ(before_last.active_provenance_runs, frame.size() - 1u);
+    EXPECT_EQ(
+        before_last.active_provenance_metadata_bytes,
+        (frame.size() - 1u) * namter::frame_provenance_run_accounted_bytes);
+    accepted_outputs = append(
+        std::move(accepted_outputs),
+        accepted.process(chunk(std::span(frame).last(1u), 100u + frame.size() - 1u)));
+    EXPECT_EQ(messages(accepted_outputs).size(), 1u);
+    EXPECT_TRUE(diagnostics(accepted_outputs).empty());
+
+    IncrementalFramer rejected(namter::FramerLimits{
+        .max_frame_bytes = frame.size(),
+        .max_decompressed_bytes = 128,
+        .max_active_provenance_runs = frame.size() - 1u,
+        .max_resync_provenance_runs = 32,
+    });
+    std::vector<FrameOutput> rejected_outputs;
+    for (size_t index = 0; index < frame.size(); ++index) {
+        rejected_outputs = append(
+            std::move(rejected_outputs),
+            rejected.process(chunk(std::span(frame).subspan(index, 1u), 200u + index)));
+    }
+    EXPECT_TRUE(messages(rejected_outputs).empty());
+    ASSERT_EQ(diagnostics(rejected_outputs).size(), 1u);
+    EXPECT_EQ(
+        diagnostics(rejected_outputs).front().code,
+        FrameDiagnosticCode::resource_limit_exceeded);
+    EXPECT_EQ(rejected.state(), FrameState::need_resync);
+    EXPECT_EQ(rejected.metrics().active_provenance_runs, 0u);
+}
+
+TEST(IncrementalFramer, DirectZeroBodyAndMarkerOnlyFramesAreInvalidAndProgress) {
+    const auto valid = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36, 0x44});
+    for (const auto& invalid : {
+             std::vector<uint8_t>{0x04},
+             std::vector<uint8_t>{0x05, 0xf0},
+         }) {
+        auto bytes = invalid;
+        bytes.insert(bytes.end(), valid.begin(), valid.end());
+        IncrementalFramer framer(FrameConfig{.max_frame_bytes = 64, .max_decompressed_bytes = 128});
+
+        const auto outputs = framer.process(chunk(bytes, 1));
+
+        ASSERT_EQ(diagnostics(outputs).size(), 1u);
+        EXPECT_EQ(diagnostics(outputs).front().code, FrameDiagnosticCode::invalid_frame_length);
+        const auto actual = messages(outputs);
+        ASSERT_EQ(actual.size(), 1u);
+        EXPECT_EQ(actual.front().bytes, valid);
+    }
+}
+
+TEST(IncrementalFramer, ResyncProvenanceMaintenanceIsAmortizedAfterRunEviction) {
+    constexpr size_t input_count = 1000u;
+    IncrementalFramer framer(namter::FramerLimits{
+        .max_frame_bytes = 128,
+        .max_decompressed_bytes = 256,
+        .max_active_provenance_runs = 32,
+        .max_resync_provenance_runs = 8,
+    });
+    const std::vector<uint8_t> overlong{0x80, 0x80, 0x80, 0x80, 0x80};
+    (void)framer.process(chunk(overlong, 1));
+    const uint8_t continuation = 0x80;
+    for (size_t index = 0; index < input_count; ++index) {
+        (void)framer.process(chunk(
+            std::span<const uint8_t>(&continuation, 1u),
+            1000u + index));
+    }
+
+    const auto metrics = framer.metrics();
+    EXPECT_LE(metrics.retained_provenance_runs, 8u);
+    EXPECT_LE(metrics.resync_provenance_compactions, 8u);
+    EXPECT_LE(metrics.resync_provenance_runs_relocated, 64u);
+}
+
 TEST(FrameCorpus, FuzzEntryPointsAcceptHostileInputsWithinConfiguredBounds) {
     const std::vector<std::vector<uint8_t>> corpus{
         {},

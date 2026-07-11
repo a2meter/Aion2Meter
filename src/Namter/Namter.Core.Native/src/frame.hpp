@@ -10,10 +10,14 @@
 
 namespace namter {
 
-struct FrameConfig {
+struct FramerLimits {
     size_t max_frame_bytes = 2u * 1024u * 1024u;
     size_t max_decompressed_bytes = 4u * 1024u * 1024u;
+    size_t max_active_provenance_runs = 4096u;
+    size_t max_resync_provenance_runs = 4096u;
 };
+
+using FrameConfig = FramerLimits;
 
 enum class FrameState : uint8_t {
     need_length,
@@ -48,6 +52,12 @@ struct FrameMetrics {
     uint64_t resync_incomplete_revisits = 0;
     size_t retained_provenance_runs = 0;
     size_t retained_provenance_metadata_bytes = 0;
+    size_t active_provenance_runs = 0;
+    size_t active_provenance_metadata_bytes = 0;
+    size_t buffered_payload_bytes = 0;
+    size_t buffered_accounted_bytes = 0;
+    uint64_t resync_provenance_compactions = 0;
+    uint64_t resync_provenance_runs_relocated = 0;
 };
 
 struct ProtocolMessage {

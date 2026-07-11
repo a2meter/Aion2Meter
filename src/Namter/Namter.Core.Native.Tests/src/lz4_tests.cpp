@@ -239,6 +239,19 @@ TEST(Lz4Batch, RejectsZeroBodyNestedDeclarationsInsteadOfAmplifyingThem) {
     EXPECT_EQ(diagnostics(outputs).front().code, FrameDiagnosticCode::invalid_nested_frame);
 }
 
+TEST(Lz4Batch, RejectsMarkerOnlyNestedFramesLikeDirectFrames) {
+    const auto marker_only = make_frame(std::vector<uint8_t>{0xf0});
+    IncrementalFramer framer(FrameConfig{.max_frame_bytes = 1024, .max_decompressed_bytes = 4096});
+
+    const auto outputs = framer.process(chunk(
+        make_batch(marker_only, static_cast<int32_t>(marker_only.size())),
+        1));
+
+    EXPECT_TRUE(messages(outputs).empty());
+    ASSERT_EQ(diagnostics(outputs).size(), 1u);
+    EXPECT_EQ(diagnostics(outputs).front().code, FrameDiagnosticCode::invalid_frame_length);
+}
+
 TEST(Lz4Batch, RejectsAllZeroAndEmbeddedZeroPayloadGapsAtomically) {
     const auto valid = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36});
     const std::vector<uint8_t> all_zero{0x00, 0x00, 0x00};
