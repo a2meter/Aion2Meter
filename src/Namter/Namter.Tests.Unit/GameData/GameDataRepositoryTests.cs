@@ -18,6 +18,7 @@ public sealed class GameDataRepositoryTests
             {
                 DataSource = fixture.DatabasePath,
                 Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false,
             }.ToString());
         await connection.OpenAsync();
 
@@ -51,7 +52,8 @@ public sealed class GameDataRepositoryTests
     public async Task BuilderSeedsExactVersionedGoldenProtocolDataWithoutEncounterActorIds()
     {
         using var fixture = await DatabaseFixture.CreateAsync();
-        await using var connection = new SqliteConnection($"Data Source={fixture.DatabasePath};Mode=ReadOnly");
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.DatabasePath};Mode=ReadOnly;Pooling=False");
         await connection.OpenAsync();
 
         Assert.Equal("aion2-2026-07-10", await ScalarAsync<string>(connection,
@@ -166,12 +168,62 @@ public sealed class GameDataRepositoryTests
         Assert.Equal(new ushort[] { 13328 }, snapshot.ServerPorts);
         Assert.DoesNotContain(snapshot.Opcodes.Values, opcode => opcode.Name == "inactive-opcode");
         Assert.DoesNotContain(snapshot.MessageLayouts.Values, layout => layout.Name == "inactive-layout");
-        Assert.IsAssignableFrom<FrozenDictionary<uint, ProtocolOpcode>>(snapshot.Opcodes);
+        Assert.IsAssignableFrom<FrozenDictionary<ushort, ProtocolOpcode>>(snapshot.Opcodes);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Boss>>(snapshot.Bosses);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Dungeon>>(snapshot.Dungeons);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Skill>>(snapshot.Skills);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Buff>>(snapshot.Buffs);
         Assert.InRange(snapshot.TotalHotCacheEntries, 1, GameDataCacheLimits.Default.MaxTotalEntries);
+    }
+
+    [Fact]
+    public async Task RepositoryLoadReleasesTheDatabaseForImmediateAtomicReplacement()
+    {
+        using var fixture = await DatabaseFixture.CreateAsync();
+        var repository = new GameDataRepository(fixture.DatabasePath, GameDataCacheLimits.Default);
+        _ = await repository.LoadAsync();
+
+        await GameDataDatabaseBuilder.BuildAsync(
+            fixture.DatabasePath,
+            Path.Combine(RepositoryRoot, "db", "schema", "001_initial.sql"),
+            Path.Combine(RepositoryRoot, "db", "seed", "golden_protocol.sql"));
+
+        Assert.Equal(1UL, (await repository.LoadAsync()).DataVersion);
+    }
+
+    [Fact]
+    public async Task DatabaseRejectsOneWireKindAcrossDifferentFamilies()
+    {
+        using var fixture = await DatabaseFixture.CreateAsync();
+
+        await Assert.ThrowsAsync<SqliteException>(() => fixture.ExecuteAsync("""
+            INSERT INTO opcodes(id, profile_id, family, kind, name, tag, layout_id)
+            VALUES (999, 1, 99, 1, 'ambiguous-kind', X'FFFF', NULL);
+            """));
+    }
+
+    [Fact]
+    public async Task RepositoryRejectsDuplicateWireKindsInAConstraintlessLegacyDatabase()
+    {
+        using var fixture = await DatabaseFixture.CreateWithoutWireKindConstraintAsync();
+        await fixture.ExecuteAsync("""
+            INSERT INTO opcodes(id, profile_id, family, kind, name, tag, layout_id)
+            VALUES (999, 1, 99, 1, 'ambiguous-kind', X'FFFF', NULL);
+            """);
+        var repository = new GameDataRepository(fixture.DatabasePath, GameDataCacheLimits.Default);
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => repository.LoadAsync());
+
+        Assert.Contains("duplicate wire opcode kinds", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DatabaseRejectsZeroDataVersion()
+    {
+        using var fixture = await DatabaseFixture.CreateAsync();
+
+        await Assert.ThrowsAsync<SqliteException>(() =>
+            fixture.ExecuteAsync("UPDATE metadata SET data_version = 0 WHERE singleton_id = 1;"));
     }
 
     [Fact]
@@ -199,6 +251,19 @@ public sealed class GameDataRepositoryTests
     }
 
     [Fact]
+    public async Task RepositoryRejectsAggregateBoundBeforeMaterializingAnInvalidRow()
+    {
+        using var fixture = await DatabaseFixture.CreateAsync();
+        await fixture.ExecuteAsync("INSERT INTO skills(code, name) VALUES (4294967296, 'out-of-range-row');");
+        var limits = GameDataCacheLimits.Default with { MaxTotalEntries = 1 };
+        var repository = new GameDataRepository(fixture.DatabasePath, limits);
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => repository.LoadAsync());
+
+        Assert.Contains("Hot game-data cache", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RepositoryConnectionUsesReadOnlySharedCache()
     {
         var repository = new GameDataRepository("aion.db", GameDataCacheLimits.Default);
@@ -207,6 +272,25 @@ public sealed class GameDataRepositoryTests
         Assert.Equal(SqliteOpenMode.ReadOnly, settings.Mode);
         Assert.Equal(SqliteCacheMode.Shared, settings.Cache);
         Assert.True(settings.ForeignKeys);
+        Assert.False(settings.Pooling);
+    }
+
+    [Fact]
+    public async Task SchemaDeclaresExactRequiredForeignKeyRelationships()
+    {
+        using var fixture = await DatabaseFixture.CreateAsync();
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.DatabasePath};Mode=ReadOnly;Pooling=False");
+        await connection.OpenAsync();
+
+        Assert.Contains(("profile_id", "protocol_profiles", "id"), await ReadForeignKeysAsync(connection, "protocol_profile_ports"));
+        Assert.Contains(("profile_id", "protocol_profiles", "id"), await ReadForeignKeysAsync(connection, "message_layouts"));
+        Assert.Contains(("layout_id", "message_layouts", "id"), await ReadForeignKeysAsync(connection, "message_fields"));
+        Assert.Contains(("profile_id", "message_layouts", "profile_id"), await ReadForeignKeysAsync(connection, "opcodes"));
+        Assert.Contains(("layout_id", "message_layouts", "id"), await ReadForeignKeysAsync(connection, "opcodes"));
+        Assert.Contains(("dungeon_id", "dungeons", "id"), await ReadForeignKeysAsync(connection, "dungeon_bosses"));
+        Assert.Contains(("boss_id", "bosses", "id"), await ReadForeignKeysAsync(connection, "dungeon_bosses"));
+        Assert.Contains(("boss_id", "bosses", "id"), await ReadForeignKeysAsync(connection, "mobs"));
     }
 
     private static async Task<HashSet<string>> ReadNamesAsync(SqliteConnection connection, string type)
@@ -241,6 +325,21 @@ public sealed class GameDataRepositoryTests
         return result.ToArray();
     }
 
+    private static async Task<(string From, string Table, string To)[]> ReadForeignKeysAsync(
+        SqliteConnection connection,
+        string table)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA foreign_key_list({table});";
+        await using var reader = await command.ExecuteReaderAsync();
+        var result = new List<(string From, string Table, string To)>();
+        while (await reader.ReadAsync())
+        {
+            result.Add((reader.GetString(3), reader.GetString(2), reader.GetString(4)));
+        }
+        return result.ToArray();
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -272,9 +371,25 @@ public sealed class GameDataRepositoryTests
             return fixture;
         }
 
+        public static async Task<DatabaseFixture> CreateWithoutWireKindConstraintAsync()
+        {
+            var fixture = new DatabaseFixture(Path.Combine(Path.GetTempPath(), $"namter-db-{Guid.NewGuid():N}"));
+            Directory.CreateDirectory(fixture.directory);
+            string schemaPath = Path.Combine(fixture.directory, "legacy-schema.sql");
+            string schema = await File.ReadAllTextAsync(
+                Path.Combine(RepositoryRoot, "db", "schema", "001_initial.sql"));
+            schema = schema.Replace("    UNIQUE (profile_id, kind),\n", string.Empty, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(schemaPath, schema);
+            await GameDataDatabaseBuilder.BuildAsync(
+                fixture.DatabasePath,
+                schemaPath,
+                Path.Combine(RepositoryRoot, "db", "seed", "golden_protocol.sql"));
+            return fixture;
+        }
+
         public async Task ExecuteAsync(string sql)
         {
-            await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+            await using var connection = new SqliteConnection($"Data Source={DatabasePath};Pooling=False");
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
             command.CommandText = sql;
@@ -283,7 +398,6 @@ public sealed class GameDataRepositoryTests
 
         public void Dispose()
         {
-            SqliteConnection.ClearAllPools();
             Directory.Delete(directory, true);
         }
     }

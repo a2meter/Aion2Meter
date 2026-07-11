@@ -40,6 +40,12 @@ void write_u32(std::vector<uint8_t>& bytes, size_t offset, uint32_t value) {
     }
 }
 
+void write_u64(std::vector<uint8_t>& bytes, size_t offset, uint64_t value) {
+    for (unsigned shift = 0; shift < 64; shift += 8) {
+        bytes[offset++] = static_cast<uint8_t>(value >> shift);
+    }
+}
+
 uint32_t crc32(const std::vector<uint8_t>& bytes) {
     uint32_t crc = 0xFFFFFFFFu;
     for (size_t index = 0; index < bytes.size(); ++index) {
@@ -80,6 +86,21 @@ std::vector<uint8_t> valid_snapshot() {
     append_u32(bytes, 4);
     append_u32(bytes, 4);
     append_u32(bytes, 1);
+    write_u32(bytes, 8, static_cast<uint32_t>(bytes.size()));
+    write_u32(bytes, 12, crc32(bytes));
+    return bytes;
+}
+
+std::vector<uint8_t> valid_snapshot_with_two_opcodes() {
+    auto bytes = valid_snapshot();
+    const std::array<uint8_t, 10> second_opcode{
+        2, 0,
+        2, 0,
+        0x05, 0x38,
+        1, 0, 0, 0,
+    };
+    bytes.insert(bytes.begin() + 51, second_opcode.begin(), second_opcode.end());
+    write_u32(bytes, 37, 2);
     write_u32(bytes, 8, static_cast<uint32_t>(bytes.size()));
     write_u32(bytes, 12, crc32(bytes));
     return bytes;
@@ -165,6 +186,57 @@ TEST(ProtocolSnapshot, RejectsDeclaredCountsAndFieldBoundsWithoutTrustingThem) {
     corrupt = valid_snapshot();
     write_u32(corrupt, 71, 63);
     write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    nm_core_destroy(handle);
+}
+
+TEST(ProtocolSnapshot, RejectsZeroDataAndProfileVersionsAndUndeclaredLayoutReferences) {
+    nm_core_handle* handle = create_core();
+    ASSERT_NE(handle, nullptr);
+
+    auto corrupt = valid_snapshot();
+    write_u64(corrupt, 16, 0);
+    write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    corrupt = valid_snapshot();
+    write_u32(corrupt, 24, 0);
+    write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    corrupt = valid_snapshot();
+    write_u32(corrupt, 47, 2);
+    write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    nm_core_destroy(handle);
+}
+
+TEST(ProtocolSnapshot, RejectsPortAndFieldCountsThatRunPastAvailableBytes) {
+    nm_core_handle* handle = create_core();
+    ASSERT_NE(handle, nullptr);
+
+    auto corrupt = valid_snapshot();
+    write_u16(corrupt, 33, 2);
+    write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    corrupt = valid_snapshot();
+    write_u16(corrupt, 63, 2);
+    write_u32(corrupt, 12, crc32(corrupt));
+    expect_rejected(handle, corrupt);
+
+    nm_core_destroy(handle);
+}
+
+TEST(ProtocolSnapshot, RejectsDuplicateWireKindsWithoutAllocatingASet) {
+    nm_core_handle* handle = create_core();
+    ASSERT_NE(handle, nullptr);
+    auto corrupt = valid_snapshot_with_two_opcodes();
+    write_u16(corrupt, 51, 1);
+    write_u32(corrupt, 12, crc32(corrupt));
+
     expect_rejected(handle, corrupt);
 
     nm_core_destroy(handle);

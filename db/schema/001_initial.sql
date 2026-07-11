@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE metadata (
     singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
-    data_version INTEGER NOT NULL CHECK (data_version >= 0),
+    data_version INTEGER NOT NULL CHECK (data_version > 0),
     schema_version INTEGER NOT NULL CHECK (schema_version > 0)
 );
 
@@ -52,7 +52,7 @@ CREATE TABLE opcodes (
     tag BLOB NOT NULL CHECK (length(tag) BETWEEN 1 AND 32),
     layout_id INTEGER,
     FOREIGN KEY (profile_id, layout_id) REFERENCES message_layouts(profile_id, id),
-    UNIQUE (profile_id, family, kind),
+    UNIQUE (profile_id, kind),
     UNIQUE (profile_id, tag),
     UNIQUE (profile_id, name)
 );

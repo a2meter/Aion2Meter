@@ -30,6 +30,37 @@ public sealed class ProtocolSnapshotCompilerTests
     }
 
     [Fact]
+    public void CompileIsIndependentOfSurrogateIdsAndInsertionOrder()
+    {
+        GameDataSnapshot first = CreateSnapshot(reverseInsertionOrder: false, swapSurrogateIds: false);
+        GameDataSnapshot second = CreateSnapshot(reverseInsertionOrder: true, swapSurrogateIds: true);
+
+        Assert.Equal(ProtocolSnapshotCompiler.Compile(first), ProtocolSnapshotCompiler.Compile(second));
+    }
+
+    [Fact]
+    public void CompileRejectsDuplicateWireKindsEvenWhenDictionaryKeysDiffer()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false);
+        var opcodes = new Dictionary<ushort, ProtocolOpcode>
+        {
+            [10] = new ProtocolOpcode(10, 7, "first", [0x01], 0),
+            [20] = new ProtocolOpcode(20, 7, "second", [0x02], 0),
+        }.ToFrozenDictionary();
+        snapshot = snapshot with { Opcodes = opcodes };
+
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+    }
+
+    [Fact]
+    public void CompileRejectsZeroDataVersion()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false) with { DataVersion = 0 };
+
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+    }
+
+    [Fact]
     public void CompileUsesNumericOrderingForPortsOpcodesLayoutsAndFields()
     {
         byte[] bytes = ProtocolSnapshotCompiler.Compile(CreateSnapshot(reverseInsertionOrder: true));
@@ -87,14 +118,14 @@ public sealed class ProtocolSnapshotCompilerTests
         core.SetProtocolSnapshot(bytes);
     }
 
-    private static GameDataSnapshot CreateSnapshot(bool reverseInsertionOrder)
+    private static GameDataSnapshot CreateSnapshot(bool reverseInsertionOrder, bool swapSurrogateIds = false)
     {
-        var opcodes = new Dictionary<uint, ProtocolOpcode>();
+        var opcodes = new Dictionary<ushort, ProtocolOpcode>();
         var layouts = new Dictionary<uint, ProtocolMessageLayout>();
         var opcodeValues = new[]
         {
-            new ProtocolOpcode(2, 2, "dot", [0x05, 0x38], 2),
-            new ProtocolOpcode(1, 1, "damage", [0x04, 0x38], 1),
+            new ProtocolOpcode(swapSurrogateIds ? 100U : 900U, 2, "dot", [0x05, 0x38], 2),
+            new ProtocolOpcode(swapSurrogateIds ? 900U : 100U, 1, "damage", [0x04, 0x38], 1),
         };
         var layoutValues = new[]
         {
@@ -103,7 +134,7 @@ public sealed class ProtocolSnapshotCompilerTests
             new ProtocolMessageLayout(1, "damage", 64,
                 [new ProtocolFieldDescriptor(2, 0, 8, 4, 1), new ProtocolFieldDescriptor(1, 0, 4, 4, 1)]),
         };
-        foreach (var opcode in reverseInsertionOrder ? opcodeValues : opcodeValues.Reverse()) opcodes.Add(opcode.Id, opcode);
+        foreach (var opcode in reverseInsertionOrder ? opcodeValues : opcodeValues.Reverse()) opcodes.Add(opcode.Kind, opcode);
         foreach (var layout in reverseInsertionOrder ? layoutValues : layoutValues.Reverse()) layouts.Add(layout.Id, layout);
 
         return new GameDataSnapshot(

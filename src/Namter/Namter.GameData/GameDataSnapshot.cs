@@ -10,7 +10,7 @@ public sealed record GameDataSnapshot(
     string ProtocolProfileName,
     ImmutableArray<byte> PacketMagic,
     ImmutableArray<ushort> ServerPorts,
-    FrozenDictionary<uint, ProtocolOpcode> Opcodes,
+    FrozenDictionary<ushort, ProtocolOpcode> Opcodes,
     FrozenDictionary<uint, ProtocolMessageLayout> MessageLayouts,
     FrozenDictionary<uint, Boss> Bosses,
     FrozenDictionary<uint, Dungeon> Dungeons,

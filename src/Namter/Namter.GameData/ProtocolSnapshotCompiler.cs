@@ -40,7 +40,7 @@ public static class ProtocolSnapshotCompiler
         writer.Write(checked((ushort)ports.Length));
         foreach (ushort port in ports) writer.Write(port);
 
-        ProtocolOpcode[] opcodes = snapshot.Opcodes.Values.OrderBy(static value => value.Id).ToArray();
+        ProtocolOpcode[] opcodes = snapshot.Opcodes.Values.OrderBy(static value => value.Kind).ToArray();
         writer.Write(checked((uint)opcodes.Length));
         foreach (ProtocolOpcode opcode in opcodes)
         {
@@ -111,6 +111,10 @@ public static class ProtocolSnapshotCompiler
 
     private static void ValidateSnapshot(GameDataSnapshot snapshot)
     {
+        if (snapshot.DataVersion == 0)
+        {
+            throw new InvalidDataException("Data version must be positive.");
+        }
         if (snapshot.ProtocolProfileVersion == 0)
         {
             throw new InvalidDataException("Protocol profile version must be positive.");
@@ -126,6 +130,11 @@ public static class ProtocolSnapshotCompiler
         if (snapshot.Opcodes.Count is < 1 or > MaxOpcodes)
         {
             throw new InvalidDataException("Opcode count is out of bounds.");
+        }
+        if (snapshot.Opcodes.Values.Select(static opcode => opcode.Kind).Distinct().Count() != snapshot.Opcodes.Count ||
+            snapshot.Opcodes.Any(static pair => pair.Key != pair.Value.Kind))
+        {
+            throw new InvalidDataException("Opcode wire kinds must be unique and match their dictionary keys.");
         }
         if (snapshot.MessageLayouts.Count > MaxLayouts)
         {

@@ -22,6 +22,7 @@ public sealed class GameDataRepository
             Mode = SqliteOpenMode.ReadOnly,
             Cache = SqliteCacheMode.Shared,
             ForeignKeys = true,
+            Pooling = false,
         }.ToString();
     }
 
@@ -35,25 +36,30 @@ public sealed class GameDataRepository
 
         (ulong dataVersion, uint schemaVersion) = await ReadMetadataAsync(connection, transaction, cancellationToken)
             .ConfigureAwait(false);
-        ActiveProfile profile = await ReadActiveProfileAsync(connection, transaction, cancellationToken)
+        uint activeProfileId = await ReadActiveProfileIdAsync(connection, transaction, cancellationToken)
             .ConfigureAwait(false);
-        ImmutableArray<ushort> ports = await ReadPortsAsync(connection, transaction, profile.Id, cancellationToken)
+        CacheCounts counts = await ReadCacheCountsAsync(connection, transaction, activeProfileId, cancellationToken)
             .ConfigureAwait(false);
-        FrozenDictionary<uint, ProtocolOpcode> opcodes = await ReadOpcodesAsync(
-            connection, transaction, profile.Id, cancellationToken).ConfigureAwait(false);
+        ValidateCacheCounts(counts);
+        ActiveProfile profile = await ReadActiveProfileAsync(connection, transaction, activeProfileId, cancellationToken)
+            .ConfigureAwait(false);
+        ImmutableArray<ushort> ports = await ReadPortsAsync(connection, transaction, activeProfileId, cancellationToken)
+            .ConfigureAwait(false);
+        FrozenDictionary<ushort, ProtocolOpcode> opcodes = await ReadOpcodesAsync(
+            connection, transaction, activeProfileId, counts.Opcodes, cancellationToken).ConfigureAwait(false);
         FrozenDictionary<uint, ProtocolMessageLayout> layouts = await ReadLayoutsAsync(
-            connection, transaction, profile.Id, cancellationToken).ConfigureAwait(false);
+            connection, transaction, activeProfileId, counts.Layouts, counts.LayoutFields, cancellationToken).ConfigureAwait(false);
         FrozenDictionary<uint, Boss> bosses = await ReadNamedCodeMapAsync(
-            connection, transaction, "bosses", limits.MaxBosses, static (code, name) => new Boss(code, name), cancellationToken)
+            connection, transaction, "bosses", counts.Bosses, static (code, name) => new Boss(code, name), cancellationToken)
             .ConfigureAwait(false);
         FrozenDictionary<uint, Dungeon> dungeons = await ReadNamedCodeMapAsync(
-            connection, transaction, "dungeons", limits.MaxDungeons, static (code, name) => new Dungeon(code, name), cancellationToken)
+            connection, transaction, "dungeons", counts.Dungeons, static (code, name) => new Dungeon(code, name), cancellationToken)
             .ConfigureAwait(false);
         FrozenDictionary<uint, Skill> skills = await ReadNamedCodeMapAsync(
-            connection, transaction, "skills", limits.MaxSkills, static (code, name) => new Skill(code, name), cancellationToken)
+            connection, transaction, "skills", counts.Skills, static (code, name) => new Skill(code, name), cancellationToken)
             .ConfigureAwait(false);
         FrozenDictionary<uint, Buff> buffs = await ReadNamedCodeMapAsync(
-            connection, transaction, "buffs", limits.MaxBuffs, static (code, name) => new Buff(code, name), cancellationToken)
+            connection, transaction, "buffs", counts.Buffs, static (code, name) => new Buff(code, name), cancellationToken)
             .ConfigureAwait(false);
 
         var snapshot = new GameDataSnapshot(
@@ -69,14 +75,74 @@ public sealed class GameDataRepository
             dungeons,
             skills,
             buffs);
-        if (snapshot.TotalHotCacheEntries > limits.MaxTotalEntries)
-        {
-            throw new InvalidDataException(
-                $"Hot game-data cache has {snapshot.TotalHotCacheEntries} entries; configured maximum is {limits.MaxTotalEntries}.");
-        }
-
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return snapshot;
+    }
+
+    private static async Task<CacheCounts> ReadCacheCountsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        uint profileId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, transaction, """
+            SELECT
+                (SELECT COUNT(*) FROM opcodes WHERE profile_id = $profile),
+                (SELECT COUNT(DISTINCT kind) FROM opcodes WHERE profile_id = $profile),
+                (SELECT COUNT(*) FROM message_layouts WHERE profile_id = $profile),
+                (SELECT COUNT(*) FROM message_fields f
+                    JOIN message_layouts l ON l.id = f.layout_id
+                    WHERE l.profile_id = $profile),
+                (SELECT COUNT(*) FROM bosses),
+                (SELECT COUNT(*) FROM dungeons),
+                (SELECT COUNT(*) FROM skills),
+                (SELECT COUNT(*) FROM buffs);
+            """);
+        command.Parameters.AddWithValue("$profile", profileId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidDataException("Could not count hot game-data rows.");
+        }
+        int opcodeCount = checked((int)reader.GetInt64(0));
+        int distinctOpcodeKinds = checked((int)reader.GetInt64(1));
+        if (opcodeCount != distinctOpcodeKinds)
+        {
+            throw new InvalidDataException("The active protocol profile contains duplicate wire opcode kinds.");
+        }
+        return new CacheCounts(
+            opcodeCount,
+            checked((int)reader.GetInt64(2)),
+            checked((int)reader.GetInt64(3)),
+            checked((int)reader.GetInt64(4)),
+            checked((int)reader.GetInt64(5)),
+            checked((int)reader.GetInt64(6)),
+            checked((int)reader.GetInt64(7)));
+    }
+
+    private void ValidateCacheCounts(CacheCounts counts)
+    {
+        EnsureWithinLimit("opcode", counts.Opcodes, limits.MaxOpcodes);
+        EnsureWithinLimit("message layout", counts.Layouts, limits.MaxLayouts);
+        EnsureWithinLimit("message-layout field", counts.LayoutFields, limits.MaxLayoutFields);
+        EnsureWithinLimit("bosses", counts.Bosses, limits.MaxBosses);
+        EnsureWithinLimit("dungeons", counts.Dungeons, limits.MaxDungeons);
+        EnsureWithinLimit("skills", counts.Skills, limits.MaxSkills);
+        EnsureWithinLimit("buffs", counts.Buffs, limits.MaxBuffs);
+
+        int total = 0;
+        total = checked(total + counts.Opcodes);
+        total = checked(total + counts.Layouts);
+        total = checked(total + counts.LayoutFields);
+        total = checked(total + counts.Bosses);
+        total = checked(total + counts.Dungeons);
+        total = checked(total + counts.Skills);
+        total = checked(total + counts.Buffs);
+        if (total > limits.MaxTotalEntries)
+        {
+            throw new InvalidDataException(
+                $"Hot game-data cache has {total} entries; configured maximum is {limits.MaxTotalEntries}.");
+        }
     }
 
     private static async Task<(ulong DataVersion, uint SchemaVersion)> ReadMetadataAsync(
@@ -93,7 +159,7 @@ public sealed class GameDataRepository
         }
         long dataVersion = reader.GetInt64(0);
         long schemaVersion = reader.GetInt64(1);
-        if (dataVersion < 0 || schemaVersion <= 0 || schemaVersion > uint.MaxValue)
+        if (dataVersion <= 0 || schemaVersion <= 0 || schemaVersion > uint.MaxValue)
         {
             throw new InvalidDataException("The game-data versions are out of range.");
         }
@@ -104,28 +170,44 @@ public sealed class GameDataRepository
         return (checked((ulong)dataVersion), checked((uint)schemaVersion));
     }
 
-    private static async Task<ActiveProfile> ReadActiveProfileAsync(
+    private static async Task<uint> ReadActiveProfileIdAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, transaction,
-            "SELECT id, name, version, packet_magic FROM protocol_profiles WHERE is_active = 1 LIMIT 2;");
+            "SELECT id FROM protocol_profiles WHERE is_active = 1 LIMIT 2;");
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             throw new InvalidDataException("No active protocol profile exists.");
         }
-        var profile = new ActiveProfile(
-            checked((uint)reader.GetInt64(0)),
-            reader.GetString(1),
-            checked((uint)reader.GetInt64(2)),
-            ((byte[])reader[3]).ToImmutableArray());
+        uint profileId = checked((uint)reader.GetInt64(0));
         if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             throw new InvalidDataException("More than one active protocol profile exists.");
         }
-        return profile;
+        return profileId;
+    }
+
+    private static async Task<ActiveProfile> ReadActiveProfileAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        uint profileId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, transaction,
+            "SELECT name, version, packet_magic FROM protocol_profiles WHERE id = $profile;");
+        command.Parameters.AddWithValue("$profile", profileId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidDataException("The active protocol profile disappeared within its read transaction.");
+        }
+        return new ActiveProfile(
+            reader.GetString(0),
+            checked((uint)reader.GetInt64(1)),
+            ((byte[])reader[2]).ToImmutableArray());
     }
 
     private static async Task<ImmutableArray<ushort>> ReadPortsAsync(
@@ -150,23 +232,24 @@ public sealed class GameDataRepository
         return builder.ToImmutable();
     }
 
-    private async Task<FrozenDictionary<uint, ProtocolOpcode>> ReadOpcodesAsync(
+    private static async Task<FrozenDictionary<ushort, ProtocolOpcode>> ReadOpcodesAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         uint profileId,
+        int expectedCount,
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, transaction, """
             SELECT id, kind, name, tag, COALESCE(layout_id, 0)
             FROM opcodes
             WHERE profile_id = $profile
-            ORDER BY id
+            ORDER BY kind
             LIMIT $limit;
             """);
         command.Parameters.AddWithValue("$profile", profileId);
-        command.Parameters.AddWithValue("$limit", checked(limits.MaxOpcodes + 1));
+        command.Parameters.AddWithValue("$limit", checked(expectedCount + 1));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var values = new List<ProtocolOpcode>();
+        var values = new List<ProtocolOpcode>(expectedCount);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             values.Add(new ProtocolOpcode(
@@ -176,14 +259,16 @@ public sealed class GameDataRepository
                 ((byte[])reader[3]).ToImmutableArray(),
                 checked((uint)reader.GetInt64(4))));
         }
-        EnsureWithinLimit("opcode", values.Count, limits.MaxOpcodes);
-        return values.ToFrozenDictionary(static value => value.Id);
+        EnsureExpectedCount("opcode", values.Count, expectedCount);
+        return values.ToFrozenDictionary(static value => value.Kind);
     }
 
     private async Task<FrozenDictionary<uint, ProtocolMessageLayout>> ReadLayoutsAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         uint profileId,
+        int expectedLayoutCount,
+        int expectedFieldCount,
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, transaction, """
@@ -194,25 +279,25 @@ public sealed class GameDataRepository
             LIMIT $limit;
             """);
         command.Parameters.AddWithValue("$profile", profileId);
-        command.Parameters.AddWithValue("$limit", checked(limits.MaxLayouts + 1));
+        command.Parameters.AddWithValue("$limit", checked(expectedLayoutCount + 1));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var layouts = new List<(uint Id, string Name, uint MaxPayloadBytes)>();
+        var layouts = new List<(uint Id, string Name, uint MaxPayloadBytes)>(expectedLayoutCount);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             layouts.Add((checked((uint)reader.GetInt64(0)), reader.GetString(1), checked((uint)reader.GetInt64(2))));
         }
-        EnsureWithinLimit("message layout", layouts.Count, limits.MaxLayouts);
+        EnsureExpectedCount("message layout", layouts.Count, expectedLayoutCount);
 
-        var result = new Dictionary<uint, ProtocolMessageLayout>();
-        var totalFieldCount = 0;
+        var result = new Dictionary<uint, ProtocolMessageLayout>(expectedLayoutCount);
+        int remainingFieldCount = expectedFieldCount;
         foreach ((uint id, string name, uint maxPayloadBytes) in layouts)
         {
             ImmutableArray<ProtocolFieldDescriptor> fields = await ReadFieldsAsync(
-                connection, transaction, id, cancellationToken).ConfigureAwait(false);
-            totalFieldCount = checked(totalFieldCount + fields.Length);
-            EnsureWithinLimit("message-layout field", totalFieldCount, limits.MaxLayoutFields);
+                connection, transaction, id, remainingFieldCount, cancellationToken).ConfigureAwait(false);
+            remainingFieldCount = checked(remainingFieldCount - fields.Length);
             result.Add(id, new ProtocolMessageLayout(id, name, maxPayloadBytes, fields));
         }
+        EnsureExpectedCount("message-layout field", remainingFieldCount, 0);
         return result.ToFrozenDictionary();
     }
 
@@ -220,6 +305,7 @@ public sealed class GameDataRepository
         SqliteConnection connection,
         SqliteTransaction transaction,
         uint layoutId,
+        int remainingFieldCount,
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, transaction, """
@@ -230,7 +316,7 @@ public sealed class GameDataRepository
             LIMIT $limit;
             """);
         command.Parameters.AddWithValue("$layout", layoutId);
-        command.Parameters.AddWithValue("$limit", checked(limits.MaxLayoutFields + 1));
+        command.Parameters.AddWithValue("$limit", checked(remainingFieldCount + 1));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var builder = ImmutableArray.CreateBuilder<ProtocolFieldDescriptor>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -249,22 +335,22 @@ public sealed class GameDataRepository
         SqliteConnection connection,
         SqliteTransaction transaction,
         string table,
-        int limit,
+        int expectedCount,
         Func<uint, string, T> factory,
         CancellationToken cancellationToken)
         where T : notnull
     {
         await using var command = CreateCommand(connection, transaction,
             $"SELECT code, name FROM {table} ORDER BY code LIMIT $limit;");
-        command.Parameters.AddWithValue("$limit", checked(limit + 1));
+        command.Parameters.AddWithValue("$limit", checked(expectedCount + 1));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var values = new Dictionary<uint, T>();
+        var values = new Dictionary<uint, T>(expectedCount);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             uint code = checked((uint)reader.GetInt64(0));
             values.Add(code, factory(code, reader.GetString(1)));
         }
-        EnsureWithinLimit(table, values.Count, limit);
+        EnsureExpectedCount(table, values.Count, expectedCount);
         return values.ToFrozenDictionary();
     }
 
@@ -288,9 +374,26 @@ public sealed class GameDataRepository
         }
     }
 
+    private static void EnsureExpectedCount(string category, int actual, int expected)
+    {
+        if (actual != expected)
+        {
+            throw new InvalidDataException(
+                $"The {category} cache changed within its read transaction: expected {expected}, read {actual}.");
+        }
+    }
+
     private readonly record struct ActiveProfile(
-        uint Id,
         string Name,
         uint Version,
         ImmutableArray<byte> PacketMagic);
+
+    private readonly record struct CacheCounts(
+        int Opcodes,
+        int Layouts,
+        int LayoutFields,
+        int Bosses,
+        int Dungeons,
+        int Skills,
+        int Buffs);
 }
