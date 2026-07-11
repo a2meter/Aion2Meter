@@ -73,16 +73,28 @@ public sealed class HttpGameDataTransport : IGameDataTransport, IDisposable
         {
             if (disposing)
             {
-                inner.Dispose();
-                response.Dispose();
+                try
+                {
+                    inner.Dispose();
+                }
+                finally
+                {
+                    response.Dispose();
+                }
             }
             base.Dispose(disposing);
         }
         public override async ValueTask DisposeAsync()
         {
-            await inner.DisposeAsync().ConfigureAwait(false);
-            response.Dispose();
-            GC.SuppressFinalize(this);
+            try
+            {
+                await inner.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                response.Dispose();
+                GC.SuppressFinalize(this);
+            }
         }
     }
 }

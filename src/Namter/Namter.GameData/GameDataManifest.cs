@@ -33,7 +33,8 @@ public sealed record GameDataManifest(
             using ECDsa verifier = ECDsa.Create();
             verifier.ImportSubjectPublicKeyInfo(subjectPublicKeyInfo, out int bytesRead);
             return bytesRead == subjectPublicKeyInfo.Length
-                && verifier.KeySize == 256
+                && P256Signature.IsExactCurve(verifier)
+                && P256Signature.IsCanonical(signature)
                 && verifier.VerifyData(
                     GetCanonicalUnsignedBytes(), signature, HashAlgorithmName.SHA256,
                     DSASignatureFormat.IeeeP1363FixedFieldConcatenation);

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Reflection;
 using Microsoft.Data.Sqlite;
 
 namespace Namter.GameData.Publisher;
@@ -18,11 +19,20 @@ public enum PublishStatus
     UnsafeFilesystem = 9,
     Failed = 10,
     Cancelled = 11,
+    CommitFailedRestored = 12,
+    RecoveryRequired = 13,
 }
 
-public sealed record PublisherPolicy(string SourceRoot, bool AllowInsecureArchiveUri)
+public sealed record PublisherPolicy
 {
-    public static PublisherPolicy Production(string sourceRoot) => new(sourceRoot, false);
+    internal PublisherPolicy(string sourceRoot, bool allowInsecureArchiveUri)
+    {
+        SourceRoot = sourceRoot;
+        AllowInsecureArchiveUri = allowInsecureArchiveUri;
+    }
+    public string SourceRoot { get; init; }
+    internal bool AllowInsecureArchiveUri { get; init; }
+    internal static PublisherPolicy Production(string sourceRoot) => new(sourceRoot, false);
 }
 
 public sealed record PublishOptions(
@@ -46,11 +56,18 @@ public static class GameDataPublisher
         "bosses", "dungeons", "dungeon_bosses", "mobs", "skills", "buffs",
     ];
 
-    public static async Task<PublishResult> PublishAsync(
+    public static Task<PublishResult> PublishAsync(
         PublishOptions options,
         CancellationToken cancellationToken = default)
+        => PublishAsync(options, PhysicalGameDataFileSystem.Instance, cancellationToken);
+
+    internal static async Task<PublishResult> PublishAsync(
+        PublishOptions options,
+        IGameDataFileSystem fileSystem,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(fileSystem);
         if (string.IsNullOrWhiteSpace(options.InputPath)
             || string.IsNullOrWhiteSpace(options.OutputDirectory)
             || string.IsNullOrWhiteSpace(options.PrivateKeyPath)
@@ -80,16 +97,16 @@ public static class GameDataPublisher
 
         try
         {
-            EnsureRegularFile(input);
-            EnsureRegularFile(privateKey);
-            EnsureRegularFile(archivePath);
-            EnsureRegularFile(manifestPath);
-            if (!File.Exists(input)) return new(PublishStatus.InputInvalid, "Input database does not exist.");
-            if (!File.Exists(privateKey)) return new(PublishStatus.InvalidPrivateKey, "Private-key file does not exist.");
+            EnsureRegularFile(fileSystem, input);
+            EnsureRegularFile(fileSystem, privateKey);
+            EnsureRegularFile(fileSystem, archivePath);
+            EnsureRegularFile(fileSystem, manifestPath);
+            if (!fileSystem.FileExists(input)) return new(PublishStatus.InputInvalid, "Input database does not exist.");
+            if (!fileSystem.FileExists(privateKey)) return new(PublishStatus.InvalidPrivateKey, "Private-key file does not exist.");
             EnsureNoReparseAncestors(output);
-            if (Directory.Exists(output) && (File.GetAttributes(output) & FileAttributes.ReparsePoint) != 0)
+            if (fileSystem.DirectoryExists(output) && (fileSystem.GetAttributes(output) & FileAttributes.ReparsePoint) != 0)
                 return new(PublishStatus.UnsafeFilesystem, "Output directory cannot be a reparse point.");
-            if (!options.Force && (File.Exists(archivePath) || File.Exists(manifestPath)))
+            if (!options.Force && (fileSystem.FileExists(archivePath) || fileSystem.FileExists(manifestPath)))
                 return new(PublishStatus.OutputExists);
 
             InspectionResult inspection = await InspectDatabaseAsync(input, cancellationToken).ConfigureAwait(false);
@@ -97,12 +114,12 @@ public static class GameDataPublisher
             if (inspection.Snapshot!.DataVersion != options.DataVersion)
                 return new(PublishStatus.InputVersionMismatch);
 
-            ECDsa signer;
+            ECDsa? signer = null;
             try
             {
                 signer = ECDsa.Create();
                 signer.ImportFromPem(await File.ReadAllTextAsync(privateKey, cancellationToken).ConfigureAwait(false));
-                if (signer.KeySize != 256)
+                if (!P256Signature.IsExactCurve(signer))
                 {
                     signer.Dispose();
                     return new(PublishStatus.InvalidPrivateKey, "The publisher requires an ECDSA P-256 private key.");
@@ -111,11 +128,12 @@ public static class GameDataPublisher
             }
             catch (Exception exception) when (exception is CryptographicException or ArgumentException)
             {
+                signer?.Dispose();
                 return new(PublishStatus.InvalidPrivateKey, exception.Message);
             }
 
-            Directory.CreateDirectory(output);
-            if ((File.GetAttributes(output) & FileAttributes.ReparsePoint) != 0)
+            fileSystem.CreateDirectory(output);
+            if ((fileSystem.GetAttributes(output) & FileAttributes.ReparsePoint) != 0)
             {
                 signer.Dispose();
                 return new(PublishStatus.UnsafeFilesystem, "Output directory cannot be a reparse point.");
@@ -157,24 +175,44 @@ public static class GameDataPublisher
                     "br",
                     DateTimeOffset.UtcNow,
                     string.Empty);
-                string signature = Convert.ToBase64String(signer.SignData(
+                string signature = Convert.ToBase64String(P256Signature.Normalize(signer.SignData(
                     unsigned.GetCanonicalUnsignedBytes(), HashAlgorithmName.SHA256,
-                    DSASignatureFormat.IeeeP1363FixedFieldConcatenation));
+                    DSASignatureFormat.IeeeP1363FixedFieldConcatenation)));
                 byte[] manifest = (unsigned with { Signature = signature }).ToJsonBytes();
                 await File.WriteAllBytesAsync(manifestTemporary, manifest, cancellationToken).ConfigureAwait(false);
 
-                ReplaceOrMove(archiveTemporary, archivePath, archivePrevious, options.Force);
+                ReplaceOrMove(fileSystem, archiveTemporary, archivePath, archivePrevious, options.Force);
                 try
                 {
-                    ReplaceOrMove(manifestTemporary, manifestPath, manifestPrevious, options.Force);
+                    ReplaceOrMove(fileSystem, manifestTemporary, manifestPath, manifestPrevious, options.Force);
                 }
-                catch
+                catch (Exception commitException)
                 {
-                    RestorePreviousOrDeleteNew(archivePath, archivePrevious);
-                    throw;
+                    try
+                    {
+                        if (fileSystem.FileExists(manifestPrevious))
+                            RestorePrevious(fileSystem, manifestPath, manifestPrevious);
+                        RestorePrevious(fileSystem, archivePath, archivePrevious);
+                        DeleteRegularTemporary(fileSystem, archivePrevious);
+                        DeleteRegularTemporary(fileSystem, manifestPrevious);
+                        return new(PublishStatus.CommitFailedRestored, commitException.Message);
+                    }
+                    catch (Exception restoreException) when (restoreException is IOException or UnauthorizedAccessException)
+                    {
+                        return new(PublishStatus.RecoveryRequired,
+                            $"Commit: {commitException.Message}; restore: {restoreException.Message}");
+                    }
                 }
-                DeleteRegularTemporary(archivePrevious);
-                DeleteRegularTemporary(manifestPrevious);
+                try
+                {
+                    DeleteRegularTemporary(fileSystem, archivePrevious);
+                    DeleteRegularTemporary(fileSystem, manifestPrevious);
+                }
+                catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+                {
+                    return new(PublishStatus.RecoveryRequired,
+                        $"Artifacts committed but recovery cleanup failed: {cleanupException.Message}");
+                }
                 return new(PublishStatus.Published);
             }
             finally
@@ -196,10 +234,8 @@ public static class GameDataPublisher
         }
         finally
         {
-            DeleteRegularTemporary(archiveTemporary);
-            DeleteRegularTemporary(manifestTemporary);
-            DeleteRegularTemporary(archivePrevious);
-            DeleteRegularTemporary(manifestPrevious);
+            TryDeleteRegularTemporary(fileSystem, archiveTemporary);
+            TryDeleteRegularTemporary(fileSystem, manifestTemporary);
         }
     }
 
@@ -238,6 +274,9 @@ public static class GameDataPublisher
             string? missing = RequiredTables.FirstOrDefault(table => !tables.Contains(table));
             if (missing is not null) return new(false, null, $"Required table is missing: {missing}.");
 
+            string? schemaError = await GameDataSchemaValidator.ValidateAsync(connection, cancellationToken).ConfigureAwait(false);
+            if (schemaError is not null) return new(false, null, schemaError);
+
             GameDataSnapshot snapshot = await new GameDataRepository(path, GameDataCacheLimits.Default)
                 .LoadAsync(cancellationToken).ConfigureAwait(false);
             return new(true, snapshot);
@@ -256,9 +295,9 @@ public static class GameDataPublisher
         return normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void EnsureRegularFile(string path)
+    private static void EnsureRegularFile(IGameDataFileSystem fileSystem, string path)
     {
-        if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        if (fileSystem.FileExists(path) && (fileSystem.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new IOException("Publisher inputs cannot be reparse points.");
     }
 
@@ -272,35 +311,47 @@ public static class GameDataPublisher
         }
     }
 
-    private static void ReplaceOrMove(string source, string destination, string previous, bool force)
+    private static void ReplaceOrMove(
+        IGameDataFileSystem fileSystem,
+        string source,
+        string destination,
+        string previous,
+        bool force)
     {
-        if (File.Exists(destination))
+        if (fileSystem.FileExists(destination))
         {
             if (!force) throw new IOException("Publisher output already exists.");
-            File.Replace(source, destination, previous, ignoreMetadataErrors: true);
+            fileSystem.ReplaceFile(source, destination, previous);
         }
         else
         {
-            File.Move(source, destination);
+            fileSystem.MoveFile(source, destination, overwrite: false);
         }
     }
 
-    private static void RestorePreviousOrDeleteNew(string destination, string previous)
+    private static void RestorePrevious(IGameDataFileSystem fileSystem, string destination, string previous)
     {
-        if (File.Exists(previous))
-        {
-            File.Replace(previous, destination, destinationBackupFileName: null, ignoreMetadataErrors: true);
-        }
-        else if (File.Exists(destination))
-        {
-            File.Delete(destination);
-        }
+        if (!fileSystem.FileExists(previous)) throw new IOException("Publisher recovery artifact is missing.");
+        fileSystem.ReplaceFile(previous, destination, backup: null);
     }
 
-    private static void DeleteRegularTemporary(string path)
+    private static void DeleteRegularTemporary(IGameDataFileSystem fileSystem, string path)
     {
-        if (!File.Exists(path)) return;
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0) File.Delete(path);
+        if (!fileSystem.FileExists(path)) return;
+        if ((fileSystem.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("Publisher recovery artifact cannot be a reparse point.");
+        fileSystem.DeleteFile(path);
+    }
+
+    private static void TryDeleteRegularTemporary(IGameDataFileSystem fileSystem, string path)
+    {
+        try
+        {
+            DeleteRegularTemporary(fileSystem, path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private sealed record InspectionResult(bool Valid, GameDataSnapshot? Snapshot, string? Detail = null);
@@ -351,8 +402,12 @@ public static class Program
 
     private static string FindSourceRoot()
     {
-        for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
-            if (File.Exists(Path.Combine(directory.FullName, "Namter.slnx"))) return directory.FullName;
-        return Directory.GetCurrentDirectory();
+        string? configured = typeof(Program).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .SingleOrDefault(attribute => attribute.Key == "NamterRepositoryRoot")?.Value;
+        if (!string.IsNullOrWhiteSpace(configured)) return Path.GetFullPath(configured);
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "Namter.slnx")) || Directory.Exists(Path.Combine(directory.FullName, ".git")))
+                return directory.FullName;
+        return Path.GetDirectoryName(typeof(Program).Assembly.Location) ?? AppContext.BaseDirectory;
     }
 }

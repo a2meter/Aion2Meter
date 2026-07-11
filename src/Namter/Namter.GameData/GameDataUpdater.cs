@@ -11,6 +11,7 @@ public enum GameDataCheckStatus
     UpToDate,
     InvalidManifest,
     InvalidSignature,
+    InvalidArchiveUri,
     IncompatibleMinimumAppVersion,
     IncompatibleSchemaVersion,
     Cancelled,
@@ -23,6 +24,7 @@ public enum GameDataStageStatus
     Cancelled,
     InvalidManifest,
     InvalidSignature,
+    InvalidArchiveUri,
     IncompatibleMinimumAppVersion,
     IncompatibleSchemaVersion,
     DownloadFailed,
@@ -32,8 +34,11 @@ public enum GameDataStageStatus
     UncompressedSizeMismatch,
     SqliteIntegrityFailed,
     RequiredTableMissing,
+    RequiredSchemaInvalid,
     DatabaseVersionMismatch,
     UnsafeFilesystem,
+    RecoveryRequired,
+    CleanupFailed,
 }
 
 public enum GameDataActivationStatus
@@ -45,6 +50,10 @@ public enum GameDataActivationStatus
     ActiveDatabaseInvalid,
     ActivationFailedRolledBack,
     ActivationFailedRollbackFailed,
+    BackupPromotionFailedRolledBack,
+    BackupPromotionFailedRestoreFailed,
+    RecoveryRequired,
+    Cancelled,
     UnsafeFilesystem,
 }
 
@@ -56,6 +65,10 @@ public enum GameDataRollbackStatus
     BackupInvalid,
     RollbackFailedRestoredCurrent,
     RollbackFailedRestoreFailed,
+    BackupPromotionFailedRestored,
+    BackupPromotionFailedRestoreFailed,
+    RecoveryRequired,
+    Cancelled,
     UnsafeFilesystem,
 }
 
@@ -88,6 +101,7 @@ public sealed class GameDataUpdater
     private readonly IGameDataTransport transport;
     private readonly Func<bool> isEncounterActive;
     private readonly Func<string, CancellationToken, Task> reopenAndRebuild;
+    private readonly IGameDataFileSystem fileSystem;
     private readonly SemaphoreSlim gate = new(1, 1);
     private GameDataManifest? stagedManifest;
 
@@ -99,11 +113,26 @@ public sealed class GameDataUpdater
         IGameDataTransport transport,
         Func<bool> isEncounterActive,
         Func<string, CancellationToken, Task>? reopenAndRebuild = null)
+        : this(dataDirectory, appVersion, supportedSchemaVersion, trustedPublicKeySpki, transport,
+            isEncounterActive, reopenAndRebuild, PhysicalGameDataFileSystem.Instance)
+    {
+    }
+
+    internal GameDataUpdater(
+        string dataDirectory,
+        Version appVersion,
+        uint supportedSchemaVersion,
+        ReadOnlySpan<byte> trustedPublicKeySpki,
+        IGameDataTransport transport,
+        Func<bool> isEncounterActive,
+        Func<string, CancellationToken, Task>? reopenAndRebuild,
+        IGameDataFileSystem fileSystem)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
         ArgumentNullException.ThrowIfNull(appVersion);
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(isEncounterActive);
+        ArgumentNullException.ThrowIfNull(fileSystem);
         if (supportedSchemaVersion == 0) throw new ArgumentOutOfRangeException(nameof(supportedSchemaVersion));
         if (trustedPublicKeySpki.IsEmpty) throw new ArgumentException("A trusted public key is required.", nameof(trustedPublicKeySpki));
 
@@ -121,6 +150,7 @@ public sealed class GameDataUpdater
         this.trustedPublicKeySpki = trustedPublicKeySpki.ToArray();
         this.transport = transport;
         this.isEncounterActive = isEncounterActive;
+        this.fileSystem = fileSystem;
         this.reopenAndRebuild = reopenAndRebuild ?? (async (path, cancellationToken) =>
         {
             _ = await new GameDataRepository(path, GameDataCacheLimits.Default).LoadAsync(cancellationToken)
@@ -143,6 +173,7 @@ public sealed class GameDataUpdater
             return preliminary switch
             {
                 GameDataStageStatus.InvalidSignature => new(GameDataCheckStatus.InvalidSignature),
+                GameDataStageStatus.InvalidArchiveUri => new(GameDataCheckStatus.InvalidArchiveUri, manifest),
                 GameDataStageStatus.IncompatibleMinimumAppVersion => new(GameDataCheckStatus.IncompatibleMinimumAppVersion, manifest),
                 GameDataStageStatus.IncompatibleSchemaVersion => new(GameDataCheckStatus.IncompatibleSchemaVersion, manifest),
                 GameDataStageStatus.Staged when manifest.DataVersion <= current.Value => new(GameDataCheckStatus.UpToDate, manifest),
@@ -166,13 +197,27 @@ public sealed class GameDataUpdater
     public async Task<GameDataStageResult> StageAsync(GameDataManifest manifest, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(GameDataStageStatus.Cancelled);
+        }
         try
         {
             try
             {
                 EnsureSafeDirectories();
-                CleanupTransient(includeCandidate: true);
+                RecoveryResult recovery = await ReconcileRecoveryAsync(preserveCandidate: false, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!recovery.Success) return new(GameDataStageStatus.RecoveryRequired, recovery.Detail);
+                CleanupStageTransient(includeCandidate: true);
+            }
+            catch (OperationCanceledException)
+            {
+                return new(GameDataStageStatus.Cancelled);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -258,37 +303,38 @@ public sealed class GameDataUpdater
 
     public async Task<GameDataActivationResult> ActivateWhenIdleAsync(CancellationToken cancellationToken)
     {
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (stagedManifest is null || !File.Exists(candidatePath)) return new(GameDataActivationStatus.NoStagedUpdate);
-            if (isEncounterActive()) return new(GameDataActivationStatus.DeferredEncounterActive);
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(GameDataActivationStatus.Cancelled);
+        }
+        try
+        {
             try
             {
                 EnsureSafeDirectories();
+                RecoveryResult recovery = await ReconcileRecoveryAsync(
+                    preserveCandidate: stagedManifest is not null, cancellationToken).ConfigureAwait(false);
+                if (!recovery.Success) return new(GameDataActivationStatus.RecoveryRequired, recovery.Detail);
+                if (stagedManifest is null || !fileSystem.FileExists(candidatePath))
+                    return new(GameDataActivationStatus.NoStagedUpdate);
+                if (isEncounterActive()) return new(GameDataActivationStatus.DeferredEncounterActive);
                 ValidationResult candidate = await ValidateDatabaseAsync(candidatePath, stagedManifest, cancellationToken)
                     .ConfigureAwait(false);
                 if (candidate.Status != GameDataStageStatus.Staged)
                 {
-                    CleanupTransient(includeCandidate: true);
+                    CleanupStageTransient(includeCandidate: true);
                     stagedManifest = null;
                     return new(GameDataActivationStatus.StagedDatabaseInvalid, candidate.Detail);
                 }
 
-                if (File.Exists(activePath))
-                {
-                    ValidationResult active = await ValidateDatabaseAsync(activePath, manifest: null, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (active.Status != GameDataStageStatus.Staged)
-                        return new(GameDataActivationStatus.ActiveDatabaseInvalid, active.Detail);
-                }
-
-                SafeDelete(operationBackupPath);
-                SafeDelete(failedPath);
-                if (File.Exists(activePath))
-                    File.Replace(candidatePath, activePath, operationBackupPath, ignoreMetadataErrors: true);
+                if (fileSystem.FileExists(activePath))
+                    fileSystem.ReplaceFile(candidatePath, activePath, operationBackupPath);
                 else
-                    File.Move(candidatePath, activePath);
+                    fileSystem.MoveFile(candidatePath, activePath, overwrite: false);
 
                 try
                 {
@@ -296,33 +342,29 @@ public sealed class GameDataUpdater
                 }
                 catch (Exception activationException)
                 {
-                    if (!File.Exists(operationBackupPath))
-                    {
-                        SafeDelete(activePath);
-                        stagedManifest = null;
-                        CleanupTransient(includeCandidate: true);
-                        return new(GameDataActivationStatus.ActivationFailedRolledBack, activationException.Message);
-                    }
-                    try
-                    {
-                        File.Replace(operationBackupPath, activePath, failedPath, ignoreMetadataErrors: true);
-                        SafeDelete(failedPath);
-                        await reopenAndRebuild(activePath, CancellationToken.None).ConfigureAwait(false);
-                        stagedManifest = null;
-                        CleanupTransient(includeCandidate: true);
-                        return new(GameDataActivationStatus.ActivationFailedRolledBack, activationException.Message);
-                    }
-                    catch (Exception rollbackException)
-                    {
-                        return new(GameDataActivationStatus.ActivationFailedRollbackFailed,
-                            $"Activation: {activationException.Message}; rollback: {rollbackException.Message}");
-                    }
+                    return await RestoreActivationAsync(
+                        activationException, promotionFailure: false).ConfigureAwait(false);
                 }
 
-                if (File.Exists(operationBackupPath)) File.Move(operationBackupPath, backupPath, overwrite: true);
-                CleanupTransient(includeCandidate: true);
+                if (fileSystem.FileExists(operationBackupPath))
+                {
+                    try
+                    {
+                        fileSystem.MoveFile(operationBackupPath, backupPath, overwrite: true);
+                    }
+                    catch (Exception promotionException) when (promotionException is IOException or UnauthorizedAccessException)
+                    {
+                        return await RestoreActivationAsync(
+                            promotionException, promotionFailure: true).ConfigureAwait(false);
+                    }
+                }
+                CleanupStageTransient(includeCandidate: true);
                 stagedManifest = null;
                 return new(GameDataActivationStatus.Activated);
+            }
+            catch (OperationCanceledException)
+            {
+                return new(GameDataActivationStatus.Cancelled);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -337,43 +379,53 @@ public sealed class GameDataUpdater
 
     public async Task<GameDataRollbackResult> RollbackAsync(CancellationToken cancellationToken)
     {
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (isEncounterActive()) return new(GameDataRollbackStatus.DeferredEncounterActive);
-            if (!File.Exists(backupPath)) return new(GameDataRollbackStatus.NoBackup);
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(GameDataRollbackStatus.Cancelled);
+        }
+        try
+        {
             try
             {
                 EnsureSafeDirectories();
+                RecoveryResult recovery = await ReconcileRecoveryAsync(preserveCandidate: false, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!recovery.Success) return new(GameDataRollbackStatus.RecoveryRequired, recovery.Detail);
+                if (isEncounterActive()) return new(GameDataRollbackStatus.DeferredEncounterActive);
+                if (!fileSystem.FileExists(backupPath)) return new(GameDataRollbackStatus.NoBackup);
                 ValidationResult backup = await ValidateDatabaseAsync(backupPath, manifest: null, cancellationToken)
                     .ConfigureAwait(false);
                 if (backup.Status != GameDataStageStatus.Staged)
                     return new(GameDataRollbackStatus.BackupInvalid, backup.Detail);
 
-                SafeDelete(operationBackupPath);
-                SafeDelete(failedPath);
-                File.Replace(backupPath, activePath, operationBackupPath, ignoreMetadataErrors: true);
+                fileSystem.ReplaceFile(backupPath, activePath, operationBackupPath);
                 try
                 {
                     await reopenAndRebuild(activePath, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception rollbackException)
                 {
-                    try
-                    {
-                        File.Replace(operationBackupPath, activePath, failedPath, ignoreMetadataErrors: true);
-                        File.Move(failedPath, backupPath, overwrite: true);
-                        await reopenAndRebuild(activePath, CancellationToken.None).ConfigureAwait(false);
-                        return new(GameDataRollbackStatus.RollbackFailedRestoredCurrent, rollbackException.Message);
-                    }
-                    catch (Exception restoreException)
-                    {
-                        return new(GameDataRollbackStatus.RollbackFailedRestoreFailed,
-                            $"Rollback: {rollbackException.Message}; restore: {restoreException.Message}");
-                    }
+                    return await RestoreRollbackAsync(
+                        rollbackException, promotionFailure: false).ConfigureAwait(false);
                 }
-                File.Move(operationBackupPath, backupPath, overwrite: true);
+                try
+                {
+                    fileSystem.MoveFile(operationBackupPath, backupPath, overwrite: true);
+                }
+                catch (Exception promotionException) when (promotionException is IOException or UnauthorizedAccessException)
+                {
+                    return await RestoreRollbackAsync(
+                        promotionException, promotionFailure: true).ConfigureAwait(false);
+                }
                 return new(GameDataRollbackStatus.RolledBack);
+            }
+            catch (OperationCanceledException)
+            {
+                return new(GameDataRollbackStatus.Cancelled);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -397,6 +449,7 @@ public sealed class GameDataUpdater
             return GameDataStageStatus.InvalidManifest;
         }
         if (!manifest.Verify(trustedPublicKeySpki)) return GameDataStageStatus.InvalidSignature;
+        if (manifest.ArchiveUri.Scheme != Uri.UriSchemeHttps) return GameDataStageStatus.InvalidArchiveUri;
         if (manifest.SchemaVersion != supportedSchemaVersion) return GameDataStageStatus.IncompatibleSchemaVersion;
         if (manifest.MinimumAppVersion > appVersion) return GameDataStageStatus.IncompatibleMinimumAppVersion;
         return GameDataStageStatus.Staged;
@@ -497,6 +550,9 @@ public sealed class GameDataUpdater
             string? missing = RequiredTables.FirstOrDefault(table => !tables.Contains(table));
             if (missing is not null) return new(GameDataStageStatus.RequiredTableMissing, missing);
 
+            string? schemaError = await GameDataSchemaValidator.ValidateAsync(connection, cancellationToken).ConfigureAwait(false);
+            if (schemaError is not null) return new(GameDataStageStatus.RequiredSchemaInvalid, schemaError);
+
             await using var versions = connection.CreateCommand();
             versions.CommandText = """
                 SELECT m.data_version, m.schema_version, p.version
@@ -529,14 +585,195 @@ public sealed class GameDataUpdater
         }
     }
 
+    private async Task<GameDataActivationResult> RestoreActivationAsync(Exception cause, bool promotionFailure)
+    {
+        if (!fileSystem.FileExists(operationBackupPath))
+        {
+            try
+            {
+                SafeDelete(activePath);
+                CleanupStageTransient(includeCandidate: true);
+                stagedManifest = null;
+                return new(GameDataActivationStatus.ActivationFailedRolledBack, cause.Message);
+            }
+            catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+            {
+                return new(GameDataActivationStatus.RecoveryRequired,
+                    $"Activation failed: {cause.Message}; cleanup failed: {cleanupException.Message}");
+            }
+        }
+
+        try
+        {
+            fileSystem.ReplaceFile(operationBackupPath, activePath, failedPath);
+            await reopenAndRebuild(activePath, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception restoreException)
+        {
+            return new(
+                promotionFailure
+                    ? GameDataActivationStatus.BackupPromotionFailedRestoreFailed
+                    : GameDataActivationStatus.ActivationFailedRollbackFailed,
+                $"Cause: {cause.Message}; restore: {restoreException.Message}");
+        }
+
+        try
+        {
+            SafeDelete(failedPath);
+            CleanupStageTransient(includeCandidate: true);
+            stagedManifest = null;
+        }
+        catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+        {
+            return new(GameDataActivationStatus.RecoveryRequired,
+                $"Database restored but recovery cleanup failed: {cleanupException.Message}");
+        }
+        return new(
+            promotionFailure
+                ? GameDataActivationStatus.BackupPromotionFailedRolledBack
+                : GameDataActivationStatus.ActivationFailedRolledBack,
+            cause.Message);
+    }
+
+    private async Task<GameDataRollbackResult> RestoreRollbackAsync(Exception cause, bool promotionFailure)
+    {
+        try
+        {
+            fileSystem.ReplaceFile(operationBackupPath, activePath, failedPath);
+            await reopenAndRebuild(activePath, CancellationToken.None).ConfigureAwait(false);
+            fileSystem.MoveFile(failedPath, backupPath, overwrite: true);
+        }
+        catch (Exception restoreException)
+        {
+            return new(
+                promotionFailure
+                    ? GameDataRollbackStatus.BackupPromotionFailedRestoreFailed
+                    : GameDataRollbackStatus.RollbackFailedRestoreFailed,
+                $"Cause: {cause.Message}; restore: {restoreException.Message}");
+        }
+        return new(
+            promotionFailure
+                ? GameDataRollbackStatus.BackupPromotionFailedRestored
+                : GameDataRollbackStatus.RollbackFailedRestoredCurrent,
+            cause.Message);
+    }
+
+    private async Task<RecoveryResult> ReconcileRecoveryAsync(
+        bool preserveCandidate,
+        CancellationToken cancellationToken)
+    {
+        bool activeExists = fileSystem.FileExists(activePath);
+        bool activeValid = activeExists && await ValidateAndReopenAsync(activePath, cancellationToken).ConfigureAwait(false);
+
+        if (fileSystem.FileExists(operationBackupPath))
+        {
+            bool operationValid = (await ValidateDatabaseAsync(operationBackupPath, manifest: null, cancellationToken)
+                .ConfigureAwait(false)).Status == GameDataStageStatus.Staged;
+            if (activeValid)
+            {
+                try
+                {
+                    if (operationValid) fileSystem.MoveFile(operationBackupPath, backupPath, overwrite: true);
+                    else SafeDelete(operationBackupPath);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    return new(false, $"Could not promote interrupted operation backup: {exception.Message}");
+                }
+            }
+            else if (operationValid)
+            {
+                try
+                {
+                    if (activeExists) fileSystem.ReplaceFile(operationBackupPath, activePath, failedPath);
+                    else fileSystem.MoveFile(operationBackupPath, activePath, overwrite: false);
+                    activeExists = true;
+                    activeValid = await ValidateAndReopenAsync(activePath, cancellationToken).ConfigureAwait(false);
+                    if (!activeValid) return new(false, "Restored operation backup could not be reopened.");
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    return new(false, $"Could not restore interrupted operation backup: {exception.Message}");
+                }
+            }
+            else
+            {
+                return new(false, "Neither active database nor interrupted operation backup is valid.");
+            }
+        }
+
+        if (fileSystem.FileExists(failedPath))
+        {
+            bool failedValid = (await ValidateDatabaseAsync(failedPath, manifest: null, cancellationToken)
+                .ConfigureAwait(false)).Status == GameDataStageStatus.Staged;
+            try
+            {
+                if (activeValid && failedValid && !fileSystem.FileExists(backupPath))
+                    fileSystem.MoveFile(failedPath, backupPath, overwrite: false);
+                else if (activeValid || (!activeExists && !failedValid))
+                    SafeDelete(failedPath);
+                else if (!activeValid && failedValid)
+                {
+                    if (activeExists) fileSystem.ReplaceFile(failedPath, activePath, operationBackupPath);
+                    else fileSystem.MoveFile(failedPath, activePath, overwrite: false);
+                    activeExists = true;
+                    activeValid = await ValidateAndReopenAsync(activePath, cancellationToken).ConfigureAwait(false);
+                    if (!activeValid) return new(false, "Fallback recovery database could not be reopened.");
+                }
+                else return new(false, "Interrupted recovery state is inconsistent.");
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return new(false, $"Could not reconcile interrupted recovery file: {exception.Message}");
+            }
+        }
+
+        bool consistent = activeValid || !activeExists;
+        if (!consistent) return new(false, "Active database is invalid and no valid recovery database exists.");
+        try
+        {
+            SafeDelete(partPath);
+            if (!preserveCandidate)
+            {
+                SafeDelete(candidatePath);
+                stagedManifest = null;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new(false, $"Could not clean reconciled transient state: {exception.Message}");
+        }
+        return new(true);
+    }
+
+    private async Task<bool> ValidateAndReopenAsync(string path, CancellationToken cancellationToken)
+    {
+        ValidationResult validation = await ValidateDatabaseAsync(path, manifest: null, cancellationToken)
+            .ConfigureAwait(false);
+        if (validation.Status != GameDataStageStatus.Staged) return false;
+        try
+        {
+            await reopenAndRebuild(path, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private void EnsureSafeDirectories()
     {
         EnsureNoReparseAncestors(dataDirectory);
-        Directory.CreateDirectory(dataDirectory);
+        fileSystem.CreateDirectory(dataDirectory);
         EnsureNotReparsePoint(dataDirectory);
-        Directory.CreateDirectory(updateDirectory);
+        fileSystem.CreateDirectory(updateDirectory);
         EnsureNotReparsePoint(updateDirectory);
-        Directory.CreateDirectory(backupDirectory);
+        fileSystem.CreateDirectory(backupDirectory);
         EnsureNotReparsePoint(backupDirectory);
         EnsureSafeFile(activePath);
         EnsureSafeFile(partPath);
@@ -546,9 +783,9 @@ public sealed class GameDataUpdater
         EnsureSafeFile(failedPath);
     }
 
-    private static void EnsureNotReparsePoint(string path)
+    private void EnsureNotReparsePoint(string path)
     {
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        if ((fileSystem.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new IOException($"Updater directory is a reparse point: {path}");
     }
 
@@ -562,31 +799,37 @@ public sealed class GameDataUpdater
         }
     }
 
-    private static void EnsureSafeFile(string path)
+    private void EnsureSafeFile(string path)
     {
-        if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        if (fileSystem.FileExists(path) && (fileSystem.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new IOException($"Updater file is a reparse point: {path}");
     }
 
-    private void CleanupTransient(bool includeCandidate)
+    private void CleanupStageTransient(bool includeCandidate)
     {
         SafeDelete(partPath);
         if (includeCandidate) SafeDelete(candidatePath);
-        SafeDelete(operationBackupPath);
-        SafeDelete(failedPath);
         if (includeCandidate) stagedManifest = null;
     }
 
     private GameDataStageResult CleanupAndReturn(GameDataStageStatus status, string? detail = null)
     {
-        CleanupTransient(includeCandidate: true);
-        return new(status, detail);
+        try
+        {
+            CleanupStageTransient(includeCandidate: true);
+            return new(status, detail);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new(GameDataStageStatus.CleanupFailed,
+                $"Original status {status}; cleanup: {exception.Message}");
+        }
     }
 
-    private static void SafeDelete(string path)
+    private void SafeDelete(string path)
     {
         EnsureSafeFile(path);
-        if (File.Exists(path)) File.Delete(path);
+        if (fileSystem.FileExists(path)) fileSystem.DeleteFile(path);
     }
 
     private static async Task<byte[]> ReadBoundedAsync(Stream stream, int maximumBytes, CancellationToken cancellationToken)
@@ -611,6 +854,7 @@ public sealed class GameDataUpdater
     }
 
     private sealed record ValidationResult(GameDataStageStatus Status, string? Detail = null);
+    private sealed record RecoveryResult(bool Success, string? Detail = null);
 
     private sealed class StageValidationException(GameDataStageStatus status) : Exception
     {
