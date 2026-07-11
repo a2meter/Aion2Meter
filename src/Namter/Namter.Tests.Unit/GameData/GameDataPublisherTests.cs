@@ -298,6 +298,37 @@ public sealed class GameDataPublisherTests
     }
 
     [Fact]
+    public async Task CleanupAttemptsLaterPathsAfterFirstDeletionFailure()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+        string? snapshot = null;
+        var hooks = new PublisherTestHooks
+        {
+            SnapshotCaptured = path =>
+            {
+                snapshot = path;
+                return Task.CompletedTask;
+            },
+        };
+        var fileSystem = new PublisherFaultingFileSystem
+        {
+            Fail = (operation, source, destination) =>
+                (operation == nameof(IGameDataFileSystem.MoveFile)
+                    && destination == Path.Combine(fixture.Output, "manifest.json"))
+                || (operation == nameof(IGameDataFileSystem.DeleteFile)
+                    && Path.GetFileName(source).StartsWith(".manifest.json.", StringComparison.Ordinal)
+                    && source.EndsWith(".part", StringComparison.Ordinal)),
+        };
+
+        PublishResult result = await GameDataPublisher.PublishAsync(fixture.Options, fileSystem, default, hooks);
+
+        Assert.Equal(PublishStatus.CleanupFailed, result.Status);
+        Assert.NotNull(snapshot);
+        Assert.False(File.Exists(snapshot));
+        Assert.NotEmpty(Directory.EnumerateFiles(fixture.Output, ".manifest.json.*.part"));
+    }
+
+    [Fact]
     public async Task InvalidPathIsMappedToResultInsteadOfEscaping()
     {
         using var fixture = await PublisherFixture.CreateAsync();

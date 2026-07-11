@@ -355,6 +355,28 @@ public sealed class GameDataUpdaterTests
     }
 
     [Fact]
+    public async Task ActivationRejectsCorruptCurrentDatabaseWithoutChangingAnyTransactionPath()
+    {
+        using var fixture = await UpdateFixture.CreateAsync();
+        byte[] version2 = await fixture.CreateDatabaseAsync(2);
+        await fixture.StageAsync(version2, 2);
+        byte[] candidate = await File.ReadAllBytesAsync(fixture.CandidatePath);
+        byte[] corruptActive = "corrupt-active"u8.ToArray();
+        byte[] existingBackup = "existing-backup"u8.ToArray();
+        await File.WriteAllBytesAsync(fixture.ActivePath, corruptActive);
+        await File.WriteAllBytesAsync(fixture.BackupPath, existingBackup);
+
+        GameDataActivationResult result = await fixture.Updater.ActivateWhenIdleAsync(default);
+
+        Assert.Equal(GameDataActivationStatus.ActiveDatabaseInvalid, result.Status);
+        Assert.Equal(corruptActive, await File.ReadAllBytesAsync(fixture.ActivePath));
+        Assert.Equal(candidate, await File.ReadAllBytesAsync(fixture.CandidatePath));
+        Assert.Equal(existingBackup, await File.ReadAllBytesAsync(fixture.BackupPath));
+        Assert.False(File.Exists(fixture.OperationBackupPath));
+        Assert.False(File.Exists(fixture.FailedPath));
+    }
+
+    [Fact]
     public async Task FailedReopenRollsBackToByteIdenticalActiveDatabase()
     {
         using var fixture = await UpdateFixture.CreateAsync(failReopenForVersion: 2);

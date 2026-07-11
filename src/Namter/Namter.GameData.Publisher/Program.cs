@@ -96,16 +96,21 @@ public static class GameDataPublisher
             result = new(PublishStatus.Failed, exception.Message);
         }
 
-        try
+        var cleanupFailures = new List<Exception>();
+        foreach (string path in work.CleanupPaths)
         {
-            foreach (string path in work.CleanupPaths) DeleteRegularTemporary(fileSystem, path);
+            try
+            {
+                DeleteRegularTemporary(fileSystem, path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                cleanupFailures.Add(exception);
+            }
         }
-        catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
-        {
-            return result.Status == PublishStatus.RecoveryRequired
-                ? result
-                : new(PublishStatus.CleanupFailed, cleanupException.Message);
-        }
+        if (cleanupFailures.Count != 0 && result.Status != PublishStatus.RecoveryRequired)
+            return new(PublishStatus.CleanupFailed,
+                $"{cleanupFailures.Count} publication cleanup path(s) failed.");
         return result;
     }
 

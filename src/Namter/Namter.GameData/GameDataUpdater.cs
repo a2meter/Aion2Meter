@@ -335,6 +335,14 @@ public sealed class GameDataUpdater
                 }
 
                 if (fileSystem.FileExists(activePath))
+                {
+                    ValidationResult active = await ValidateDatabaseAsync(activePath, manifest: null, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (active.Status != GameDataStageStatus.Staged)
+                        return new(GameDataActivationStatus.ActiveDatabaseInvalid, active.Detail);
+                }
+
+                if (fileSystem.FileExists(activePath))
                     fileSystem.ReplaceFile(candidatePath, activePath, operationBackupPath);
                 else
                     fileSystem.MoveFile(candidatePath, activePath, overwrite: false);
@@ -818,9 +826,24 @@ public sealed class GameDataUpdater
 
     private void CleanupStageTransient(bool includeCandidate)
     {
-        SafeDelete(partPath);
-        if (includeCandidate) SafeDelete(candidatePath);
+        var failures = new List<Exception>();
+        TryDelete(partPath, failures);
+        if (includeCandidate) TryDelete(candidatePath, failures);
         if (includeCandidate) stagedManifest = null;
+        if (failures.Count != 0)
+            throw new IOException("One or more game-data transient files could not be removed.", new AggregateException(failures));
+    }
+
+    private void TryDelete(string path, List<Exception> failures)
+    {
+        try
+        {
+            SafeDelete(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            failures.Add(exception);
+        }
     }
 
     private GameDataStageResult CleanupAndReturn(GameDataStageStatus status, string? detail = null)
