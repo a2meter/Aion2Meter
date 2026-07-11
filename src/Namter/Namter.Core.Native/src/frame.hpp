@@ -63,6 +63,7 @@ struct FrameMetrics {
 struct ProtocolMessage {
     FlowTuple flow;
     uint64_t epoch = 0;
+    uint64_t stream_message_id = 0;
     std::vector<uint8_t> bytes;
     CaptureProvenance first_provenance;
     CaptureProvenance last_provenance;

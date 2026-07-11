@@ -101,6 +101,7 @@ struct IncrementalFramer::Impl {
     bool has_epoch = false;
     FlowTuple flow;
     uint64_t epoch = 0;
+    uint64_t next_stream_message_id = 1;
     std::array<uint8_t, 5> length_bytes{};
     std::array<CaptureProvenance, 5> length_provenance{};
     size_t length_size = 0;
@@ -137,6 +138,7 @@ struct IncrementalFramer::Impl {
         resync_scan_cursor = 0;
         resync_waiting = false;
         has_epoch = false;
+        next_stream_message_id = 1;
     }
 
     void begin_epoch(const StreamChunk& chunk) {
@@ -146,6 +148,10 @@ struct IncrementalFramer::Impl {
             epoch = chunk.epoch;
             has_epoch = true;
         }
+    }
+
+    void assign_message_ids(std::vector<ProtocolMessage>& messages) noexcept {
+        for (auto& message : messages) message.stream_message_id = next_stream_message_id++;
     }
 
     FrameDiagnostic diagnostic(
@@ -536,6 +542,7 @@ struct IncrementalFramer::Impl {
                     append_resync(bytes.subspan(offset), provenance);
                     break;
                 }
+                assign_message_ids(decoded_messages);
                 outputs.insert(
                     outputs.end(),
                     std::make_move_iterator(decoded_messages.begin()),
@@ -689,6 +696,7 @@ struct IncrementalFramer::Impl {
                 continue;
             }
 
+            assign_message_ids(decoded_messages);
             outputs.insert(
                 outputs.end(),
                 std::make_move_iterator(decoded_messages.begin()),

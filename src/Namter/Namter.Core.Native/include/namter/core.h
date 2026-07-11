@@ -41,6 +41,18 @@ typedef enum nm_source_kind {
 
 typedef enum nm_event_kind {
     NM_EVENT_SOURCE_STARTED = 1,
+    NM_EVENT_DAMAGE = 2,
+    NM_EVENT_DOT = 3,
+    NM_EVENT_BUFF = 4,
+    NM_EVENT_SELF_ACTOR = 5,
+    NM_EVENT_OTHER_ACTOR = 6,
+    NM_EVENT_MOB_SPAWN = 7,
+    NM_EVENT_BOSS_HP = 8,
+    NM_EVENT_ENTITY_REMOVED = 9,
+    NM_EVENT_PARTY = 10,
+    NM_EVENT_CONTENT = 11,
+    NM_EVENT_COMBAT_STATE = 12,
+    NM_EVENT_UNKNOWN_PROTOCOL = 13,
 } nm_event_kind;
 
 typedef enum nm_diagnostic_code {
@@ -51,6 +63,44 @@ typedef struct nm_event_v1 {
     uint32_t abi_version;
     uint32_t struct_size;
     uint32_t kind;
+    uint32_t reserved;
+    uint64_t first_timestamp_ns;
+    uint64_t last_timestamp_ns;
+    uint64_t epoch;
+    uint64_t first_file_offset;
+    uint64_t last_file_offset;
+    uint32_t source_address;
+    uint32_t destination_address;
+    uint16_t source_port;
+    uint16_t destination_port;
+    uint32_t actor_id;
+    uint32_t target_id;
+    uint32_t owner_id;
+    uint32_t skill_id;
+    uint32_t buff_id;
+    uint32_t mob_id;
+    uint32_t boss_id;
+    uint32_t content_id;
+    uint32_t dungeon_id;
+    uint32_t party_id;
+    uint16_t server_id;
+    uint16_t job_id;
+    uint64_t damage;
+    uint64_t multi_damage;
+    uint64_t healing;
+    uint64_t current_hp;
+    uint64_t max_hp;
+    uint32_t special_mask;
+    uint32_t duration_ms;
+    uint8_t state;
+    uint8_t action;
+    uint8_t damage_type;
+    uint8_t is_dot;
+    uint8_t is_self;
+    uint8_t is_boss;
+    uint16_t flags_reserved;
+    const uint8_t* name;
+    size_t name_size;
     const uint8_t* payload;
     size_t payload_size;
 } nm_event_v1;

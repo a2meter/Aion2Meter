@@ -28,6 +28,18 @@ public enum NativeSourceKind : uint
 public enum NativeEventKind : uint
 {
     SourceStarted = 1,
+    Damage = 2,
+    Dot = 3,
+    Buff = 4,
+    SelfActor = 5,
+    OtherActor = 6,
+    MobSpawn = 7,
+    BossHp = 8,
+    EntityRemoved = 9,
+    Party = 10,
+    Content = 11,
+    CombatState = 12,
+    UnknownProtocol = 13,
 }
 
 public enum NativeDiagnosticCode : uint
@@ -42,7 +54,49 @@ public sealed record NativeCoreConfig(
     uint MaxFrameBytes = 1_048_576,
     uint MaxDecompressedBytes = 4_194_304);
 
-public sealed record NativeEvent(NativeEventKind Kind, ImmutableArray<byte> Payload);
+public sealed record NativeEvent
+{
+    public NativeEvent() { }
+    public NativeEvent(NativeEventKind kind, ImmutableArray<byte> payload) { Kind = kind; Payload = payload; }
+
+    public NativeEventKind Kind { get; init; }
+    public ulong FirstTimestampNs { get; init; }
+    public ulong LastTimestampNs { get; init; }
+    public ulong Epoch { get; init; }
+    public ulong FirstFileOffset { get; init; }
+    public ulong LastFileOffset { get; init; }
+    public uint SourceAddress { get; init; }
+    public uint DestinationAddress { get; init; }
+    public ushort SourcePort { get; init; }
+    public ushort DestinationPort { get; init; }
+    public uint ActorId { get; init; }
+    public uint TargetId { get; init; }
+    public uint OwnerId { get; init; }
+    public uint SkillId { get; init; }
+    public uint BuffId { get; init; }
+    public uint MobId { get; init; }
+    public uint BossId { get; init; }
+    public uint ContentId { get; init; }
+    public uint DungeonId { get; init; }
+    public uint PartyId { get; init; }
+    public ushort ServerId { get; init; }
+    public ushort JobId { get; init; }
+    public ulong Damage { get; init; }
+    public ulong MultiDamage { get; init; }
+    public ulong Healing { get; init; }
+    public ulong CurrentHp { get; init; }
+    public ulong MaxHp { get; init; }
+    public uint SpecialMask { get; init; }
+    public uint DurationMs { get; init; }
+    public byte State { get; init; }
+    public byte Action { get; init; }
+    public byte DamageType { get; init; }
+    public bool IsDot { get; init; }
+    public bool IsSelf { get; init; }
+    public bool IsBoss { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public ImmutableArray<byte> Payload { get; init; } = ImmutableArray<byte>.Empty;
+}
 
 public sealed record NativeDiagnostic(NativeDiagnosticCode Code, string Message);
 
@@ -99,6 +153,44 @@ internal struct NativeEventV1
     internal uint AbiVersion;
     internal uint StructSize;
     internal NativeEventKind Kind;
+    internal uint Reserved;
+    internal ulong FirstTimestampNs;
+    internal ulong LastTimestampNs;
+    internal ulong Epoch;
+    internal ulong FirstFileOffset;
+    internal ulong LastFileOffset;
+    internal uint SourceAddress;
+    internal uint DestinationAddress;
+    internal ushort SourcePort;
+    internal ushort DestinationPort;
+    internal uint ActorId;
+    internal uint TargetId;
+    internal uint OwnerId;
+    internal uint SkillId;
+    internal uint BuffId;
+    internal uint MobId;
+    internal uint BossId;
+    internal uint ContentId;
+    internal uint DungeonId;
+    internal uint PartyId;
+    internal ushort ServerId;
+    internal ushort JobId;
+    internal ulong Damage;
+    internal ulong MultiDamage;
+    internal ulong Healing;
+    internal ulong CurrentHp;
+    internal ulong MaxHp;
+    internal uint SpecialMask;
+    internal uint DurationMs;
+    internal byte State;
+    internal byte Action;
+    internal byte DamageType;
+    internal byte IsDot;
+    internal byte IsSelf;
+    internal byte IsBoss;
+    internal ushort FlagsReserved;
+    internal nint Name;
+    internal nuint NameSize;
     internal nint Payload;
     internal nuint PayloadSize;
 }

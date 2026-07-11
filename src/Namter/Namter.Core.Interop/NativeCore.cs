@@ -206,8 +206,48 @@ public sealed class NativeCore : IAsyncDisposable
                 throw new InvalidOperationException("The native event record has an incompatible layout.");
             }
 
+            var nameBytes = CopyBytes(nativeEvent->Name, nativeEvent->NameSize);
             var payload = CopyBytes(nativeEvent->Payload, nativeEvent->PayloadSize);
-            state.EventCallback?.Invoke(new NativeEvent(nativeEvent->Kind, payload));
+            state.EventCallback?.Invoke(new NativeEvent
+            {
+                Kind = nativeEvent->Kind,
+                FirstTimestampNs = nativeEvent->FirstTimestampNs,
+                LastTimestampNs = nativeEvent->LastTimestampNs,
+                Epoch = nativeEvent->Epoch,
+                FirstFileOffset = nativeEvent->FirstFileOffset,
+                LastFileOffset = nativeEvent->LastFileOffset,
+                SourceAddress = nativeEvent->SourceAddress,
+                DestinationAddress = nativeEvent->DestinationAddress,
+                SourcePort = nativeEvent->SourcePort,
+                DestinationPort = nativeEvent->DestinationPort,
+                ActorId = nativeEvent->ActorId,
+                TargetId = nativeEvent->TargetId,
+                OwnerId = nativeEvent->OwnerId,
+                SkillId = nativeEvent->SkillId,
+                BuffId = nativeEvent->BuffId,
+                MobId = nativeEvent->MobId,
+                BossId = nativeEvent->BossId,
+                ContentId = nativeEvent->ContentId,
+                DungeonId = nativeEvent->DungeonId,
+                PartyId = nativeEvent->PartyId,
+                ServerId = nativeEvent->ServerId,
+                JobId = nativeEvent->JobId,
+                Damage = nativeEvent->Damage,
+                MultiDamage = nativeEvent->MultiDamage,
+                Healing = nativeEvent->Healing,
+                CurrentHp = nativeEvent->CurrentHp,
+                MaxHp = nativeEvent->MaxHp,
+                SpecialMask = nativeEvent->SpecialMask,
+                DurationMs = nativeEvent->DurationMs,
+                State = nativeEvent->State,
+                Action = nativeEvent->Action,
+                DamageType = nativeEvent->DamageType,
+                IsDot = nativeEvent->IsDot != 0,
+                IsSelf = nativeEvent->IsSelf != 0,
+                IsBoss = nativeEvent->IsBoss != 0,
+                Name = Encoding.UTF8.GetString(nameBytes.AsSpan()),
+                Payload = payload,
+            });
         }
         catch (Exception exception)
         {
