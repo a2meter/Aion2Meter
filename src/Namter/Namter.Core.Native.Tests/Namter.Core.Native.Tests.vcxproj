@@ -70,6 +70,7 @@
     <ClCompile Include="..\Namter.Core.Native\src\lz4.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\packet.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\pcap.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\protocol_snapshot.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\protocol.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\tcp.cpp" />
     <ClCompile Include="src\abi_tests.cpp" />
@@ -79,6 +80,7 @@
     <ClCompile Include="src\packet_tests.cpp" />
     <ClCompile Include="src\pcap_tests.cpp" />
     <ClCompile Include="src\protocol_tests.cpp" />
+    <ClCompile Include="src\protocol_snapshot_descriptor_tests.cpp" />
     <ClCompile Include="src\protocol_snapshot_tests.cpp" />
     <ClCompile Include="src\tcp_tests.cpp" />
   </ItemGroup>

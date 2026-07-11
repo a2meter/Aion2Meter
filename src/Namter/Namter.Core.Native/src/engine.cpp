@@ -10,7 +10,7 @@ struct nm_core_handle {
     nm_core_config_v1 config{};
     nm_callbacks_v1 callbacks{};
     std::mutex mutex;
-    std::vector<uint8_t> protocol_snapshot;
+    namter::ProtocolSnapshotStore protocol_snapshot;
     bool started = false;
     uint64_t start_count = 0;
     uint64_t stop_count = 0;
@@ -101,17 +101,14 @@ nm_status NM_CALL nm_core_set_protocol_snapshot(
         size > NM_CORE_PROTOCOL_SNAPSHOT_MAX) {
         return NM_STATUS_INVALID_ARGUMENT;
     }
-    if (!namter::validate_protocol_snapshot_v1({data, size})) {
-        return NM_STATUS_INVALID_ARGUMENT;
-    }
-
     try {
         std::scoped_lock lock(handle->mutex);
         if (handle->started) {
             return NM_STATUS_INVALID_STATE;
         }
-        handle->protocol_snapshot.assign(data, data + size);
-        return NM_STATUS_OK;
+        return handle->protocol_snapshot.replace({data, size})
+                   ? NM_STATUS_OK
+                   : NM_STATUS_INVALID_ARGUMENT;
     } catch (...) {
         return NM_STATUS_INTERNAL_ERROR;
     }

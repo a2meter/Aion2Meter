@@ -109,26 +109,79 @@ std::vector<Field> all_fields() {
     };
 }
 
-std::vector<uint8_t> snapshot(std::vector<Opcode> opcodes, std::vector<Field> fields = all_fields()) {
+std::vector<Field> fields_for(uint16_t opcode_kind) {
+    auto fields = all_fields();
+    const auto keep = [opcode_kind](uint16_t kind) {
+        using enum namter::ProtocolFieldKind;
+        switch (opcode_kind) {
+            case 1: case 2: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(target_id) ||
+                kind == static_cast<uint16_t>(skill_id) || kind == static_cast<uint16_t>(damage) ||
+                kind == static_cast<uint16_t>(multi_damage) || kind == static_cast<uint16_t>(healing) ||
+                kind == static_cast<uint16_t>(special_mask) || kind == static_cast<uint16_t>(damage_type) ||
+                kind == static_cast<uint16_t>(is_dot);
+            case 3: case 4: return kind == static_cast<uint16_t>(owner_id) || kind == static_cast<uint16_t>(target_id) ||
+                kind == static_cast<uint16_t>(buff_id) || kind == static_cast<uint16_t>(duration_ms) || kind == static_cast<uint16_t>(action);
+            case 5: case 6: case 11: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(owner_id) ||
+                kind == static_cast<uint16_t>(server_id) || kind == static_cast<uint16_t>(job_id) ||
+                kind == static_cast<uint16_t>(is_self) || kind == static_cast<uint16_t>(name);
+            case 7: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(owner_id) ||
+                kind == static_cast<uint16_t>(mob_id) || kind == static_cast<uint16_t>(boss_id) ||
+                kind == static_cast<uint16_t>(current_hp) || kind == static_cast<uint16_t>(max_hp) ||
+                kind == static_cast<uint16_t>(is_boss) || kind == static_cast<uint16_t>(name);
+            case 8: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(boss_id) ||
+                kind == static_cast<uint16_t>(current_hp) || kind == static_cast<uint16_t>(max_hp);
+            case 10: return kind == static_cast<uint16_t>(actor_id);
+            case 101: case 102: case 104: case 105: case 106: case 107: case 108:
+                return kind == static_cast<uint16_t>(party_id) || kind == static_cast<uint16_t>(actor_id) ||
+                    kind == static_cast<uint16_t>(content_id) || kind == static_cast<uint16_t>(dungeon_id) ||
+                    kind == static_cast<uint16_t>(action) || kind == static_cast<uint16_t>(name);
+            case 103: case 201: return kind == static_cast<uint16_t>(content_id) || kind == static_cast<uint16_t>(dungeon_id) ||
+                kind == static_cast<uint16_t>(state) || kind == static_cast<uint16_t>(name);
+            case 202: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(state);
+            default: return false;
+        }
+    };
+    std::erase_if(fields, [&](const Field& field) { return !keep(field.kind); });
+    return fields;
+}
+
+std::vector<uint8_t> snapshot_with_layouts(
+    std::vector<Opcode> opcodes,
+    const std::vector<std::vector<Field>>& layouts) {
     std::vector<uint8_t> bytes{'N', 'M', 'P', 'S'};
     append_u16(bytes, 1); append_u16(bytes, 28); append_u32(bytes, 0); append_u32(bytes, 0);
     append_u64(bytes, 7); append_u32(bytes, 3);
     append_u16(bytes, 3); bytes.insert(bytes.end(), {0x06, 0x00, 0x36});
     append_u16(bytes, 1); append_u16(bytes, 13328);
     append_u32(bytes, static_cast<uint32_t>(opcodes.size()));
-    for (const auto& opcode : opcodes) {
+    for (size_t index = 0; index < opcodes.size(); ++index) {
+        const auto& opcode = opcodes[index];
         append_u16(bytes, opcode.kind); append_u16(bytes, static_cast<uint16_t>(opcode.tag.size()));
-        bytes.insert(bytes.end(), opcode.tag.begin(), opcode.tag.end()); append_u32(bytes, opcode.layout);
+        bytes.insert(bytes.end(), opcode.tag.begin(), opcode.tag.end()); append_u32(bytes, static_cast<uint32_t>(index + 1u));
     }
-    append_u32(bytes, 1); append_u32(bytes, 1); append_u32(bytes, 128);
-    append_u16(bytes, static_cast<uint16_t>(fields.size())); append_u16(bytes, 0);
-    for (const auto& field : fields) {
-        append_u16(bytes, field.kind); append_u16(bytes, field.flags); append_u32(bytes, field.offset);
-        append_u32(bytes, field.size); append_u32(bytes, field.max_count);
+    append_u32(bytes, static_cast<uint32_t>(layouts.size()));
+    for (size_t index = 0; index < layouts.size(); ++index) {
+        append_u32(bytes, static_cast<uint32_t>(index + 1u)); append_u32(bytes, 128);
+        append_u16(bytes, static_cast<uint16_t>(layouts[index].size())); append_u16(bytes, 0);
+        for (const auto& field : layouts[index]) {
+            append_u16(bytes, field.kind); append_u16(bytes, field.flags); append_u32(bytes, field.offset);
+            append_u32(bytes, field.size); append_u32(bytes, field.max_count);
+        }
     }
     write_u32(bytes, 8, static_cast<uint32_t>(bytes.size()));
     write_u32(bytes, 12, crc32(bytes));
     return bytes;
+}
+
+std::vector<uint8_t> snapshot(std::vector<Opcode> opcodes) {
+    std::vector<std::vector<Field>> layouts;
+    layouts.reserve(opcodes.size());
+    for (const auto& opcode : opcodes) layouts.push_back(fields_for(opcode.kind));
+    return snapshot_with_layouts(std::move(opcodes), layouts);
+}
+
+std::vector<uint8_t> snapshot(std::vector<Opcode> opcodes, std::vector<Field> fields) {
+    return snapshot_with_layouts(std::move(opcodes), {std::move(fields)});
 }
 
 std::vector<uint8_t> payload() {
@@ -172,6 +225,44 @@ ProtocolMessage message(uint8_t tag, uint64_t file_offset = 400) {
 DecodedEvent only_event(std::vector<namter::ProtocolDecodeOutput> outputs) {
     EXPECT_EQ(outputs.size(), 1u);
     return std::move(std::get<DecodedEvent>(outputs.front()));
+}
+
+DecodedEvent decode_real_fixture(
+    uint16_t kind,
+    std::vector<uint8_t> tag,
+    const std::vector<Field>& fields,
+    const std::vector<uint8_t>& frame,
+    uint64_t file_offset) {
+    ProtocolDecoder decoder(snapshot({{kind, std::move(tag), 1}}, fields));
+    auto value = message(0x11, file_offset);
+    value.bytes = frame;
+    return only_event(decoder.decode(value));
+}
+
+void expect_real_fixture_boundaries(
+    uint16_t kind,
+    const std::vector<uint8_t>& tag,
+    const std::vector<Field>& fields,
+    const std::vector<uint8_t>& frame) {
+    auto complete = message(0x11);
+    complete.bytes = frame;
+    for (size_t size = 0; size < frame.size(); ++size) {
+        ProtocolDecoder decoder(snapshot({{kind, tag, 1}}, fields));
+        auto truncated = complete;
+        truncated.bytes.resize(size);
+        const auto outputs = decoder.decode(truncated);
+        ASSERT_EQ(outputs.size(), 1u) << size;
+        EXPECT_TRUE(std::holds_alternative<namter::ProtocolDecodeDiagnostic>(outputs.front())) << size;
+    }
+    for (const uint8_t mutated : {uint8_t{0}, static_cast<uint8_t>(frame.front() - 1u),
+                                  static_cast<uint8_t>(frame.front() + 1u), uint8_t{0x80}}) {
+        ProtocolDecoder decoder(snapshot({{kind, tag, 1}}, fields));
+        auto value = complete;
+        value.bytes[0] = mutated;
+        const auto outputs = decoder.decode(value);
+        ASSERT_EQ(outputs.size(), 1u);
+        EXPECT_TRUE(std::holds_alternative<namter::ProtocolDecodeDiagnostic>(outputs.front()));
+    }
 }
 
 TEST(ProtocolDecoder, DecodesClosedEventKindsWithEveryFieldAndProvenance) {
@@ -235,6 +326,30 @@ TEST(ProtocolDecoder, UnknownTagsBecomeBoundedUnknownEvents) {
     EXPECT_EQ(std::vector<uint8_t>(event.payload, event.payload + event.payload_size), unknown.bytes);
 }
 
+TEST(ProtocolDecoder, OversizedUnknownRetainsExactly512BytesAndAllProvenance) {
+    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
+    auto unknown = message(0x7f);
+    unknown.stream_message_id = 77;
+    unknown.bytes.resize(900, 0x5a);
+    unknown.bytes[0] = 0x86;
+    unknown.bytes[1] = 0x07;
+
+    const auto owner = only_event(decoder.decode(unknown));
+    const auto event = owner.view();
+
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_UNKNOWN_PROTOCOL));
+    EXPECT_EQ(event.payload_size, 512u);
+    EXPECT_EQ(event.first_timestamp_ns, 300u);
+    EXPECT_EQ(event.last_timestamp_ns, 301u);
+    EXPECT_EQ(event.epoch, 9u);
+    EXPECT_EQ(event.first_file_offset, 400u);
+    EXPECT_EQ(event.last_file_offset, 400u);
+    EXPECT_EQ(event.source_address, 1u);
+    EXPECT_EQ(event.destination_address, 2u);
+    EXPECT_EQ(event.source_port, 13328u);
+    EXPECT_EQ(event.destination_port, 50000u);
+}
+
 TEST(ProtocolDecoder, MatchesKnownTagsAfterTheActiveSnapshotMagicAndOptionalMarker) {
     ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
     auto bytes = payload();
@@ -254,14 +369,7 @@ TEST(ProtocolDecoder, MatchesKnownTagsAfterTheActiveSnapshotMagicAndOptionalMark
 TEST(ProtocolDecoder, KnownInvalidLayoutsEmitOneDiagnosticAndNoPartialTypedEvent) {
     auto fields = all_fields();
     std::erase_if(fields, [](const Field& field) { return field.kind == static_cast<uint16_t>(namter::ProtocolFieldKind::damage); });
-    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}, fields));
-
-    const auto outputs = decoder.decode(message(0x11));
-
-    ASSERT_EQ(outputs.size(), 1u);
-    const auto& diagnostic = std::get<namter::ProtocolDecodeDiagnostic>(outputs.front());
-    EXPECT_EQ(diagnostic.code, DecodeDiagnosticCode::invalid_layout);
-    EXPECT_EQ(diagnostic.first_file_offset, 400u);
+    EXPECT_THROW((void)ProtocolDecoder(snapshot({{1, {0x11}, 1}}, fields)), std::invalid_argument);
 }
 
 TEST(ProtocolDecoder, EveryTypedFixtureBoundaryAndLengthMutationIsRejected) {
@@ -300,6 +408,91 @@ TEST(ProtocolDecoder, EveryTypedFixtureBoundaryAndLengthMutationIsRejected) {
     }
 }
 
+TEST(ProtocolDecoder, RealPcapFixturesDecodeDamageDotBattleBossHpAndEntityRemovalWithProvenance) {
+    // Each exact framed message was extracted from captures/aion2_part001.pcap by the native PCAP/TCP/framer path.
+    const std::vector<uint8_t> damage_frame{
+        0x1e, 0x04, 0x38, 0xc9, 0x3f, 0x00, 0x00, 0xc9, 0x3f, 0x37, 0xb9, 0x21, 0x00, 0x02,
+        0x02, 0x87, 0x59, 0x2c, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x90, 0x4e, 0x01, 0x00,
+    };
+    const std::vector<Field> damage_fields{
+        {1, var_uint, 0, 1, 5}, {2, var_uint, 4, 1, 5}, {4, fixed, 6, 4, 1},
+        {13, fixed, 12, 8, 1}, {14, fixed, 16, 8, 1}, {15, fixed, 20, 4, 1},
+        {18, fixed, 8, 4, 1}, {22, fixed, 9, 1, 1}, {23, fixed, 16, 1, 1},
+    };
+    const auto damage = decode_real_fixture(1, {0x04, 0x38}, damage_fields, damage_frame, 250658).view();
+    EXPECT_EQ((std::array<uint32_t, 5>{damage.actor_id, damage.target_id, damage.skill_id,
+                                      damage.special_mask, damage.damage_type}),
+              (std::array<uint32_t, 5>{8137, 8137, 0x0021b937, 0x02020021, 0}));
+    EXPECT_EQ(damage.damage, 0x000000010d2c5987ull);
+    EXPECT_EQ(damage.multi_damage, 0x00014e9000000001ull);
+    EXPECT_EQ(damage.healing, 0x00014e90ull);
+    EXPECT_EQ(damage.is_dot, 1u);
+    EXPECT_EQ(damage.first_file_offset, 250658u);
+    EXPECT_EQ(damage.last_file_offset, 250658u);
+    EXPECT_EQ(damage.epoch, 9u);
+    EXPECT_EQ(damage.first_timestamp_ns, 300u);
+    EXPECT_EQ(damage.last_timestamp_ns, 301u);
+    EXPECT_EQ(damage.source_address, 1u);
+    EXPECT_EQ(damage.destination_address, 2u);
+    EXPECT_EQ(damage.source_port, 13328u);
+    EXPECT_EQ(damage.destination_port, 50000u);
+
+    const std::vector<uint8_t> dot_frame{0x11, 0x05, 0x38, 0xe8, 0x6f, 0x00, 0xe8, 0x6f, 0x93, 0x02, 0x2e, 0x81, 0x1f, 0x6c};
+    const std::vector<Field> dot_fields{
+        {1, var_uint, 0, 1, 5}, {2, var_uint, 3, 1, 5}, {4, fixed, 5, 2, 1},
+        {13, fixed, 7, 4, 1}, {14, fixed, 0, 4, 1}, {15, fixed, 3, 4, 1},
+        {18, fixed, 7, 4, 1}, {22, fixed, 2, 1, 1}, {23, fixed, 10, 1, 1},
+    };
+    const auto dot = decode_real_fixture(2, {0x05, 0x38}, dot_fields, dot_frame, 612974).view();
+    EXPECT_EQ(dot.kind, static_cast<uint32_t>(NM_EVENT_DOT));
+    EXPECT_EQ((std::array<uint32_t, 5>{dot.actor_id, dot.target_id, dot.skill_id, dot.special_mask, dot.damage_type}),
+              (std::array<uint32_t, 5>{14312, 14312, 0x0293, 0x6c1f812e, 0}));
+    EXPECT_EQ(dot.damage, 0x6c1f812eull);
+    EXPECT_EQ(dot.multi_damage, 0xe8006fe8ull);
+    EXPECT_EQ(dot.healing, 0x02936fe8ull);
+    EXPECT_EQ(dot.is_dot, 1u);
+    EXPECT_EQ(dot.first_file_offset, 612974u);
+
+    const std::vector<uint8_t> battle_frame{
+        0x2f, 0x2a, 0x38, 0x97, 0x70, 0x01, 0x11, 0x01, 0xeb, 0x2e, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x80, 0x75, 0xd5, 0x2a,
+        0xbb, 0x03, 0x00, 0x00, 0x97, 0x70, 0x01, 0x00, 0x34, 0x86, 0x5e, 0x47,
+        0x73, 0xb2, 0x55, 0x47, 0x00, 0x37, 0xc8, 0x47,
+    };
+    const std::vector<Field> battle_fields{
+        {3, var_uint, 0, 1, 5}, {2, var_uint, 3, 1, 5}, {5, fixed, 5, 4, 1},
+        {19, fixed, 9, 4, 1}, {21, fixed, 4, 1, 1},
+    };
+    const auto battle = decode_real_fixture(3, {0x2a, 0x38}, battle_fields, battle_frame, 105474).view();
+    EXPECT_EQ(battle.kind, static_cast<uint32_t>(NM_EVENT_BUFF));
+    EXPECT_EQ((std::array<uint32_t, 5>{battle.owner_id, battle.target_id, battle.buff_id,
+                                      battle.duration_ms, battle.action}),
+              (std::array<uint32_t, 5>{14359, 17, 12011, 0xffffffffu, 1}));
+    EXPECT_EQ(battle.first_file_offset, 105474u);
+
+    const std::vector<uint8_t> boss_frame{0x0c, 0x01, 0x8d, 0xf4, 0x7e, 0x02, 0x00, 0x00, 0x00};
+    const std::vector<Field> boss_fields{
+        {1, var_uint, 0, 1, 5}, {7, fixed, 2, 4, 1}, {16, fixed, 0, 4, 1}, {17, fixed, 2, 4, 1},
+    };
+    const auto boss = decode_real_fixture(8, {0x01, 0x8d}, boss_fields, boss_frame, 986583).view();
+    EXPECT_EQ((std::array<uint64_t, 4>{boss.actor_id, boss.boss_id, boss.current_hp, boss.max_hp}),
+              (std::array<uint64_t, 4>{16244, 2, 0x00027ef4, 2}));
+    EXPECT_EQ(boss.first_file_offset, 986583u);
+
+    const std::vector<uint8_t> removed_frame{0x0a, 0x21, 0x8d, 0xc9, 0x3f, 0x00, 0x01};
+    const std::vector<Field> removed_fields{{1, fixed, 0, 4, 1}};
+    const auto removed = decode_real_fixture(10, {0x21, 0x8d}, removed_fields, removed_frame, 247913).view();
+    EXPECT_EQ(removed.kind, static_cast<uint32_t>(NM_EVENT_ENTITY_REMOVED));
+    EXPECT_EQ(removed.actor_id, 0x01003fc9u);
+    EXPECT_EQ(removed.first_file_offset, 247913u);
+
+    expect_real_fixture_boundaries(1, {0x04, 0x38}, damage_fields, damage_frame);
+    expect_real_fixture_boundaries(2, {0x05, 0x38}, dot_fields, dot_frame);
+    expect_real_fixture_boundaries(3, {0x2a, 0x38}, battle_fields, battle_frame);
+    expect_real_fixture_boundaries(8, {0x01, 0x8d}, boss_fields, boss_frame);
+    expect_real_fixture_boundaries(10, {0x21, 0x8d}, removed_fields, removed_frame);
+}
+
 TEST(ProtocolDecoder, DeduplicatesOnlyStableMessageIdentity) {
     ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
     auto first = message(0x11, 500);
@@ -310,6 +503,64 @@ TEST(ProtocolDecoder, DeduplicatesOnlyStableMessageIdentity) {
     EXPECT_EQ(decoder.decode(first).size(), 1u);
     EXPECT_TRUE(decoder.decode(first).empty());
     EXPECT_EQ(decoder.decode(equal_but_distinct).size(), 1u);
+}
+
+TEST(ProtocolDecoder, NonzeroIdentityIgnoresBytesAndZeroIdentityNeverDeduplicates) {
+    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
+    auto first = message(0x11, 500);
+    first.stream_message_id = 41;
+    auto mutated_same_identity = first;
+    mutated_same_identity.bytes.assign({0xff, 0xff, 0xff});
+
+    EXPECT_EQ(decoder.decode(first).size(), 1u);
+    EXPECT_TRUE(decoder.decode(mutated_same_identity).empty());
+
+    auto zero = message(0x11, 500);
+    zero.stream_message_id = 0;
+    EXPECT_EQ(decoder.decode(zero).size(), 1u);
+    EXPECT_EQ(decoder.decode(zero).size(), 1u);
+}
+
+TEST(ProtocolDecoder, IdentityIncludesFlowAndEpochButNoSemanticFields) {
+    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
+    auto first = message(0x11, 500);
+    first.stream_message_id = 9;
+    auto next_epoch = first;
+    next_epoch.epoch++;
+    auto next_flow = first;
+    next_flow.flow.destination_port++;
+
+    EXPECT_EQ(decoder.decode(first).size(), 1u);
+    EXPECT_EQ(decoder.decode(next_epoch).size(), 1u);
+    EXPECT_EQ(decoder.decode(next_flow).size(), 1u);
+    EXPECT_TRUE(decoder.decode(first).empty());
+}
+
+TEST(ProtocolDecoder, DeduplicationCacheEvictsExactlyAt65536Entries) {
+    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
+    auto value = message(0x11, 500);
+    for (uint64_t identity = 1; identity <= 65'536u; ++identity) {
+        value.stream_message_id = identity;
+        ASSERT_EQ(decoder.decode(value).size(), 1u) << identity;
+    }
+    value.stream_message_id = 1;
+    EXPECT_TRUE(decoder.decode(value).empty());
+    value.stream_message_id = 65'537;
+    EXPECT_EQ(decoder.decode(value).size(), 1u);
+    value.stream_message_id = 1;
+    EXPECT_EQ(decoder.decode(value).size(), 1u);
+}
+
+TEST(ProtocolDecoder, ResetAllowsTheSameStableIdentityToBeReused) {
+    ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
+    auto value = message(0x11);
+    value.stream_message_id = 77;
+    ASSERT_EQ(decoder.decode(value).size(), 1u);
+    ASSERT_TRUE(decoder.decode(value).empty());
+
+    decoder.reset();
+
+    EXPECT_EQ(decoder.decode(value).size(), 1u);
 }
 
 }  // namespace

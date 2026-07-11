@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <crtdbg.h>
+#include <type_traits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -7,6 +8,10 @@
 #include "namter/core.h"
 
 namespace {
+
+static_assert(std::is_standard_layout_v<nm_event_v1>);
+static_assert(sizeof(void*) == 8);
+static_assert(sizeof(nm_event_v1) == 200);
 
 void NM_CALL ignore_event(void*, const nm_event_v1*) {}
 void NM_CALL ignore_diagnostic(void*, const nm_diagnostic_v1*) {}
@@ -69,6 +74,52 @@ void expect_create_status(nm_core_config_v1 config, nm_status expected) {
 
 TEST(Abi, ReportsVersionOne) {
     EXPECT_EQ(nm_core_abi_version(), 1u);
+}
+
+TEST(Abi, EventV1HasFrozenX64Layout) {
+    EXPECT_EQ(offsetof(nm_event_v1, abi_version), 0u);
+    EXPECT_EQ(offsetof(nm_event_v1, struct_size), 4u);
+    EXPECT_EQ(offsetof(nm_event_v1, kind), 8u);
+    EXPECT_EQ(offsetof(nm_event_v1, reserved), 12u);
+    EXPECT_EQ(offsetof(nm_event_v1, first_timestamp_ns), 16u);
+    EXPECT_EQ(offsetof(nm_event_v1, last_timestamp_ns), 24u);
+    EXPECT_EQ(offsetof(nm_event_v1, epoch), 32u);
+    EXPECT_EQ(offsetof(nm_event_v1, first_file_offset), 40u);
+    EXPECT_EQ(offsetof(nm_event_v1, last_file_offset), 48u);
+    EXPECT_EQ(offsetof(nm_event_v1, source_address), 56u);
+    EXPECT_EQ(offsetof(nm_event_v1, destination_address), 60u);
+    EXPECT_EQ(offsetof(nm_event_v1, source_port), 64u);
+    EXPECT_EQ(offsetof(nm_event_v1, destination_port), 66u);
+    EXPECT_EQ(offsetof(nm_event_v1, actor_id), 68u);
+    EXPECT_EQ(offsetof(nm_event_v1, target_id), 72u);
+    EXPECT_EQ(offsetof(nm_event_v1, owner_id), 76u);
+    EXPECT_EQ(offsetof(nm_event_v1, skill_id), 80u);
+    EXPECT_EQ(offsetof(nm_event_v1, buff_id), 84u);
+    EXPECT_EQ(offsetof(nm_event_v1, mob_id), 88u);
+    EXPECT_EQ(offsetof(nm_event_v1, boss_id), 92u);
+    EXPECT_EQ(offsetof(nm_event_v1, content_id), 96u);
+    EXPECT_EQ(offsetof(nm_event_v1, dungeon_id), 100u);
+    EXPECT_EQ(offsetof(nm_event_v1, party_id), 104u);
+    EXPECT_EQ(offsetof(nm_event_v1, server_id), 108u);
+    EXPECT_EQ(offsetof(nm_event_v1, job_id), 110u);
+    EXPECT_EQ(offsetof(nm_event_v1, damage), 112u);
+    EXPECT_EQ(offsetof(nm_event_v1, multi_damage), 120u);
+    EXPECT_EQ(offsetof(nm_event_v1, healing), 128u);
+    EXPECT_EQ(offsetof(nm_event_v1, current_hp), 136u);
+    EXPECT_EQ(offsetof(nm_event_v1, max_hp), 144u);
+    EXPECT_EQ(offsetof(nm_event_v1, special_mask), 152u);
+    EXPECT_EQ(offsetof(nm_event_v1, duration_ms), 156u);
+    EXPECT_EQ(offsetof(nm_event_v1, state), 160u);
+    EXPECT_EQ(offsetof(nm_event_v1, action), 161u);
+    EXPECT_EQ(offsetof(nm_event_v1, damage_type), 162u);
+    EXPECT_EQ(offsetof(nm_event_v1, is_dot), 163u);
+    EXPECT_EQ(offsetof(nm_event_v1, is_self), 164u);
+    EXPECT_EQ(offsetof(nm_event_v1, is_boss), 165u);
+    EXPECT_EQ(offsetof(nm_event_v1, flags_reserved), 166u);
+    EXPECT_EQ(offsetof(nm_event_v1, name), 168u);
+    EXPECT_EQ(offsetof(nm_event_v1, name_size), 176u);
+    EXPECT_EQ(offsetof(nm_event_v1, payload), 184u);
+    EXPECT_EQ(offsetof(nm_event_v1, payload_size), 192u);
 }
 
 TEST(Abi, CreateRejectsWrongAbiVersion) {

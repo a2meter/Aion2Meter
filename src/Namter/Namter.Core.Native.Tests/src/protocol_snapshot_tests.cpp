@@ -79,13 +79,21 @@ std::vector<uint8_t> valid_snapshot() {
     append_u32(bytes, 1);
     append_u32(bytes, 1);
     append_u32(bytes, 64);
-    append_u16(bytes, 1);
+    append_u16(bytes, 9);
     append_u16(bytes, 0);
-    append_u16(bytes, 1);
-    append_u16(bytes, 0);
-    append_u32(bytes, 4);
-    append_u32(bytes, 4);
-    append_u32(bytes, 1);
+    const auto append_field = [&](uint16_t kind, uint32_t offset, uint32_t size) {
+        append_u16(bytes, kind); append_u16(bytes, 0); append_u32(bytes, offset);
+        append_u32(bytes, size); append_u32(bytes, 1);
+    };
+    append_field(1, 0, 4);
+    append_field(2, 4, 4);
+    append_field(4, 8, 4);
+    append_field(13, 12, 8);
+    append_field(14, 20, 8);
+    append_field(15, 28, 8);
+    append_field(18, 36, 4);
+    append_field(22, 40, 1);
+    append_field(23, 41, 1);
     write_u32(bytes, 8, static_cast<uint32_t>(bytes.size()));
     write_u32(bytes, 12, crc32(bytes));
     return bytes;

@@ -80,7 +80,7 @@ public sealed class ProtocolSnapshotCompilerTests
         Assert.Equal(2U, reader.ReadUInt32());
         Assert.Equal(1U, reader.ReadUInt32());
         reader.Skip(4);
-        Assert.Equal(2, reader.ReadUInt16());
+        Assert.Equal(9, reader.ReadUInt16());
         reader.Skip(2);
         Assert.Equal(1, reader.ReadUInt16());
         reader.Skip(14);
@@ -129,10 +129,8 @@ public sealed class ProtocolSnapshotCompilerTests
         };
         var layoutValues = new[]
         {
-            new ProtocolMessageLayout(2, "dot", 128,
-                [new ProtocolFieldDescriptor(4, 0, 12, 4, 1)]),
-            new ProtocolMessageLayout(1, "damage", 64,
-                [new ProtocolFieldDescriptor(2, 0, 8, 4, 1), new ProtocolFieldDescriptor(1, 0, 4, 4, 1)]),
+            new ProtocolMessageLayout(2, "dot", 128, DamageFields()),
+            new ProtocolMessageLayout(1, "damage", 64, DamageFields()),
         };
         foreach (var opcode in reverseInsertionOrder ? opcodeValues : opcodeValues.Reverse()) opcodes.Add(opcode.Kind, opcode);
         foreach (var layout in reverseInsertionOrder ? layoutValues : layoutValues.Reverse()) layouts.Add(layout.Id, layout);
@@ -151,6 +149,19 @@ public sealed class ProtocolSnapshotCompilerTests
             FrozenDictionary<uint, Skill>.Empty,
             FrozenDictionary<uint, Buff>.Empty);
     }
+
+    private static ImmutableArray<ProtocolFieldDescriptor> DamageFields() =>
+    [
+        new(1, 0, 0, 4, 1),
+        new(2, 0, 4, 4, 1),
+        new(4, 0, 8, 4, 1),
+        new(13, 0, 12, 8, 1),
+        new(14, 0, 20, 8, 1),
+        new(15, 0, 28, 8, 1),
+        new(18, 0, 36, 4, 1),
+        new(22, 0, 40, 1, 1),
+        new(23, 0, 41, 1, 1),
+    ];
 
     private ref struct SnapshotReader(ReadOnlySpan<byte> bytes)
     {

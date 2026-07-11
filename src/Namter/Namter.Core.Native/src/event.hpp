@@ -98,6 +98,7 @@ public:
     ProtocolDecoder& operator=(ProtocolDecoder&&) noexcept;
 
     [[nodiscard]] std::vector<ProtocolDecodeOutput> decode(const ProtocolMessage& message);
+    void reset() noexcept;
 
 private:
     struct Impl;

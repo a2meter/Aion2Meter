@@ -122,6 +122,17 @@ public sealed class NativeCore : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    internal unsafe void InvokeEventCallbackForTesting(ref NativeEventV1 nativeEvent)
+    {
+        ThrowIfDisposed();
+        fixed (NativeEventV1* pointer = &nativeEvent)
+        {
+            ((delegate* unmanaged[Cdecl]<nint, NativeEventV1*, void>)&OnNativeEvent)(
+                _handle.CallbackToken,
+                pointer);
+        }
+    }
+
     private CallbackState CurrentCallbackState => (CallbackState)_handle.CallbackTarget;
 
     private async Task RunSourceAsync(

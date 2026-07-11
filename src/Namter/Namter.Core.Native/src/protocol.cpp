@@ -1,4 +1,5 @@
 #include "event.hpp"
+#include "protocol_snapshot.hpp"
 
 #include <algorithm>
 #include <array>
@@ -187,12 +188,6 @@ struct Identity {
     FlowTuple flow;
     uint64_t epoch = 0;
     uint64_t stream_message_id = 0;
-    uint64_t first_timestamp_ns = 0;
-    uint64_t last_timestamp_ns = 0;
-    uint64_t first_file_offset = 0;
-    uint64_t last_file_offset = 0;
-    uint64_t bytes_hash = 0;
-    size_t bytes_size = 0;
     bool operator==(const Identity&) const = default;
 };
 
@@ -206,23 +201,12 @@ struct IdentityHash {
         hash_mix(result, value.flow.source_address); hash_mix(result, value.flow.destination_address);
         hash_mix(result, value.flow.source_port); hash_mix(result, value.flow.destination_port); hash_mix(result, value.epoch);
         hash_mix(result, value.stream_message_id);
-        hash_mix(result, value.first_timestamp_ns); hash_mix(result, value.last_timestamp_ns);
-        hash_mix(result, value.first_file_offset); hash_mix(result, value.last_file_offset);
-        hash_mix(result, value.bytes_hash); hash_mix(result, value.bytes_size);
         return result;
     }
 };
 
-uint64_t fnv1a(std::span<const uint8_t> bytes) noexcept {
-    uint64_t hash = 14695981039346656037ull;
-    for (const uint8_t byte : bytes) { hash ^= byte; hash *= 1099511628211ull; }
-    return hash;
-}
-
 Identity identity_of(const ProtocolMessage& message) noexcept {
-    return {message.flow, message.epoch, message.stream_message_id, message.first_timestamp_ns, message.last_timestamp_ns,
-            message.first_provenance.file_offset, message.last_provenance.file_offset,
-            fnv1a(message.bytes), message.bytes.size()};
+    return {message.flow, message.epoch, message.stream_message_id};
 }
 
 nm_event_v1 base_event(const ProtocolMessage& message, nm_event_kind kind) noexcept {
@@ -357,6 +341,7 @@ constexpr std::array parser_table{
     ParserEntry{3, &parse_buff}, ParserEntry{4, &parse_buff},
     ParserEntry{5, &parse_self_actor}, ParserEntry{6, &parse_other_actor},
     ParserEntry{7, &parse_mob}, ParserEntry{8, &parse_boss_hp}, ParserEntry{10, &parse_removed},
+    ParserEntry{11, &parse_other_actor},
     ParserEntry{101, &parse_party}, ParserEntry{102, &parse_party}, ParserEntry{103, &parse_content},
     ParserEntry{104, &parse_party}, ParserEntry{105, &parse_party}, ParserEntry{106, &parse_party},
     ParserEntry{107, &parse_party}, ParserEntry{108, &parse_party},
@@ -428,6 +413,11 @@ struct ProtocolDecoder::Impl {
         return true;
     }
 
+    void reset() noexcept {
+        seen.clear();
+        seen_order.clear();
+    }
+
     bool populate(DecodedEvent& event, uint16_t protocol_kind, const FieldReader& fields) const {
         const auto found = std::find_if(parser_table.begin(), parser_table.end(), [protocol_kind](const auto& entry) {
             return entry.protocol_kind == protocol_kind;
@@ -436,8 +426,7 @@ struct ProtocolDecoder::Impl {
     }
 
     std::vector<ProtocolDecodeOutput> decode(const ProtocolMessage& message) {
-        const Identity identity = identity_of(message);
-        if (!remember(identity)) return {};
+        if (message.stream_message_id != 0 && !remember(identity_of(message))) return {};
         size_t prefix_size = 0;
         if (!parse_frame_prefix(message.bytes, prefix_size)) return {diagnostic(message, DecodeDiagnosticCode::invalid_frame)};
         auto body = std::span<const uint8_t>(message.bytes).subspan(prefix_size);
@@ -470,10 +459,13 @@ struct ProtocolDecoder::Impl {
 };
 
 ProtocolDecoder::ProtocolDecoder(std::span<const uint8_t> validated_snapshot)
-    : impl_(std::make_unique<Impl>(validated_snapshot)) {}
+    : impl_(validate_protocol_snapshot_v1(validated_snapshot)
+                ? std::make_unique<Impl>(validated_snapshot)
+                : throw std::invalid_argument("invalid protocol snapshot")) {}
 ProtocolDecoder::~ProtocolDecoder() = default;
 ProtocolDecoder::ProtocolDecoder(ProtocolDecoder&&) noexcept = default;
 ProtocolDecoder& ProtocolDecoder::operator=(ProtocolDecoder&&) noexcept = default;
 std::vector<ProtocolDecodeOutput> ProtocolDecoder::decode(const ProtocolMessage& message) { return impl_->decode(message); }
+void ProtocolDecoder::reset() noexcept { impl_->reset(); }
 
 }  // namespace namter
