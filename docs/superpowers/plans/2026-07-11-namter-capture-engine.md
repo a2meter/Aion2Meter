@@ -6,7 +6,7 @@
 
 **Architecture:** A single native DLL owns WinDivert, Npcap, PCAP, IPv4/TCP, reassembly, framing, LZ4, and protocol decoding. A narrow versioned C ABI sends immutable records to a safe C# wrapper; managed projects own signed SQLite data updates, selective caches, deterministic encounter reduction, CLI composition, and golden comparison. Native code never opens SQLite, and no A2Meter project or binary is referenced.
 
-**Tech Stack:** Windows x64; Visual Studio 2022 MSBuild/v143; C++20; vcpkg manifest with LZ4 and GoogleTest; .NET 8; C# 12; Microsoft.Data.Sqlite; xUnit; `System.Text.Json`; `System.IO.Compression.BrotliStream`; ECDSA P-256/SHA-256; WinDivert 2.2 dynamic API; Npcap/libpcap dynamic API.
+**Tech Stack:** Windows x64; Visual Studio 2026 MSBuild/v145; C++20; vcpkg manifest with LZ4 and GoogleTest; .NET 8; C# 12; Microsoft.Data.Sqlite; xUnit; `System.Text.Json`; `System.IO.Compression.BrotliStream`; ECDSA P-256/SHA-256; WinDivert 2.2 dynamic API; Npcap/libpcap dynamic API.
 
 ## Global Constraints
 
@@ -133,7 +133,7 @@ Use this solution root and project membership:
 </Solution>
 ```
 
-Set all C# projects to `net8.0-windows`, nullable enabled, implicit usings enabled, x64, and warnings as errors. Set the native projects to x64, `v143`, `stdcpp20`, `/W4`, `/WX`, `/permissive-`, SDL checks, control-flow guard, and vcpkg manifest mode. Put `lz4` and `gtest` in the root `vcpkg.json`.
+Set all C# projects to `net8.0-windows`, nullable enabled, implicit usings enabled, x64, and warnings as errors. Set the native projects to x64, `v145`, `stdcpp20`, `/W4`, `/WX`, `/permissive-`, SDL checks, control-flow guard, and vcpkg manifest mode. Put `lz4` and `gtest` in the root `vcpkg.json`.
 
 - [ ] **Step 2: Write failing ABI tests**
 
