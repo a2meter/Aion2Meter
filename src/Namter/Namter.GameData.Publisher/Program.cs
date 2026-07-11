@@ -21,6 +21,7 @@ public enum PublishStatus
     Cancelled = 11,
     CommitFailedRestored = 12,
     RecoveryRequired = 13,
+    CleanupFailed = 14,
 }
 
 public sealed record PublisherPolicy
@@ -47,6 +48,11 @@ public sealed record PublishOptions(
 
 public sealed record PublishResult(PublishStatus Status, string? Detail = null);
 
+internal sealed record PublisherTestHooks
+{
+    public Func<string, Task>? SnapshotCaptured { get; init; }
+}
+
 public static class GameDataPublisher
 {
     private const int BufferSize = 64 * 1024;
@@ -59,12 +65,56 @@ public static class GameDataPublisher
     public static Task<PublishResult> PublishAsync(
         PublishOptions options,
         CancellationToken cancellationToken = default)
-        => PublishAsync(options, PhysicalGameDataFileSystem.Instance, cancellationToken);
+        => PublishAsync(options, PhysicalGameDataFileSystem.Instance, cancellationToken, hooks: null);
 
     internal static async Task<PublishResult> PublishAsync(
         PublishOptions options,
         IGameDataFileSystem fileSystem,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        PublisherTestHooks? hooks = null)
+    {
+        var work = new PublisherWorkState();
+        PublishResult result;
+        try
+        {
+            result = await PublishCoreAsync(options, fileSystem, cancellationToken, hooks, work).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            result = new(PublishStatus.Cancelled);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        {
+            result = new(PublishStatus.InvalidArguments, exception.Message);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            result = new(PublishStatus.UnsafeFilesystem, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            result = new(PublishStatus.Failed, exception.Message);
+        }
+
+        try
+        {
+            foreach (string path in work.CleanupPaths) DeleteRegularTemporary(fileSystem, path);
+        }
+        catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+        {
+            return result.Status == PublishStatus.RecoveryRequired
+                ? result
+                : new(PublishStatus.CleanupFailed, cleanupException.Message);
+        }
+        return result;
+    }
+
+    private static async Task<PublishResult> PublishCoreAsync(
+        PublishOptions options,
+        IGameDataFileSystem fileSystem,
+        CancellationToken cancellationToken,
+        PublisherTestHooks? hooks,
+        PublisherWorkState work)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fileSystem);
@@ -86,7 +136,7 @@ public static class GameDataPublisher
         string output = Path.GetFullPath(options.OutputDirectory);
         string privateKey = Path.GetFullPath(options.PrivateKeyPath);
         string sourceRoot = Path.GetFullPath(options.Policy.SourceRoot);
-        if (IsSameOrDescendant(output, sourceRoot)) return new(PublishStatus.OutputInsideSourceTree);
+        if (WindowsPathIdentity.IsSameOrDescendant(output, sourceRoot)) return new(PublishStatus.OutputInsideSourceTree);
 
         string archivePath = Path.Combine(output, "aion.db.br");
         string manifestPath = Path.Combine(output, "manifest.json");
@@ -94,6 +144,10 @@ public static class GameDataPublisher
         string manifestTemporary = Path.Combine(output, $".manifest.json.{Guid.NewGuid():N}.part");
         string archivePrevious = Path.Combine(output, $".aion.db.br.{Guid.NewGuid():N}.previous");
         string manifestPrevious = Path.Combine(output, $".manifest.json.{Guid.NewGuid():N}.previous");
+        string snapshotPath = Path.Combine(Path.GetTempPath(), $"namter-publisher-snapshot-{Guid.NewGuid():N}.db");
+        work.CleanupPaths.Add(archiveTemporary);
+        work.CleanupPaths.Add(manifestTemporary);
+        work.CleanupPaths.Add(snapshotPath);
 
         try
         {
@@ -106,10 +160,25 @@ public static class GameDataPublisher
             EnsureNoReparseAncestors(output);
             if (fileSystem.DirectoryExists(output) && (fileSystem.GetAttributes(output) & FileAttributes.ReparsePoint) != 0)
                 return new(PublishStatus.UnsafeFilesystem, "Output directory cannot be a reparse point.");
-            if (!options.Force && (fileSystem.FileExists(archivePath) || fileSystem.FileExists(manifestPath)))
+            bool archiveExisted = fileSystem.FileExists(archivePath);
+            bool manifestExisted = fileSystem.FileExists(manifestPath);
+            if (!options.Force && (archiveExisted || manifestExisted))
                 return new(PublishStatus.OutputExists);
 
-            InspectionResult inspection = await InspectDatabaseAsync(input, cancellationToken).ConfigureAwait(false);
+            await using (var source = new FileStream(
+                input, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var snapshot = new FileStream(
+                snapshotPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, BufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan | FileOptions.WriteThrough))
+            {
+                await source.CopyToAsync(snapshot, BufferSize, cancellationToken).ConfigureAwait(false);
+                await snapshot.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            if (hooks?.SnapshotCaptured is not null)
+                await hooks.SnapshotCaptured(snapshotPath).ConfigureAwait(false);
+
+            InspectionResult inspection = await InspectDatabaseAsync(snapshotPath, cancellationToken).ConfigureAwait(false);
             if (!inspection.Valid) return new(PublishStatus.InputInvalid, inspection.Detail);
             if (inspection.Snapshot!.DataVersion != options.DataVersion)
                 return new(PublishStatus.InputVersionMismatch);
@@ -142,7 +211,7 @@ public static class GameDataPublisher
             try
             {
                 await using (var source = new FileStream(
-                    input, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize,
+                    snapshotPath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize,
                     FileOptions.Asynchronous | FileOptions.SequentialScan))
                 await using (var destination = new FileStream(
                     archiveTemporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, BufferSize,
@@ -153,7 +222,7 @@ public static class GameDataPublisher
                 }
 
                 long compressedSize = new FileInfo(archiveTemporary).Length;
-                long uncompressedSize = new FileInfo(input).Length;
+                long uncompressedSize = new FileInfo(snapshotPath).Length;
                 string sha256;
                 await using (var archive = new FileStream(
                     archiveTemporary, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize,
@@ -190,9 +259,8 @@ public static class GameDataPublisher
                 {
                     try
                     {
-                        if (fileSystem.FileExists(manifestPrevious))
-                            RestorePrevious(fileSystem, manifestPath, manifestPrevious);
-                        RestorePrevious(fileSystem, archivePath, archivePrevious);
+                        CompensateDestination(fileSystem, manifestPath, manifestPrevious, manifestExisted);
+                        CompensateDestination(fileSystem, archivePath, archivePrevious, archiveExisted);
                         DeleteRegularTemporary(fileSystem, archivePrevious);
                         DeleteRegularTemporary(fileSystem, manifestPrevious);
                         return new(PublishStatus.CommitFailedRestored, commitException.Message);
@@ -232,11 +300,6 @@ public static class GameDataPublisher
         {
             return new(PublishStatus.Failed, exception.Message);
         }
-        finally
-        {
-            TryDeleteRegularTemporary(fileSystem, archiveTemporary);
-            TryDeleteRegularTemporary(fileSystem, manifestTemporary);
-        }
     }
 
     private static async Task<InspectionResult> InspectDatabaseAsync(string path, CancellationToken cancellationToken)
@@ -274,7 +337,12 @@ public static class GameDataPublisher
             string? missing = RequiredTables.FirstOrDefault(table => !tables.Contains(table));
             if (missing is not null) return new(false, null, $"Required table is missing: {missing}.");
 
-            string? schemaError = await GameDataSchemaValidator.ValidateAsync(connection, cancellationToken).ConfigureAwait(false);
+            await using var schemaVersionCommand = connection.CreateCommand();
+            schemaVersionCommand.CommandText = "SELECT schema_version FROM metadata WHERE singleton_id = 1;";
+            uint schemaVersion = checked((uint)Convert.ToInt64(
+                await schemaVersionCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)));
+            string? schemaError = await GameDataSchemaValidator.ValidateAsync(
+                connection, schemaVersion, cancellationToken).ConfigureAwait(false);
             if (schemaError is not null) return new(false, null, schemaError);
 
             GameDataSnapshot snapshot = await new GameDataRepository(path, GameDataCacheLimits.Default)
@@ -285,14 +353,6 @@ public static class GameDataPublisher
         {
             return new(false, null, exception.Message);
         }
-    }
-
-    private static bool IsSameOrDescendant(string candidate, string root)
-    {
-        string normalizedRoot = Path.TrimEndingDirectorySeparator(root);
-        string normalizedCandidate = Path.TrimEndingDirectorySeparator(candidate);
-        if (string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase)) return true;
-        return normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void EnsureRegularFile(IGameDataFileSystem fileSystem, string path)
@@ -335,6 +395,37 @@ public static class GameDataPublisher
         fileSystem.ReplaceFile(previous, destination, backup: null);
     }
 
+    private static void CompensateDestination(
+        IGameDataFileSystem fileSystem,
+        string destination,
+        string previous,
+        bool destinationExisted)
+    {
+        if (destinationExisted)
+        {
+            if (fileSystem.FileExists(previous)) RestorePrevious(fileSystem, destination, previous);
+            return;
+        }
+        if (!fileSystem.FileExists(destination)) return;
+        try
+        {
+            fileSystem.DeleteFile(destination);
+        }
+        catch (Exception deleteException) when (deleteException is IOException or UnauthorizedAccessException)
+        {
+            try
+            {
+                fileSystem.MoveFile(destination, previous, overwrite: false);
+            }
+            catch (Exception retainException) when (retainException is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException(
+                    $"Could not delete or retain newly committed artifact: {retainException.Message}", deleteException);
+            }
+            throw new IOException("Newly committed artifact was retained as recovery after delete failure.", deleteException);
+        }
+    }
+
     private static void DeleteRegularTemporary(IGameDataFileSystem fileSystem, string path)
     {
         if (!fileSystem.FileExists(path)) return;
@@ -343,18 +434,11 @@ public static class GameDataPublisher
         fileSystem.DeleteFile(path);
     }
 
-    private static void TryDeleteRegularTemporary(IGameDataFileSystem fileSystem, string path)
-    {
-        try
-        {
-            DeleteRegularTemporary(fileSystem, path);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-        }
-    }
-
     private sealed record InspectionResult(bool Valid, GameDataSnapshot? Snapshot, string? Detail = null);
+    private sealed class PublisherWorkState
+    {
+        public List<string> CleanupPaths { get; } = [];
+    }
 }
 
 public static class Program

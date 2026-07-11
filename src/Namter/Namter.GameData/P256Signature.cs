@@ -43,8 +43,9 @@ internal static class P256Signature
         if (s <= HalfOrder) return signature;
         Span<byte> scalar = signature.AsSpan(32);
         scalar.Clear();
-        if (!(Order - s).TryWriteBytes(scalar, out _, isUnsigned: true, isBigEndian: true))
-            throw new CryptographicException("Could not normalize P-256 signature scalar.");
+        byte[] normalized = (Order - s).ToByteArray(isUnsigned: true, isBigEndian: true);
+        if (normalized.Length > scalar.Length) throw new CryptographicException("Could not normalize P-256 signature scalar.");
+        normalized.CopyTo(scalar[^(normalized.Length)..]);
         return signature;
     }
 }

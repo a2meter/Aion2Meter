@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Text.RegularExpressions;
 
 namespace Namter.GameData;
 
@@ -56,7 +57,10 @@ internal static class GameDataSchemaValidator
         I("buffs", "idx_buffs_name", false, false, "name"),
     ];
 
-    public static async Task<string?> ValidateAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    public static async Task<string?> ValidateAsync(
+        SqliteConnection connection,
+        uint schemaVersion,
+        CancellationToken cancellationToken)
     {
         foreach ((string table, ColumnSpec[] expected) in Tables)
         {
@@ -105,8 +109,61 @@ internal static class GameDataSchemaValidator
             while (await infoReader.ReadAsync(cancellationToken).ConfigureAwait(false)) columns.Add(infoReader.GetString(2));
             if (!columns.SequenceEqual(expected.Columns)) return $"Required index columns differ: {expected.Name}.";
         }
+        string? definitionError = await ValidateAuthoritativeDefinitionsAsync(connection, schemaVersion, cancellationToken)
+            .ConfigureAwait(false);
+        if (definitionError is not null) return definitionError;
         return null;
     }
+
+    private static async Task<string?> ValidateAuthoritativeDefinitionsAsync(
+        SqliteConnection connection,
+        uint schemaVersion,
+        CancellationToken cancellationToken)
+    {
+        string resource = schemaVersion switch
+        {
+            1 => "Namter.GameData.SchemaV1.sql",
+            _ => string.Empty,
+        };
+        if (resource.Length == 0) return $"No authoritative schema definition exists for version {schemaVersion}.";
+
+        using Stream stream = typeof(GameDataSchemaValidator).Assembly.GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException($"Embedded schema resource is missing: {resource}.");
+        using var reader = new StreamReader(stream);
+        string sql = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        var expected = new Dictionary<(string Type, string Name), string>();
+        foreach (string statement in sql.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            Match match = Regex.Match(statement,
+                @"^CREATE\s+(?:UNIQUE\s+)?(?<type>TABLE|INDEX)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)",
+                RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!match.Success) continue;
+            expected.Add((match.Groups["type"].Value.ToLowerInvariant(), match.Groups["name"].Value), NormalizeSql(statement));
+        }
+
+        var actual = new Dictionary<(string Type, string Name), string>();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT type, name, sql
+            FROM sqlite_schema
+            WHERE type IN ('table', 'index') AND sql IS NOT NULL AND name NOT LIKE 'sqlite_%';
+            """;
+        await using SqliteDataReader schemaReader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await schemaReader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            actual.Add((schemaReader.GetString(0), schemaReader.GetString(1)), NormalizeSql(schemaReader.GetString(2)));
+
+        if (actual.Count != expected.Count) return "Authoritative schema object count differs.";
+        foreach (((string type, string name), string definition) in expected)
+        {
+            if (!actual.TryGetValue((type, name), out string? actualDefinition)
+                || !string.Equals(definition, actualDefinition, StringComparison.Ordinal))
+                return $"Authoritative schema SQL differs for {type} {name}.";
+        }
+        return null;
+    }
+
+    private static string NormalizeSql(string sql)
+        => Regex.Replace(sql.Trim(), @"\s+", " ", RegexOptions.CultureInvariant);
 
     private static ColumnSpec C(string name, string type, bool notNull = true, int primaryKeyOrder = 0)
         => new(name, type, notNull, primaryKeyOrder);

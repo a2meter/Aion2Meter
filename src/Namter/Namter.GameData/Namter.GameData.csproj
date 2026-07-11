@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <EmbeddedResource Include="..\..\..\db\schema\001_initial.sql" LogicalName="Namter.GameData.SchemaV1.sql" />
   </ItemGroup>
 </Project>

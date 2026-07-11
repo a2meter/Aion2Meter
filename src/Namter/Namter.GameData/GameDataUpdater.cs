@@ -16,6 +16,7 @@ public enum GameDataCheckStatus
     IncompatibleSchemaVersion,
     Cancelled,
     TransportFailed,
+    InvalidManifestUri,
 }
 
 public enum GameDataStageStatus
@@ -164,6 +165,8 @@ public sealed class GameDataUpdater
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(manifestUri);
+        if (!manifestUri.IsAbsoluteUri || manifestUri.Scheme != Uri.UriSchemeHttps)
+            return new(GameDataCheckStatus.InvalidManifestUri);
         try
         {
             await using Stream stream = await transport.OpenReadAsync(manifestUri, cancellationToken).ConfigureAwait(false);
@@ -550,7 +553,8 @@ public sealed class GameDataUpdater
             string? missing = RequiredTables.FirstOrDefault(table => !tables.Contains(table));
             if (missing is not null) return new(GameDataStageStatus.RequiredTableMissing, missing);
 
-            string? schemaError = await GameDataSchemaValidator.ValidateAsync(connection, cancellationToken).ConfigureAwait(false);
+            string? schemaError = await GameDataSchemaValidator.ValidateAsync(
+                connection, manifest?.SchemaVersion ?? supportedSchemaVersion, cancellationToken).ConfigureAwait(false);
             if (schemaError is not null) return new(GameDataStageStatus.RequiredSchemaInvalid, schemaError);
 
             await using var versions = connection.CreateCommand();
@@ -662,10 +666,17 @@ public sealed class GameDataUpdater
         bool preserveCandidate,
         CancellationToken cancellationToken)
     {
+        bool hasOperationBackup = fileSystem.FileExists(operationBackupPath);
+        bool hasFailed = fileSystem.FileExists(failedPath);
+        bool hasPart = fileSystem.FileExists(partPath);
+        bool hasOrphanCandidate = fileSystem.FileExists(candidatePath) && !preserveCandidate;
+        if (!hasOperationBackup && !hasFailed && !hasPart && !hasOrphanCandidate)
+            return new(true);
+
         bool activeExists = fileSystem.FileExists(activePath);
         bool activeValid = activeExists && await ValidateAndReopenAsync(activePath, cancellationToken).ConfigureAwait(false);
 
-        if (fileSystem.FileExists(operationBackupPath))
+        if (hasOperationBackup)
         {
             bool operationValid = (await ValidateDatabaseAsync(operationBackupPath, manifest: null, cancellationToken)
                 .ConfigureAwait(false)).Status == GameDataStageStatus.Staged;
@@ -702,7 +713,7 @@ public sealed class GameDataUpdater
             }
         }
 
-        if (fileSystem.FileExists(failedPath))
+        if (hasFailed || fileSystem.FileExists(failedPath))
         {
             bool failedValid = (await ValidateDatabaseAsync(failedPath, manifest: null, cancellationToken)
                 .ConfigureAwait(false)).Status == GameDataStageStatus.Staged;

@@ -62,6 +62,21 @@ public sealed class GameDataUpdaterTests
     }
 
     [Fact]
+    public void LowSNormalizationRightAlignsMinimalScalarBytes()
+    {
+        byte[] signature = new byte[64];
+        signature[31] = 1;
+        Convert.FromHexString("FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632550")
+            .CopyTo(signature, 32);
+
+        byte[] normalized = P256Signature.Normalize(signature);
+
+        Assert.All(normalized[32..63], value => Assert.Equal(0, value));
+        Assert.Equal(1, normalized[63]);
+        Assert.True(P256Signature.IsCanonical(normalized));
+    }
+
+    [Fact]
     public void ManifestVerificationRejectsNonNistP256CurveWhenPlatformSupportsIt()
     {
         ECDsa? other = null;
@@ -101,6 +116,18 @@ public sealed class GameDataUpdaterTests
 
         Assert.Equal(GameDataCheckStatus.UpToDate, result.Status);
         Assert.Equal(new[] { fixture.ManifestUri }, fixture.Transport.Requests);
+    }
+
+    [Fact]
+    public async Task CheckRejectsNonHttpsManifestUriBeforeTransport()
+    {
+        using var fixture = await UpdateFixture.CreateAsync();
+        foreach (string uri in new[] { "http://updates.example/manifest.json", "file:///c:/temp/manifest.json" })
+        {
+            Assert.Equal(GameDataCheckStatus.InvalidManifestUri,
+                (await fixture.Updater.CheckAsync(new Uri(uri), new DataVersion(1), default)).Status);
+        }
+        Assert.Empty(fixture.Transport.Requests);
     }
 
     [Fact]
@@ -241,6 +268,33 @@ public sealed class GameDataUpdaterTests
                 "foreign-key" => schema.Replace("boss_id INTEGER REFERENCES bosses(id)", "boss_id INTEGER", StringComparison.Ordinal),
                 _ => schema,
             });
+        GameDataManifest manifest = fixture.CreateManifest(candidate, 2);
+        fixture.Transport.Add(manifest.ArchiveUri, Compress(candidate));
+
+        await fixture.AssertStageFailureAsync(manifest, GameDataStageStatus.RequiredSchemaInvalid);
+    }
+
+    [Theory]
+    [InlineData("unique")]
+    [InlineData("check")]
+    [InlineData("default")]
+    [InlineData("fk-action")]
+    [InlineData("partial-predicate")]
+    public async Task SchemaVersionOneRejectsChangedAuthoritativeSqlDefinition(string mutation)
+    {
+        using var fixture = await UpdateFixture.CreateAsync();
+        byte[] candidate = await fixture.CreateDatabaseFromSchemaAsync(2, schema => mutation switch
+        {
+            "unique" => schema.Replace("code INTEGER NOT NULL UNIQUE CHECK (code > 0)",
+                "code INTEGER NOT NULL CHECK (code > 0)", StringComparison.Ordinal),
+            "check" => schema.Replace("code INTEGER NOT NULL UNIQUE CHECK (code > 0)",
+                "code INTEGER NOT NULL UNIQUE", StringComparison.Ordinal),
+            "default" => schema.Replace("is_active INTEGER NOT NULL DEFAULT 0 CHECK", "is_active INTEGER NOT NULL CHECK", StringComparison.Ordinal),
+            "fk-action" => schema.Replace("REFERENCES protocol_profiles(id) ON DELETE CASCADE",
+                "REFERENCES protocol_profiles(id) ON DELETE RESTRICT", StringComparison.Ordinal),
+            "partial-predicate" => schema.Replace("WHERE is_active = 1", "WHERE is_active >= 1", StringComparison.Ordinal),
+            _ => schema,
+        });
         GameDataManifest manifest = fixture.CreateManifest(candidate, 2);
         fixture.Transport.Add(manifest.ArchiveUri, Compress(candidate));
 
@@ -504,6 +558,17 @@ public sealed class GameDataUpdaterTests
     }
 
     [Fact]
+    public async Task RecoveryFastPathDoesNotReopenActiveDatabaseWhenNoRecoveryFilesExist()
+    {
+        using var fixture = await UpdateFixture.CreateAsync();
+        byte[] version2 = await fixture.CreateDatabaseAsync(2);
+
+        await fixture.StageAsync(version2, 2);
+
+        Assert.Equal(0, fixture.ReopenCount);
+    }
+
+    [Fact]
     public async Task RollbackRestoreFailureRetainsOperationBackup()
     {
         var fileSystem = new FaultingFileSystem();
@@ -583,6 +648,17 @@ public sealed class GameDataUpdaterTests
         Assert.True(stream.DisposeCount >= 2);
     }
 
+    [Fact]
+    public async Task ProductionHttpTransportRejectsHttpAndFileUris()
+    {
+        using var transport = new HttpGameDataTransport(new HttpClient(new StaticResponseHandler(new MemoryStream())));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await transport.OpenReadAsync(new Uri("http://updates.example/manifest.json"), default));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await transport.OpenReadAsync(new Uri("file:///c:/temp/manifest.json"), default));
+    }
+
     private static byte[] Compress(byte[] bytes)
     {
         using var output = new MemoryStream();
@@ -614,6 +690,7 @@ public sealed class GameDataUpdaterTests
         public GameDataUpdater Updater { get; private set; }
         private readonly IGameDataFileSystem fileSystem;
         public ulong? FailReopenForVersion { get; set; }
+        public int ReopenCount { get; private set; }
 
         private UpdateFixture(string directory, ECDsa signer, ulong? failReopenForVersion, IGameDataFileSystem fileSystem)
         {
@@ -629,6 +706,7 @@ public sealed class GameDataUpdaterTests
                 () => EncounterActive,
                 async (path, cancellationToken) =>
                 {
+                    ReopenCount++;
                     GameDataSnapshot snapshot = await new GameDataRepository(path, GameDataCacheLimits.Default).LoadAsync(cancellationToken);
                     if (snapshot.DataVersion == FailReopenForVersion) throw new InvalidDataException("simulated cache rebuild failure");
                 }, fileSystem);

@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using System.Text;
 using Namter.GameData;
 using Namter.GameData.Builder;
 using Namter.GameData.Publisher;
@@ -209,6 +211,125 @@ public sealed class GameDataPublisherTests
     }
 
     [Fact]
+    public async Task FirstPublishSecondCommitFailureDeletesNewArchiveAndRestoresEmptyOutput()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+        var fileSystem = new PublisherFaultingFileSystem
+        {
+            Fail = (operation, _, destination) => operation == nameof(IGameDataFileSystem.MoveFile)
+                && destination == Path.Combine(fixture.Output, "manifest.json"),
+        };
+
+        PublishResult result = await GameDataPublisher.PublishAsync(fixture.Options, fileSystem, default);
+
+        Assert.Equal(PublishStatus.CommitFailedRestored, result.Status);
+        Assert.Empty(Directory.EnumerateFiles(fixture.Output));
+    }
+
+    [Fact]
+    public async Task FirstPublishCompensationDeleteFailureRetainsRecoveryArtifact()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+        string archive = Path.Combine(fixture.Output, "aion.db.br");
+        var fileSystem = new PublisherFaultingFileSystem
+        {
+            Fail = (operation, source, destination) =>
+                (operation == nameof(IGameDataFileSystem.MoveFile)
+                    && destination == Path.Combine(fixture.Output, "manifest.json"))
+                || (operation == nameof(IGameDataFileSystem.DeleteFile) && source == archive),
+        };
+
+        PublishResult result = await GameDataPublisher.PublishAsync(fixture.Options, fileSystem, default);
+
+        Assert.Equal(PublishStatus.RecoveryRequired, result.Status);
+        Assert.NotEmpty(Directory.EnumerateFiles(fixture.Output, "*.previous"));
+    }
+
+    [Fact]
+    public async Task PublisherSignsTheImmutableSnapshotEvenIfOriginalIsReplacedAfterCapture()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+        byte[] captured = await File.ReadAllBytesAsync(fixture.Options.InputPath);
+        string replacement = await fixture.CreateDatabaseAsync(3);
+        var hooks = new PublisherTestHooks
+        {
+            SnapshotCaptured = _ =>
+            {
+                File.Move(replacement, fixture.Options.InputPath, overwrite: true);
+                return Task.CompletedTask;
+            },
+        };
+
+        Assert.Equal(PublishStatus.Published, (await GameDataPublisher.PublishAsync(
+            fixture.Options, PhysicalGameDataFileSystem.Instance, default, hooks)).Status);
+
+        await using var archive = File.OpenRead(Path.Combine(fixture.Output, "aion.db.br"));
+        await using var brotli = new System.IO.Compression.BrotliStream(archive, System.IO.Compression.CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        await brotli.CopyToAsync(output);
+        Assert.Equal(captured, output.ToArray());
+    }
+
+    [Fact]
+    public async Task SnapshotCleanupFailureReturnsCleanupFailedAndRetainsSnapshot()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+        string? snapshot = null;
+        var hooks = new PublisherTestHooks
+        {
+            SnapshotCaptured = path =>
+            {
+                snapshot = path;
+                return Task.CompletedTask;
+            },
+        };
+        var fileSystem = new PublisherFaultingFileSystem
+        {
+            Fail = (operation, source, _) => operation == nameof(IGameDataFileSystem.DeleteFile)
+                && source.Contains("namter-publisher-snapshot-", StringComparison.Ordinal),
+        };
+
+        PublishResult result = await GameDataPublisher.PublishAsync(fixture.Options, fileSystem, default, hooks);
+
+        Assert.Equal(PublishStatus.CleanupFailed, result.Status);
+        Assert.NotNull(snapshot);
+        Assert.True(File.Exists(snapshot));
+        File.Delete(snapshot);
+    }
+
+    [Fact]
+    public async Task InvalidPathIsMappedToResultInsteadOfEscaping()
+    {
+        using var fixture = await PublisherFixture.CreateAsync();
+
+        PublishResult result = await GameDataPublisher.PublishAsync(fixture.Options with { InputPath = "\0" });
+
+        Assert.Equal(PublishStatus.InvalidArguments, result.Status);
+    }
+
+    [Fact]
+    public void CanonicalPathIdentityRecognizesDotAndParentAliases()
+    {
+        string alias = Path.Combine(RepositoryRoot, ".", "src", "..", "publisher-output");
+
+        Assert.True(WindowsPathIdentity.IsSameOrDescendant(alias, RepositoryRoot));
+    }
+
+    [Fact]
+    public void WindowsPathIdentityRecognizesShortPathAliasWhenAvailable()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var buffer = new StringBuilder(32768);
+        uint length = GetShortPathName(RepositoryRoot, buffer, checked((uint)buffer.Capacity));
+        if (length == 0 || length >= buffer.Capacity) return;
+        string shortPath = buffer.ToString();
+        if (string.Equals(shortPath, RepositoryRoot, StringComparison.OrdinalIgnoreCase)) return;
+
+        Assert.True(WindowsPathIdentity.IsSameOrDescendant(
+            Path.Combine(shortPath, "publisher-output"), RepositoryRoot));
+    }
+
+    [Fact]
     public async Task PublisherRejectsNonNistP256PrivateKeyWhenPlatformSupportsIt()
     {
         using var fixture = await PublisherFixture.CreateAsync();
@@ -311,6 +432,20 @@ public sealed class GameDataPublisherTests
 
         public Task<PublishResult> PublishAsync() => GameDataPublisher.PublishAsync(Options);
 
+        public async Task<string> CreateDatabaseAsync(ulong version)
+        {
+            string path = Path.Combine(directory, $"replacement-{version}-{Guid.NewGuid():N}.db");
+            await GameDataDatabaseBuilder.BuildAsync(path,
+                Path.Combine(RepositoryRoot, "db", "schema", "001_initial.sql"),
+                Path.Combine(RepositoryRoot, "db", "seed", "golden_protocol.sql"));
+            await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False");
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"UPDATE metadata SET data_version = {version} WHERE singleton_id = 1;";
+            await command.ExecuteNonQueryAsync();
+            return path;
+        }
+
         public void Dispose()
         {
             Signer.Dispose();
@@ -354,4 +489,7 @@ public sealed class GameDataPublisherTests
             if (Fail?.Invoke(operation, source, destination) == true) throw new IOException($"Injected {operation} failure.");
         }
     }
+
+    [DllImport("kernel32.dll", EntryPoint = "GetShortPathNameW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetShortPathName(string longPath, StringBuilder shortPath, uint bufferLength);
 }
