@@ -1,5 +1,7 @@
 #include "namter/core.h"
 
+#include "protocol_snapshot.hpp"
+
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -97,6 +99,9 @@ nm_status NM_CALL nm_core_set_protocol_snapshot(
     size_t size) noexcept {
     if (handle == nullptr || data == nullptr || size == 0 ||
         size > NM_CORE_PROTOCOL_SNAPSHOT_MAX) {
+        return NM_STATUS_INVALID_ARGUMENT;
+    }
+    if (!namter::validate_protocol_snapshot_v1({data, size})) {
         return NM_STATUS_INVALID_ARGUMENT;
     }
 

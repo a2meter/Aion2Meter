@@ -176,7 +176,7 @@ TEST(Abi, ProtocolSnapshotRejectsInvalidPointerAndSizeBeforeAllocation) {
     std::vector<uint8_t> maximum_snapshot(NM_CORE_PROTOCOL_SNAPSHOT_MAX);
     EXPECT_EQ(
         nm_core_set_protocol_snapshot(handle, maximum_snapshot.data(), maximum_snapshot.size()),
-        NM_STATUS_OK);
+        NM_STATUS_INVALID_ARGUMENT);
 
     nm_core_destroy(handle);
 }

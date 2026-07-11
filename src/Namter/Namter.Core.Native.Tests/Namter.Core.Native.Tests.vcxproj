@@ -77,6 +77,7 @@
     <ClCompile Include="src\lz4_tests.cpp" />
     <ClCompile Include="src\packet_tests.cpp" />
     <ClCompile Include="src\pcap_tests.cpp" />
+    <ClCompile Include="src\protocol_snapshot_tests.cpp" />
     <ClCompile Include="src\tcp_tests.cpp" />
   </ItemGroup>
   <ItemGroup>

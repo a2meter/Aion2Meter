@@ -71,6 +71,7 @@
     <ClCompile Include="src\lz4.cpp" />
     <ClCompile Include="src\packet.cpp" />
     <ClCompile Include="src\pcap.cpp" />
+    <ClCompile Include="src\protocol_snapshot.cpp" />
     <ClCompile Include="src\tcp.cpp" />
   </ItemGroup>
   <Import Project="C:\Program Files\Microsoft Visual Studio\18\Community\VC\vcpkg\scripts\buildsystems\msbuild\vcpkg.targets" />
