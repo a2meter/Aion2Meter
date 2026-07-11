@@ -8,6 +8,59 @@ namespace Namter.Tests.Unit.GameData;
 
 public sealed class ProtocolSnapshotCompilerTests
 {
+    public static IEnumerable<object[]> KnownFieldContracts()
+    {
+        yield return [1, new ushort[] { 1, 2, 4, 13, 14, 15, 18, 22, 23 }];
+        yield return [2, new ushort[] { 1, 2, 4, 13, 14, 15, 18, 22, 23 }];
+        yield return [3, new ushort[] { 2, 3, 5, 19, 21 }];
+        yield return [4, new ushort[] { 2, 3, 5, 19, 21 }];
+        yield return [5, new ushort[] { 1, 3, 11, 12, 24, 26 }];
+        yield return [6, new ushort[] { 1, 3, 11, 12, 24, 26 }];
+        yield return [7, new ushort[] { 1, 3, 6, 7, 16, 17, 25, 26 }];
+        yield return [8, new ushort[] { 1, 7, 16, 17 }];
+        yield return [10, new ushort[] { 1 }];
+        yield return [11, new ushort[] { 1, 3, 11, 12, 24, 26 }];
+        foreach (ushort kind in new ushort[] { 101, 102, 104, 105, 106, 107, 108 })
+            yield return [kind, new ushort[] { 1, 8, 9, 10, 21, 26 }];
+        yield return [103, new ushort[] { 8, 9, 20, 26 }];
+        yield return [201, new ushort[] { 8, 9, 20, 26 }];
+        yield return [202, new ushort[] { 1, 20 }];
+    }
+
+    [Theory]
+    [MemberData(nameof(KnownFieldContracts))]
+    public async Task CompileProducesNativeValidSnapshotsForEveryExactKnownFieldSet(
+        ushort opcodeKind,
+        ushort[] fieldKinds)
+    {
+        byte[] bytes = ProtocolSnapshotCompiler.Compile(CreateSingleOpcodeSnapshot(opcodeKind, fieldKinds));
+        await using var core = new NativeCore();
+
+        core.SetProtocolSnapshot(bytes);
+    }
+
+    [Theory]
+    [MemberData(nameof(KnownFieldContracts))]
+    public void CompileRejectsEachKnownFieldSetWhenOneRequiredFieldIsMissing(
+        ushort opcodeKind,
+        ushort[] fieldKinds)
+    {
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(
+            CreateSingleOpcodeSnapshot(opcodeKind, fieldKinds[1..])));
+    }
+
+    [Theory]
+    [MemberData(nameof(KnownFieldContracts))]
+    public void CompileRejectsEachKnownFieldSetWhenOneDisallowedFieldIsExtra(
+        ushort opcodeKind,
+        ushort[] fieldKinds)
+    {
+        ushort extra = Enumerable.Range(1, 26).Select(static value => (ushort)value)
+            .First(value => !fieldKinds.Contains(value));
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(
+            CreateSingleOpcodeSnapshot(opcodeKind, [.. fieldKinds, extra])));
+    }
+
     [Fact]
     public void CompileProducesDeterministicCanonicalLittleEndianBytes()
     {
@@ -246,6 +299,34 @@ public sealed class ProtocolSnapshotCompilerTests
         new(22, 0, 40, 1, 1),
         new(23, 0, 41, 1, 1),
     ];
+
+    private static GameDataSnapshot CreateSingleOpcodeSnapshot(ushort opcodeKind, ushort[] fieldKinds)
+    {
+        uint offset = 0;
+        var fields = ImmutableArray.CreateBuilder<ProtocolFieldDescriptor>(fieldKinds.Length);
+        foreach (ushort kind in fieldKinds)
+        {
+            (ushort flags, uint size, uint maxCount) = kind switch
+            {
+                26 => ((ushort)2, 1U, 20U),
+                <= 10 or 18 or 19 => ((ushort)0, 4U, 1U),
+                11 or 12 => ((ushort)0, 2U, 1U),
+                >= 13 and <= 17 => ((ushort)0, 8U, 1U),
+                _ => ((ushort)0, 1U, 1U),
+            };
+            fields.Add(new ProtocolFieldDescriptor(kind, flags, offset, size, maxCount));
+            offset += flags == 2 ? 25U : size;
+        }
+        var opcode = new ProtocolOpcode(opcodeKind, opcodeKind, $"kind-{opcodeKind}",
+            [(byte)(opcodeKind & 0xff), (byte)(opcodeKind >> 8)], 1);
+        var layout = new ProtocolMessageLayout(1, $"kind-{opcodeKind}", 512, fields.ToImmutable());
+        return new GameDataSnapshot(
+            1, 1, 1, "test", [0x06, 0x00, 0x36], [13328],
+            new Dictionary<ushort, ProtocolOpcode> { [opcodeKind] = opcode }.ToFrozenDictionary(),
+            new Dictionary<uint, ProtocolMessageLayout> { [1] = layout }.ToFrozenDictionary(),
+            FrozenDictionary<uint, Boss>.Empty, FrozenDictionary<uint, Dungeon>.Empty,
+            FrozenDictionary<uint, Skill>.Empty, FrozenDictionary<uint, Buff>.Empty);
+    }
 
     private ref struct SnapshotReader(ReadOnlySpan<byte> bytes)
     {

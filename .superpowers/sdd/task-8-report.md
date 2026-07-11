@@ -138,12 +138,12 @@ Canonical fixtures continue to cover all closed parser families without inventin
 
 - Fresh Debug `Namter.slnx` rebuild with VS 2026/v145 and
   `NamterDisableFileTracking=true`: exit `0`.
-- Debug native suite with `NAMTER_FIXTURE_ROOT=E:\A2Viewer\A2Meter\captures`: `119/119` passed.
-- Debug managed unit suite: `108/108` passed.
+- Debug native suite with `NAMTER_FIXTURE_ROOT=E:\A2Viewer\A2Meter\captures`: `120/120` passed.
+- Debug managed unit suite: `168/168` passed.
 - Release `Namter.slnx` rebuild with VS 2026/v145 and
   `NamterDisableFileTracking=true`: exit `0`.
-- Release native suite with supplied fixture root: `119/119` passed.
-- Release managed unit suite for `Platform=x64`: `108/108` passed.
+- Release native suite with supplied fixture root: `120/120` passed.
+- Release managed unit suite for `Platform=x64`: `168/168` passed.
 - Debug and Release managed integration commands both exited `0`; both explicitly reported that
   `Namter.Tests.Integration.dll` contains no discoverable tests.
 - The non-fatal existing native post-build `pwsh.exe` notice remains unchanged.
@@ -178,3 +178,28 @@ Canonical fixtures continue to cover all closed parser families without inventin
 - Managed RED: duplicate tags and invalid unknown/layout combinations compiled, and compiler kind
   sorting destroyed field order. All three failures were observed.
 - Targeted GREEN: native `5/5`; managed protocol snapshot compiler `11/11`.
+
+## Final Acceptance Closure (2026-07-12)
+
+### Managed/native exact field-set parity
+
+- `ProtocolFieldContract` is the single managed table for both known-kind detection and exact
+  required/allowed field masks. It mirrors the native validator for all 20 known opcode kinds.
+- Before writing bytes, `ProtocolSnapshotCompiler` now rejects any referenced known layout whose
+  mask is missing one required field or contains one disallowed field. Unknown kind/layout-zero
+  behavior remains unchanged.
+- Table-driven TDD covers all 20 known kinds three ways: exact snapshots compile and are accepted by
+  the native core (`20/20`), missing-field snapshots fail compilation (`20/20`), and extra-field
+  snapshots fail compilation (`20/20`). The 40 invalid cases were observed failing before the
+  managed mask contract was implemented; targeted GREEN is `60/60`.
+
+### Complete typed-event assertions
+
+- The native closed-event regression now asserts every field populated by damage, DoT, buff,
+  self/other actor, mob, boss HP, entity removal, party, content, and combat-state parsers.
+- UTF-8 names are asserted while their owning `DecodedEvent` remains alive for self, other, mob,
+  party, and content events. Every typed event also asserts both timestamps, epoch, both file
+  offsets, both addresses, and both ports.
+- Unknown flags above the supported maximum (`6`) have a dedicated rejection test. Sequential flag
+  `3` is separately tested as a mixed absolute/sequential mode error, so the two contracts are no
+  longer conflated.

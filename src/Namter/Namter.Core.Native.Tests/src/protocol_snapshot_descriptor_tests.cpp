@@ -113,14 +113,20 @@ TEST(ProtocolSnapshotDescriptors, RejectsDuplicateLayoutIdsAndDuplicateFieldKind
     EXPECT_FALSE(namter::validate_protocol_snapshot_v1(make_snapshot({{1, duplicate}})));
 }
 
-TEST(ProtocolSnapshotDescriptors, RejectsUnknownFieldKindsAndFlags) {
+TEST(ProtocolSnapshotDescriptors, RejectsUnknownFieldKindsAndFlagsAboveFive) {
     auto unknown_kind = damage_fields();
     unknown_kind.front().kind = 27;
     EXPECT_FALSE(namter::validate_protocol_snapshot_v1(make_snapshot({{1, unknown_kind}})));
 
     auto unknown_flag = damage_fields();
-    unknown_flag.front().flags = 3;
+    unknown_flag.front().flags = 6;
     EXPECT_FALSE(namter::validate_protocol_snapshot_v1(make_snapshot({{1, unknown_flag}})));
+}
+
+TEST(ProtocolSnapshotDescriptors, RejectsMixedAbsoluteAndSequentialEncodingModes) {
+    auto mixed = damage_fields();
+    mixed.front().flags = 3;
+    EXPECT_FALSE(namter::validate_protocol_snapshot_v1(make_snapshot({{1, mixed}})));
 }
 
 TEST(ProtocolSnapshotDescriptors, RejectsIncompatibleSizeCountAndFlagCombinations) {

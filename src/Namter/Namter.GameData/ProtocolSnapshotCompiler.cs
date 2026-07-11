@@ -162,13 +162,19 @@ public static class ProtocolSnapshotCompiler
             {
                 throw new InvalidDataException($"Opcode {opcode.Id} references missing layout {opcode.LayoutId}.");
             }
-            bool knownKind = IsKnownOpcodeKind(opcode.Kind);
+            bool knownKind = ProtocolFieldContract.TryGetExactMask(opcode.Kind, out _);
             if ((knownKind && opcode.LayoutId == 0) || (!knownKind && opcode.LayoutId != 0))
             {
                 throw new InvalidDataException(
                     knownKind
                         ? $"Known opcode {opcode.Id} requires a typed layout."
                         : $"Unknown opcode {opcode.Id} cannot reference a typed layout.");
+            }
+            if (knownKind && !ProtocolFieldContract.HasExactFields(
+                    opcode.Kind,
+                    snapshot.MessageLayouts[opcode.LayoutId].Fields))
+            {
+                throw new InvalidDataException($"Opcode {opcode.Id} layout fields do not match kind {opcode.Kind}.");
             }
         }
 
@@ -213,10 +219,6 @@ public static class ProtocolSnapshotCompiler
         }
     }
 
-    private static bool IsKnownOpcodeKind(ushort kind) => kind is
-        1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 10 or 11 or
-        101 or 102 or 103 or 104 or 105 or 106 or 107 or 108 or 201 or 202;
-
     private static bool IsValidFieldEncoding(ProtocolFieldDescriptor field)
     {
         if (field.Kind is 0 or > 26 || field.Flags > 5 || field.Size == 0 || field.MaxCount == 0)
@@ -259,5 +261,56 @@ public static class ProtocolSnapshotCompiler
             2 => checked(5UL + field.MaxCount),
             _ => field.Size,
         };
+    }
+}
+
+internal static class ProtocolFieldContract
+{
+    internal static bool HasExactFields(
+        ushort opcodeKind,
+        ImmutableArray<ProtocolFieldDescriptor> fields)
+    {
+        if (!TryGetExactMask(opcodeKind, out uint expected))
+        {
+            return false;
+        }
+        uint actual = 0;
+        foreach (ProtocolFieldDescriptor field in fields)
+        {
+            if (field.Kind is 0 or > 26)
+            {
+                return false;
+            }
+            actual |= 1U << (field.Kind - 1);
+        }
+        return actual == expected;
+    }
+
+    internal static bool TryGetExactMask(ushort opcodeKind, out uint mask)
+    {
+        mask = opcodeKind switch
+        {
+            1 or 2 => Mask(1, 2, 4, 13, 14, 15, 18, 22, 23),
+            3 or 4 => Mask(2, 3, 5, 19, 21),
+            5 or 6 or 11 => Mask(1, 3, 11, 12, 24, 26),
+            7 => Mask(1, 3, 6, 7, 16, 17, 25, 26),
+            8 => Mask(1, 7, 16, 17),
+            10 => Mask(1),
+            101 or 102 or 104 or 105 or 106 or 107 or 108 => Mask(1, 8, 9, 10, 21, 26),
+            103 or 201 => Mask(8, 9, 20, 26),
+            202 => Mask(1, 20),
+            _ => 0,
+        };
+        return mask != 0;
+    }
+
+    private static uint Mask(params int[] kinds)
+    {
+        uint result = 0;
+        foreach (int kind in kinds)
+        {
+            result |= 1U << (kind - 1);
+        }
+        return result;
     }
 }

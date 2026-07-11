@@ -269,7 +269,19 @@ void expect_real_fixture_boundaries(
     }
 }
 
-TEST(ProtocolDecoder, DecodesClosedEventKindsWithEveryFieldAndProvenance) {
+void expect_provenance(const nm_event_v1& event, uint64_t file_offset) {
+    EXPECT_EQ(event.first_timestamp_ns, 300u);
+    EXPECT_EQ(event.last_timestamp_ns, 301u);
+    EXPECT_EQ(event.epoch, 9u);
+    EXPECT_EQ(event.first_file_offset, file_offset);
+    EXPECT_EQ(event.last_file_offset, file_offset);
+    EXPECT_EQ(event.source_address, 1u);
+    EXPECT_EQ(event.destination_address, 2u);
+    EXPECT_EQ(event.source_port, 13328u);
+    EXPECT_EQ(event.destination_port, 50000u);
+}
+
+TEST(ProtocolDecoder, DecodesEveryTypedClosedEventFieldAndProvenance) {
     const std::vector<Opcode> opcodes{
         {1, {0x11}, 1}, {2, {0x12}, 1}, {3, {0x13}, 1}, {5, {0x15}, 1},
         {6, {0x16}, 1}, {7, {0x17}, 1}, {8, {0x18}, 1}, {10, {0x1a}, 1},
@@ -281,43 +293,62 @@ TEST(ProtocolDecoder, DecodesClosedEventKindsWithEveryFieldAndProvenance) {
     EXPECT_EQ(damage.kind, static_cast<uint32_t>(NM_EVENT_DAMAGE)); EXPECT_EQ(damage.actor_id, 101u); EXPECT_EQ(damage.target_id, 202u);
     EXPECT_EQ(damage.skill_id, 404u); EXPECT_EQ(damage.damage, 13'004u); EXPECT_EQ(damage.multi_damage, 14'005u);
     EXPECT_EQ(damage.healing, 15'006u); EXPECT_EQ(damage.special_mask, 0x1a2b3c4du); EXPECT_EQ(damage.damage_type, 21u);
-    EXPECT_EQ(damage.is_dot, 1u); EXPECT_EQ(damage.epoch, 9u); EXPECT_EQ(damage.first_file_offset, 400u);
+    EXPECT_EQ(damage.is_dot, 1u); expect_provenance(damage, 400);
 
     const auto dot = only_event(decoder.decode(message(0x12, 401))).view();
-    EXPECT_EQ(dot.kind, static_cast<uint32_t>(NM_EVENT_DOT)); EXPECT_EQ(dot.is_dot, 1u);
+    EXPECT_EQ(dot.kind, static_cast<uint32_t>(NM_EVENT_DOT)); EXPECT_EQ(dot.actor_id, 101u); EXPECT_EQ(dot.target_id, 202u);
+    EXPECT_EQ(dot.skill_id, 404u); EXPECT_EQ(dot.damage, 13'004u); EXPECT_EQ(dot.multi_damage, 14'005u);
+    EXPECT_EQ(dot.healing, 15'006u); EXPECT_EQ(dot.special_mask, 0x1a2b3c4du); EXPECT_EQ(dot.damage_type, 21u);
+    EXPECT_EQ(dot.is_dot, 1u); expect_provenance(dot, 401);
 
     const auto buff = only_event(decoder.decode(message(0x13, 402))).view();
     EXPECT_EQ(buff.kind, static_cast<uint32_t>(NM_EVENT_BUFF)); EXPECT_EQ(buff.owner_id, 303u); EXPECT_EQ(buff.target_id, 202u);
-    EXPECT_EQ(buff.buff_id, 505u); EXPECT_EQ(buff.duration_ms, 18'009u); EXPECT_EQ(buff.action, 20u);
+    EXPECT_EQ(buff.buff_id, 505u); EXPECT_EQ(buff.duration_ms, 18'009u); EXPECT_EQ(buff.action, 20u); expect_provenance(buff, 402);
 
     const auto self_owner = only_event(decoder.decode(message(0x15, 403)));
     const auto self = self_owner.view();
     EXPECT_EQ(self.kind, static_cast<uint32_t>(NM_EVENT_SELF_ACTOR)); EXPECT_EQ(self.actor_id, 101u); EXPECT_EQ(self.owner_id, 303u);
     EXPECT_EQ(self.server_id, 1102u); EXPECT_EQ(self.job_id, 1203u); EXPECT_EQ(self.is_self, 1u);
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(self.name), self.name_size), "Namter");
-    const auto other = only_event(decoder.decode(message(0x16, 404))).view(); EXPECT_EQ(other.kind, static_cast<uint32_t>(NM_EVENT_OTHER_ACTOR));
+    expect_provenance(self, 403);
+    const auto other_owner = only_event(decoder.decode(message(0x16, 404)));
+    const auto other = other_owner.view();
+    EXPECT_EQ(other.kind, static_cast<uint32_t>(NM_EVENT_OTHER_ACTOR)); EXPECT_EQ(other.actor_id, 101u); EXPECT_EQ(other.owner_id, 303u);
+    EXPECT_EQ(other.server_id, 1102u); EXPECT_EQ(other.job_id, 1203u); EXPECT_EQ(other.is_self, 0u);
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(other.name), other.name_size), "Namter");
+    expect_provenance(other, 404);
 
-    const auto mob = only_event(decoder.decode(message(0x17, 405))).view();
-    EXPECT_EQ(mob.kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN)); EXPECT_EQ(mob.mob_id, 606u); EXPECT_EQ(mob.boss_id, 707u);
-    EXPECT_EQ(mob.current_hp, 16'007u); EXPECT_EQ(mob.max_hp, 17'008u); EXPECT_EQ(mob.is_boss, 1u);
+    const auto mob_owner = only_event(decoder.decode(message(0x17, 405)));
+    const auto mob = mob_owner.view();
+    EXPECT_EQ(mob.kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN)); EXPECT_EQ(mob.actor_id, 101u); EXPECT_EQ(mob.owner_id, 303u);
+    EXPECT_EQ(mob.mob_id, 606u); EXPECT_EQ(mob.boss_id, 707u); EXPECT_EQ(mob.current_hp, 16'007u);
+    EXPECT_EQ(mob.max_hp, 17'008u); EXPECT_EQ(mob.is_boss, 1u);
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(mob.name), mob.name_size), "Namter");
+    expect_provenance(mob, 405);
 
     const auto boss = only_event(decoder.decode(message(0x18, 406))).view();
     EXPECT_EQ(boss.kind, static_cast<uint32_t>(NM_EVENT_BOSS_HP)); EXPECT_EQ(boss.actor_id, 101u); EXPECT_EQ(boss.boss_id, 707u);
-    EXPECT_EQ(boss.current_hp, 16'007u); EXPECT_EQ(boss.max_hp, 17'008u);
+    EXPECT_EQ(boss.current_hp, 16'007u); EXPECT_EQ(boss.max_hp, 17'008u); expect_provenance(boss, 406);
 
     const auto removed = only_event(decoder.decode(message(0x1a, 407))).view();
-    EXPECT_EQ(removed.kind, static_cast<uint32_t>(NM_EVENT_ENTITY_REMOVED)); EXPECT_EQ(removed.actor_id, 101u);
+    EXPECT_EQ(removed.kind, static_cast<uint32_t>(NM_EVENT_ENTITY_REMOVED)); EXPECT_EQ(removed.actor_id, 101u); expect_provenance(removed, 407);
 
-    const auto party = only_event(decoder.decode(message(0x21, 408))).view();
+    const auto party_owner = only_event(decoder.decode(message(0x21, 408)));
+    const auto party = party_owner.view();
     EXPECT_EQ(party.kind, static_cast<uint32_t>(NM_EVENT_PARTY)); EXPECT_EQ(party.party_id, 1001u); EXPECT_EQ(party.actor_id, 101u);
     EXPECT_EQ(party.content_id, 808u); EXPECT_EQ(party.dungeon_id, 909u); EXPECT_EQ(party.action, 20u);
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(party.name), party.name_size), "Namter");
+    expect_provenance(party, 408);
 
-    const auto content = only_event(decoder.decode(message(0x31, 409))).view();
+    const auto content_owner = only_event(decoder.decode(message(0x31, 409)));
+    const auto content = content_owner.view();
     EXPECT_EQ(content.kind, static_cast<uint32_t>(NM_EVENT_CONTENT)); EXPECT_EQ(content.content_id, 808u); EXPECT_EQ(content.dungeon_id, 909u);
-    EXPECT_EQ(content.state, 19u);
+    EXPECT_EQ(content.state, 19u); EXPECT_EQ(std::string(reinterpret_cast<const char*>(content.name), content.name_size), "Namter");
+    expect_provenance(content, 409);
 
     const auto combat = only_event(decoder.decode(message(0x32, 410))).view();
     EXPECT_EQ(combat.kind, static_cast<uint32_t>(NM_EVENT_COMBAT_STATE)); EXPECT_EQ(combat.actor_id, 101u); EXPECT_EQ(combat.state, 19u);
+    expect_provenance(combat, 410);
 }
 
 TEST(ProtocolDecoder, UnknownTagsBecomeBoundedUnknownEvents) {
