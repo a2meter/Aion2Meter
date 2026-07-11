@@ -1,4 +1,5 @@
 using Namter.Core.Interop;
+using System.Collections.Concurrent;
 
 namespace Namter.Tests.Unit.Interop;
 
@@ -8,12 +9,88 @@ public sealed class NativeLifetimeTests
     public void SafeHandle_releases_exactly_once()
     {
         var releaseCount = 0;
-        using var handle = new NativeCoreHandle((nint)123, _ => releaseCount++);
+        using var handle = new NativeCoreHandle(
+            new object(),
+            _ => { },
+            _ => releaseCount++);
+        handle.Initialize((nint)123);
 
         handle.Dispose();
         handle.Dispose();
 
         Assert.Equal(1, releaseCount);
+    }
+
+    [Fact]
+    public void SafeHandle_waits_for_inflight_calls_then_stops_destroys_and_unroots()
+    {
+        var lifecycle = new ConcurrentQueue<string>();
+        var (handle, callbackTarget) = CreateOwnedHandle(lifecycle);
+        var addRef = false;
+        handle.DangerousAddRef(ref addRef);
+
+        handle.Dispose();
+        ForceFullGc();
+
+        Assert.True(callbackTarget.IsAlive);
+        Assert.Empty(lifecycle);
+
+        handle.DangerousRelease();
+        Assert.Equal(new[] { "stop", "destroy" }, lifecycle.ToArray());
+        ForceFullGc();
+        Assert.False(callbackTarget.IsAlive);
+    }
+
+    [Fact]
+    public void Undisposed_safe_owner_finalizes_native_handle_and_callback_token()
+    {
+        var lifecycle = new ConcurrentQueue<string>();
+        var (owner, callbackTarget) = CreateFinalizableOwner(lifecycle);
+
+        ForceFullGc();
+
+        Assert.False(owner.IsAlive);
+        Assert.False(callbackTarget.IsAlive);
+        Assert.Equal(new[] { "stop", "destroy" }, lifecycle.ToArray());
+    }
+
+    [Fact]
+    public async Task Concurrent_dispose_waits_for_callback_to_leave_native_call()
+    {
+        using var callbackEntered = new Barrier(2);
+        using var releaseCallback = new ManualResetEventSlim();
+        using var callbackExited = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        Exception? callbackFailure = null;
+        var core = new NativeCore(_ =>
+        {
+            try
+            {
+                callbackEntered.SignalAndWait();
+                releaseCallback.Wait();
+            }
+            catch (Exception exception)
+            {
+                callbackFailure = exception;
+            }
+            finally
+            {
+                callbackExited.Set();
+            }
+        });
+
+        var run = Task.Run(async () =>
+            await core.ReplayAsync(new byte[] { 9 }, cancellation.Token));
+        callbackEntered.SignalAndWait();
+        var dispose = core.DisposeAsync().AsTask();
+
+        releaseCallback.Set();
+        Assert.True(callbackExited.Wait(TimeSpan.FromSeconds(5)));
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await dispose;
+
+        Assert.Null(callbackFailure);
     }
 
     [Fact]
@@ -91,6 +168,26 @@ public sealed class NativeLifetimeTests
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
+    }
+
+    private static (NativeCoreHandle Handle, WeakReference CallbackTarget) CreateOwnedHandle(
+        ConcurrentQueue<string> lifecycle)
+    {
+        var callbackTarget = new object();
+        var weakTarget = new WeakReference(callbackTarget);
+        var handle = new NativeCoreHandle(
+            callbackTarget,
+            _ => lifecycle.Enqueue("stop"),
+            _ => lifecycle.Enqueue("destroy"));
+        handle.Initialize((nint)123);
+        return (handle, weakTarget);
+    }
+
+    private static (WeakReference Owner, WeakReference CallbackTarget) CreateFinalizableOwner(
+        ConcurrentQueue<string> lifecycle)
+    {
+        var (handle, callbackTarget) = CreateOwnedHandle(lifecycle);
+        return (new WeakReference(handle), callbackTarget);
     }
 
     private sealed class EventSink(TaskCompletionSource<NativeEvent> received)

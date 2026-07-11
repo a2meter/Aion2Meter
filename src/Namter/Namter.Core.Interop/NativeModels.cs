@@ -3,6 +3,21 @@ using System.Runtime.InteropServices;
 
 namespace Namter.Core.Interop;
 
+public static class NativeCoreLimits
+{
+    public const uint NativeQueueCapacityMin = 64;
+    public const uint NativeQueueCapacityMax = 1_048_576;
+    public const uint MaxLiveFlowsMin = 1;
+    public const uint MaxLiveFlowsMax = 1_048_576;
+    public const uint MaxOutOfOrderBytesPerFlowMin = 1_024;
+    public const uint MaxOutOfOrderBytesPerFlowMax = 67_108_864;
+    public const uint MaxFrameBytesMin = 1_024;
+    public const uint MaxFrameBytesMax = 16_777_216;
+    public const uint MaxDecompressedBytesMin = 1_024;
+    public const uint MaxDecompressedBytesMax = 67_108_864;
+    public const uint ProtocolSnapshotMax = 16_777_216;
+}
+
 public enum NativeSourceKind : uint
 {
     WinDivert = 1,
@@ -21,11 +36,11 @@ public enum NativeDiagnosticCode : uint
 }
 
 public sealed record NativeCoreConfig(
-    uint NativeQueueCapacity = 1024,
+    uint NativeQueueCapacity = 1_024,
     uint MaxLiveFlows = 512,
-    uint MaxOutOfOrderBytesPerFlow = 1024 * 1024,
-    uint MaxFrameBytes = 1024 * 1024,
-    uint MaxDecompressedBytes = 4 * 1024 * 1024);
+    uint MaxOutOfOrderBytesPerFlow = 1_048_576,
+    uint MaxFrameBytes = 1_048_576,
+    uint MaxDecompressedBytes = 4_194_304);
 
 public sealed record NativeEvent(NativeEventKind Kind, ImmutableArray<byte> Payload);
 

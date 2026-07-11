@@ -29,6 +29,33 @@ bool is_valid_source_kind(uint32_t kind) noexcept {
     return kind == NM_SOURCE_WINDIVERT || kind == NM_SOURCE_NPCAP || kind == NM_SOURCE_PCAP;
 }
 
+bool is_within(uint32_t value, uint32_t minimum, uint32_t maximum) noexcept {
+    return value >= minimum && value <= maximum;
+}
+
+bool has_valid_bounds(const nm_core_config_v1& config) noexcept {
+    return is_within(
+               config.native_queue_capacity,
+               NM_CORE_NATIVE_QUEUE_CAPACITY_MIN,
+               NM_CORE_NATIVE_QUEUE_CAPACITY_MAX) &&
+           is_within(
+               config.max_live_flows,
+               NM_CORE_MAX_LIVE_FLOWS_MIN,
+               NM_CORE_MAX_LIVE_FLOWS_MAX) &&
+           is_within(
+               config.max_ooo_bytes_per_flow,
+               NM_CORE_MAX_OOO_BYTES_PER_FLOW_MIN,
+               NM_CORE_MAX_OOO_BYTES_PER_FLOW_MAX) &&
+           is_within(
+               config.max_frame_bytes,
+               NM_CORE_MAX_FRAME_BYTES_MIN,
+               NM_CORE_MAX_FRAME_BYTES_MAX) &&
+           is_within(
+               config.max_decompressed_bytes,
+               NM_CORE_MAX_DECOMPRESSED_BYTES_MIN,
+               NM_CORE_MAX_DECOMPRESSED_BYTES_MAX);
+}
+
 }  // namespace
 
 nm_status NM_CALL nm_core_create(
@@ -49,6 +76,9 @@ nm_status NM_CALL nm_core_create(
     if (callbacks->event_callback == nullptr || callbacks->diagnostic_callback == nullptr) {
         return NM_STATUS_INVALID_ARGUMENT;
     }
+    if (!has_valid_bounds(*config)) {
+        return NM_STATUS_INVALID_ARGUMENT;
+    }
 
     try {
         auto handle = std::make_unique<nm_core_handle>();
@@ -65,7 +95,8 @@ nm_status NM_CALL nm_core_set_protocol_snapshot(
     nm_core_handle* handle,
     const uint8_t* data,
     size_t size) noexcept {
-    if (handle == nullptr || data == nullptr || size == 0) {
+    if (handle == nullptr || data == nullptr || size == 0 ||
+        size > NM_CORE_PROTOCOL_SNAPSHOT_MAX) {
         return NM_STATUS_INVALID_ARGUMENT;
     }
 

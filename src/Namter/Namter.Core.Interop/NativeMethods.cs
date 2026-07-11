@@ -35,6 +35,10 @@ internal static unsafe partial class NativeMethods
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial NativeStatus nm_core_stop(NativeCoreHandle handle);
 
+    [LibraryImport(LibraryName, EntryPoint = "nm_core_stop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial NativeStatus nm_core_stop_raw(nint handle);
+
     [LibraryImport(LibraryName, EntryPoint = "nm_core_get_diagnostics")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial NativeStatus nm_core_get_diagnostics(

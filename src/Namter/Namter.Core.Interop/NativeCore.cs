@@ -11,7 +11,6 @@ public sealed class NativeCore : IAsyncDisposable
     private const uint AbiVersion = 1;
 
     private readonly NativeCoreHandle _handle;
-    private GCHandle _callbackRoot;
     private int _disposeState;
 
     public unsafe NativeCore(
@@ -25,7 +24,7 @@ public sealed class NativeCore : IAsyncDisposable
         }
 
         var callbackState = new CallbackState(eventCallback, diagnosticCallback);
-        _callbackRoot = GCHandle.Alloc(callbackState);
+        _handle = new NativeCoreHandle(callbackState);
 
         try
         {
@@ -34,17 +33,25 @@ public sealed class NativeCore : IAsyncDisposable
             {
                 AbiVersion = AbiVersion,
                 StructSize = (uint)sizeof(NativeCallbacksV1),
-                User = GCHandle.ToIntPtr(_callbackRoot),
+                User = _handle.CallbackToken,
                 EventCallback = (nint)(delegate* unmanaged[Cdecl]<nint, NativeEventV1*, void>)&OnNativeEvent,
                 DiagnosticCallback = (nint)(delegate* unmanaged[Cdecl]<nint, NativeDiagnosticV1*, void>)&OnNativeDiagnostic,
             };
 
-            ThrowIfFailed(NativeMethods.nm_core_create(nativeConfig, callbacks, out var handle));
-            _handle = new NativeCoreHandle(handle);
+            var status = NativeMethods.nm_core_create(nativeConfig, callbacks, out var handle);
+            if (handle != IntPtr.Zero)
+            {
+                _handle.Initialize(handle);
+            }
+            ThrowIfFailed(status);
+            if (handle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("The native Namter core returned a null handle.");
+            }
         }
         catch
         {
-            _callbackRoot.Free();
+            _handle.Dispose();
             throw;
         }
     }
@@ -110,23 +117,12 @@ public sealed class NativeCore : IAsyncDisposable
             return ValueTask.CompletedTask;
         }
 
-        try
-        {
-            if (!_handle.IsInvalid && !_handle.IsClosed)
-            {
-                _ = NativeMethods.nm_core_stop(_handle);
-            }
-        }
-        finally
-        {
-            _handle.Dispose();
-            _callbackRoot.Free();
-        }
+        _handle.Dispose();
 
         return ValueTask.CompletedTask;
     }
 
-    private CallbackState CurrentCallbackState => (CallbackState)_callbackRoot.Target!;
+    private CallbackState CurrentCallbackState => (CallbackState)_handle.CallbackTarget;
 
     private async Task RunSourceAsync(
         NativeSourceKind sourceKind,
@@ -146,7 +142,14 @@ public sealed class NativeCore : IAsyncDisposable
         {
             if (Volatile.Read(ref _disposeState) == 0)
             {
-                ThrowIfFailed(NativeMethods.nm_core_stop(_handle));
+                try
+                {
+                    ThrowIfFailed(NativeMethods.nm_core_stop(_handle));
+                }
+                catch (ObjectDisposedException) when (Volatile.Read(ref _disposeState) != 0)
+                {
+                    // Concurrent disposal owns the stop/destroy sequence.
+                }
             }
         }
     }
