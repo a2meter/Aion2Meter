@@ -66,8 +66,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Namter.Core.Native\src\frame.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\engine.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\flow.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\lz4.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\windivert.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\npcap.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\packet.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\pcap.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\protocol_snapshot.cpp" />
@@ -83,6 +86,9 @@
     <ClCompile Include="src\protocol_snapshot_descriptor_tests.cpp" />
     <ClCompile Include="src\protocol_snapshot_tests.cpp" />
     <ClCompile Include="src\tcp_tests.cpp" />
+    <ClCompile Include="src\windivert_tests.cpp" />
+    <ClCompile Include="src\npcap_tests.cpp" />
+    <ClCompile Include="src\backend_parity_tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Namter.Core.Native\Namter.Core.Native.vcxproj">

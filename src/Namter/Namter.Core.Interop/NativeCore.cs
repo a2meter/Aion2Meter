@@ -107,6 +107,9 @@ public sealed class NativeCore : IAsyncDisposable
             native.StartCount,
             native.StopCount,
             native.EmittedEventCount,
+            native.CapturedPacketCount,
+            native.DroppedCaptureCount,
+            native.InvalidPacketCount,
             CurrentCallbackState.ManagedDiagnostics);
     }
 

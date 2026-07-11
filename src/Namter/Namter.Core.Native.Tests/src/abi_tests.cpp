@@ -1,20 +1,79 @@
-#include <cstddef>
+#include <atomic>
+#include <chrono>
 #include <crtdbg.h>
+#include <cstddef>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include "live_backend.hpp"
 #include "namter/core.h"
 
 namespace {
 
 static_assert(std::is_standard_layout_v<nm_event_v1>);
-static_assert(sizeof(void*) == 8);
+static_assert(sizeof(void *) == 8);
 static_assert(sizeof(nm_event_v1) == 200);
 
-void NM_CALL ignore_event(void*, const nm_event_v1*) {}
-void NM_CALL ignore_diagnostic(void*, const nm_diagnostic_v1*) {}
+void NM_CALL ignore_event(void *, const nm_event_v1 *) {}
+void NM_CALL ignore_diagnostic(void *, const nm_diagnostic_v1 *) {}
+
+std::atomic_uint32_t observed_diagnostic{0};
+void NM_CALL observe_diagnostic(void *, const nm_diagnostic_v1 *value) {
+    observed_diagnostic.store(value->code);
+}
+
+enum class EngineFakeMode { packet, overflow, failure, blocking };
+EngineFakeMode engine_fake_mode = EngineFakeMode::packet;
+std::atomic_bool engine_fake_stop{false};
+
+class EngineFakeBackend final : public namter::CaptureBackend {
+  public:
+    namter::BackendError start(const namter::BackendConfig &, namter::CaptureSink sink) override {
+        sink_ = std::move(sink);
+        return namter::BackendError::none;
+    }
+    namter::BackendError poll() override {
+        if (polled_)
+            return namter::BackendError::cancelled;
+        polled_ = true;
+        if (engine_fake_mode == EngineFakeMode::blocking) {
+            while (!engine_fake_stop.load())
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            return namter::BackendError::cancelled;
+        }
+        if (engine_fake_mode == EngineFakeMode::failure)
+            return namter::BackendError::receive_failed;
+        const std::vector<uint8_t> packet = {
+            0x45, 0,    0, 0x28, 0, 0, 0, 0, 64, 6, 0, 0, 10,   0,    0, 1, 10, 0, 0, 2,
+            0x34, 0x10, 0, 0x50, 0, 0, 0, 1, 0,  0, 0, 0, 0x50, 0x18, 0, 0, 0,  0, 0, 0};
+        const size_t count = engine_fake_mode == EngineFakeMode::overflow ? 65 : 1;
+        for (size_t index = 0; index < count; ++index) {
+            sink_({.source = namter::CaptureSource::npcap,
+                   .timestamp_ns = index,
+                   .link_type = namter::dlt_raw,
+                   .captured_length = static_cast<uint32_t>(packet.size()),
+                   .original_length = static_cast<uint32_t>(packet.size()),
+                   .bytes = packet});
+        }
+        return namter::BackendError::cancelled;
+    }
+    void stop() noexcept override {}
+    void request_stop() noexcept override { engine_fake_stop = true; }
+    namter::BackendStats stats() const noexcept override { return {}; }
+    const namter::BackendDiagnostic &diagnostic() const noexcept override { return diagnostic_; }
+
+  private:
+    namter::CaptureSink sink_;
+    bool polled_ = false;
+    namter::BackendDiagnostic diagnostic_{};
+};
+
+std::unique_ptr<namter::CaptureBackend> engine_fake_factory(uint32_t) {
+    return std::make_unique<EngineFakeBackend>();
+}
 
 nm_core_config_v1 valid_config() {
     return {
@@ -48,10 +107,10 @@ nm_source_config_v1 valid_source() {
     };
 }
 
-nm_core_handle* create_started_core() {
+nm_core_handle *create_started_core() {
     auto config = valid_config();
     auto callbacks = valid_callbacks();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
     EXPECT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
     EXPECT_NE(handle, nullptr);
     if (handle != nullptr) {
@@ -63,17 +122,46 @@ nm_core_handle* create_started_core() {
 
 void expect_create_status(nm_core_config_v1 config, nm_status expected) {
     auto callbacks = valid_callbacks();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
     EXPECT_EQ(nm_core_create(&config, &callbacks, &handle), expected);
     if (handle != nullptr) {
         nm_core_destroy(handle);
     }
 }
 
-}  // namespace
+} // namespace
 
-TEST(Abi, ReportsVersionOne) {
-    EXPECT_EQ(nm_core_abi_version(), 1u);
+TEST(Abi, ReportsVersionOne) { EXPECT_EQ(nm_core_abi_version(), 1u); }
+
+TEST(Abi, ExplicitNpcapSelectionNeverFallsBackWhenExternalRuntimeIsAbsent) {
+    if (namter::probe_npcap_runtime())
+        GTEST_SKIP() << "compatible external Npcap runtime is installed";
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_NPCAP;
+    EXPECT_EQ(nm_core_start(handle, &source), NM_STATUS_NPCAP_NOT_INSTALLED);
+    nm_diagnostics_v1 diagnostics{.abi_version = nm_core_abi_version(),
+                                  .struct_size = sizeof(nm_diagnostics_v1)};
+    ASSERT_EQ(nm_core_get_diagnostics(handle, &diagnostics), NM_STATUS_OK);
+    EXPECT_EQ(diagnostics.start_count, 0u);
+    EXPECT_EQ(diagnostics.emitted_event_count, 0u);
+    nm_core_destroy(handle);
+}
+
+TEST(Abi, ExplicitWinDivertSelectionNeverFallsBackWhenRuntimeIsAbsent) {
+    if (namter::probe_windivert_runtime())
+        GTEST_SKIP() << "compatible app-local WinDivert runtime is installed";
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_WINDIVERT;
+    EXPECT_EQ(nm_core_start(handle, &source), NM_STATUS_BACKEND_UNAVAILABLE);
+    nm_core_destroy(handle);
 }
 
 TEST(Abi, EventV1HasFrozenX64Layout) {
@@ -126,7 +214,7 @@ TEST(Abi, CreateRejectsWrongAbiVersion) {
     auto config = valid_config();
     config.abi_version = 99;
     auto callbacks = valid_callbacks();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
 
     EXPECT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_ABI_MISMATCH);
     EXPECT_EQ(handle, nullptr);
@@ -136,7 +224,7 @@ TEST(Abi, CreateRejectsShortConfig) {
     auto config = valid_config();
     config.struct_size = sizeof(config) - 1;
     auto callbacks = valid_callbacks();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
 
     EXPECT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_ABI_MISMATCH);
     EXPECT_EQ(handle, nullptr);
@@ -144,7 +232,7 @@ TEST(Abi, CreateRejectsShortConfig) {
 
 TEST(Abi, CreateRejectsNullCallbackTable) {
     auto config = valid_config();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
 
     EXPECT_EQ(nm_core_create(&config, nullptr, &handle), NM_STATUS_INVALID_ARGUMENT);
     EXPECT_EQ(handle, nullptr);
@@ -213,16 +301,15 @@ TEST(Abi, CreateEnforcesAllConfiguredBounds) {
 TEST(Abi, ProtocolSnapshotRejectsInvalidPointerAndSizeBeforeAllocation) {
     auto config = valid_config();
     auto callbacks = valid_callbacks();
-    nm_core_handle* handle = nullptr;
+    nm_core_handle *handle = nullptr;
     ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
     ASSERT_NE(handle, nullptr);
 
     const uint8_t byte = 0;
     EXPECT_EQ(nm_core_set_protocol_snapshot(handle, nullptr, 0), NM_STATUS_INVALID_ARGUMENT);
     EXPECT_EQ(nm_core_set_protocol_snapshot(handle, nullptr, 1), NM_STATUS_INVALID_ARGUMENT);
-    EXPECT_EQ(
-        nm_core_set_protocol_snapshot(handle, &byte, NM_CORE_PROTOCOL_SNAPSHOT_MAX + 1ull),
-        NM_STATUS_INVALID_ARGUMENT);
+    EXPECT_EQ(nm_core_set_protocol_snapshot(handle, &byte, NM_CORE_PROTOCOL_SNAPSHOT_MAX + 1ull),
+              NM_STATUS_INVALID_ARGUMENT);
 
     std::vector<uint8_t> maximum_snapshot(NM_CORE_PROTOCOL_SNAPSHOT_MAX);
     EXPECT_EQ(
@@ -233,18 +320,136 @@ TEST(Abi, ProtocolSnapshotRejectsInvalidPointerAndSizeBeforeAllocation) {
 }
 
 TEST(Abi, StopIsIdempotent) {
-    nm_core_handle* handle = create_started_core();
+    nm_core_handle *handle = create_started_core();
     ASSERT_NE(handle, nullptr);
 
     EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
     EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
 
+    nm_diagnostics_v1 diagnostics{.abi_version = nm_core_abi_version(),
+                                  .struct_size = sizeof(nm_diagnostics_v1)};
+    ASSERT_EQ(nm_core_get_diagnostics(handle, &diagnostics), NM_STATUS_OK);
+    EXPECT_EQ(diagnostics.stop_count, 1u);
+
     nm_core_destroy(handle);
 }
 
+TEST(Abi, StopBeforeStartIsANoOpAndDoesNotCountTransition) {
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_diagnostics_v1 diagnostics{.abi_version = nm_core_abi_version(),
+                                  .struct_size = sizeof(nm_diagnostics_v1)};
+    ASSERT_EQ(nm_core_get_diagnostics(handle, &diagnostics), NM_STATUS_OK);
+    EXPECT_EQ(diagnostics.stop_count, 0u);
+    nm_core_destroy(handle);
+}
+
+TEST(Abi, ConcurrentDoubleStartReservesStateBeforeOpeningSource) {
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    nm_status first = NM_STATUS_INTERNAL_ERROR, second = NM_STATUS_INTERNAL_ERROR;
+    std::thread a([&] { first = nm_core_start(handle, &source); });
+    std::thread b([&] { second = nm_core_start(handle, &source); });
+    a.join();
+    b.join();
+    EXPECT_TRUE((first == NM_STATUS_OK && second == NM_STATUS_INVALID_STATE) ||
+                (second == NM_STATUS_OK && first == NM_STATUS_INVALID_STATE));
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_core_destroy(handle);
+}
+
+TEST(Abi, LiveAdapterNameRejectsEmbeddedNulAndOversize) {
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    std::vector<uint8_t> name{'a', 0, 'b'};
+    auto source = valid_source();
+    source.kind = NM_SOURCE_NPCAP;
+    source.source_data = name.data();
+    source.source_data_size = name.size();
+    EXPECT_EQ(nm_core_start(handle, &source), NM_STATUS_INVALID_ARGUMENT);
+    name.assign(NM_CORE_ADAPTER_NAME_MAX + 1, 'x');
+    source.source_data = name.data();
+    source.source_data_size = name.size();
+    EXPECT_EQ(nm_core_start(handle, &source), NM_STATUS_INVALID_ARGUMENT);
+    nm_core_destroy(handle);
+}
+
+TEST(Abi, InjectedLivePacketsEnterBoundedEngineQueueAndExposeLossCounters) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);
+    engine_fake_mode = EngineFakeMode::overflow;
+    auto config = valid_config();
+    config.native_queue_capacity = NM_CORE_NATIVE_QUEUE_CAPACITY_MIN;
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_NPCAP;
+    ASSERT_EQ(nm_core_start(handle, &source), NM_STATUS_OK);
+    nm_diagnostics_v1 diagnostics{.abi_version = nm_core_abi_version(),
+                                  .struct_size = sizeof(nm_diagnostics_v1)};
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        ASSERT_EQ(nm_core_get_diagnostics(handle, &diagnostics), NM_STATUS_OK);
+        if (diagnostics.captured_packet_count == 64)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(diagnostics.captured_packet_count, 64u);
+    EXPECT_EQ(diagnostics.dropped_capture_count, 1u);
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_core_destroy(handle);
+    namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, InjectedPollFailureEmitsStructuredDiagnosticAndStopDoesNotDeadlock) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);
+    engine_fake_mode = EngineFakeMode::failure;
+    observed_diagnostic = 0;
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    callbacks.diagnostic_callback = &observe_diagnostic;
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_WINDIVERT;
+    ASSERT_EQ(nm_core_start(handle, &source), NM_STATUS_OK);
+    for (int attempt = 0; attempt < 100 && observed_diagnostic.load() == 0; ++attempt) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(observed_diagnostic.load(),
+              static_cast<uint32_t>(NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED));
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_core_destroy(handle);
+    namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, BlockingPollIsCancelledJoinedThenClosedWithoutDeadlock) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);
+    engine_fake_mode = EngineFakeMode::blocking;
+    engine_fake_stop = false;
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_WINDIVERT;
+    ASSERT_EQ(nm_core_start(handle, &source), NM_STATUS_OK);
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_core_destroy(handle);
+    namter::set_backend_factory_for_testing(nullptr);
+}
+
 TEST(Abi, DestroyingStoppedHandleLeaksNoNativeAllocations) {
-    // Warm any one-time CRT/runtime allocations before measuring the handle lifetime.
-    nm_core_handle* warm_handle = create_started_core();
+    // Warm any one-time CRT/runtime allocations before measuring the handle
+    // lifetime.
+    nm_core_handle *warm_handle = create_started_core();
     ASSERT_NE(warm_handle, nullptr);
     ASSERT_EQ(nm_core_stop(warm_handle), NM_STATUS_OK);
     nm_core_destroy(warm_handle);
@@ -254,7 +459,7 @@ TEST(Abi, DestroyingStoppedHandleLeaksNoNativeAllocations) {
     _CrtMemState difference{};
     _CrtMemCheckpoint(&before);
 
-    nm_core_handle* handle = create_started_core();
+    nm_core_handle *handle = create_started_core();
     ASSERT_NE(handle, nullptr);
     ASSERT_EQ(nm_core_stop(handle), NM_STATUS_OK);
     nm_core_destroy(handle);

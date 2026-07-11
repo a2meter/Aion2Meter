@@ -45,6 +45,8 @@ public enum NativeEventKind : uint
 public enum NativeDiagnosticCode : uint
 {
     IncompleteStream = 1,
+    CaptureQueueOverflow = 2,
+    CaptureBackendFailed = 3,
 }
 
 public sealed record NativeCoreConfig(
@@ -104,6 +106,9 @@ public sealed record NativeDiagnostics(
     ulong StartCount,
     ulong StopCount,
     ulong EmittedEventCount,
+    ulong CapturedPacketCount,
+    ulong DroppedCaptureCount,
+    ulong InvalidPacketCount,
     ImmutableArray<NativeDiagnostic> ManagedDiagnostics);
 
 internal enum NativeStatus
@@ -113,6 +118,9 @@ internal enum NativeStatus
     AbiMismatch = 2,
     InvalidState = 3,
     InternalError = 4,
+    NpcapNotInstalled = 5,
+    BackendUnavailable = 6,
+    BackendError = 7,
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -213,4 +221,7 @@ internal struct NativeDiagnosticsV1
     internal ulong StartCount;
     internal ulong StopCount;
     internal ulong EmittedEventCount;
+    internal ulong CapturedPacketCount;
+    internal ulong DroppedCaptureCount;
+    internal ulong InvalidPacketCount;
 }

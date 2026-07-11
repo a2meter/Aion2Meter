@@ -25,6 +25,8 @@ enum class CaptureSource : uint8_t {
     pcap,
 };
 
+enum class CaptureDirection : uint8_t { unknown, inbound, outbound };
+
 enum class PcapByteOrder : uint8_t {
     little_endian,
     big_endian,
@@ -83,6 +85,7 @@ struct CaptureRecord {
     uint32_t original_length = 0;
     std::vector<uint8_t> bytes;
     uint64_t file_offset = 0;
+    CaptureDirection direction = CaptureDirection::unknown;
 };
 
 struct CaptureProvenance {
@@ -92,6 +95,7 @@ struct CaptureProvenance {
     uint32_t captured_length = 0;
     uint32_t original_length = 0;
     uint64_t file_offset = 0;
+    CaptureDirection direction = CaptureDirection::unknown;
 };
 
 struct FlowTuple {
@@ -100,7 +104,7 @@ struct FlowTuple {
     uint16_t source_port = 0;
     uint16_t destination_port = 0;
 
-    auto operator<=>(const FlowTuple&) const = default;
+    auto operator<=>(const FlowTuple &) const = default;
 };
 
 struct TcpSegment {
@@ -166,43 +170,33 @@ struct GapObserved {
 using StreamOutput = std::variant<StreamChunk, StreamReset, GapObserved>;
 
 class TcpReassembler {
-public:
-    TcpReassembler(
-        FlowTuple flow,
-        uint64_t initial_epoch,
-        size_t maximum_out_of_order_bytes,
-        uint64_t gap_timeout_ns,
-        FlowDiagnostics* shared_diagnostics = nullptr);
+  public:
+    TcpReassembler(FlowTuple flow, uint64_t initial_epoch, size_t maximum_out_of_order_bytes,
+                   uint64_t gap_timeout_ns, FlowDiagnostics *shared_diagnostics = nullptr);
     ~TcpReassembler();
 
-    TcpReassembler(const TcpReassembler&) = delete;
-    TcpReassembler& operator=(const TcpReassembler&) = delete;
-    TcpReassembler(TcpReassembler&&) noexcept;
-    TcpReassembler& operator=(TcpReassembler&&) noexcept;
+    TcpReassembler(const TcpReassembler &) = delete;
+    TcpReassembler &operator=(const TcpReassembler &) = delete;
+    TcpReassembler(TcpReassembler &&) noexcept;
+    TcpReassembler &operator=(TcpReassembler &&) noexcept;
 
-    [[nodiscard]] std::vector<StreamOutput> process(const TcpSegment& segment);
+    [[nodiscard]] std::vector<StreamOutput> process(const TcpSegment &segment);
     [[nodiscard]] std::vector<StreamOutput> expire(uint64_t capture_time_ns);
-    [[nodiscard]] std::vector<StreamOutput> start_new_epoch(
-        StreamResetReason reason,
-        uint64_t capture_time_ns);
-    [[nodiscard]] std::vector<StreamOutput> close(
-        StreamResetReason reason,
-        uint64_t capture_time_ns);
+    [[nodiscard]] std::vector<StreamOutput> start_new_epoch(StreamResetReason reason,
+                                                            uint64_t capture_time_ns);
+    [[nodiscard]] std::vector<StreamOutput> close(StreamResetReason reason,
+                                                  uint64_t capture_time_ns);
     [[nodiscard]] size_t buffered_bytes() const noexcept;
     [[nodiscard]] bool closed() const noexcept;
     [[nodiscard]] uint64_t epoch() const noexcept;
-    [[nodiscard]] const FlowDiagnostics& diagnostics() const noexcept;
+    [[nodiscard]] const FlowDiagnostics &diagnostics() const noexcept;
 
-private:
+  private:
     friend class FlowTracker;
 
-    TcpReassembler(
-        FlowTuple flow,
-        uint64_t initial_epoch,
-        size_t maximum_out_of_order_bytes,
-        uint64_t gap_timeout_ns,
-        FlowDiagnostics* shared_diagnostics,
-        uint64_t* next_epoch_id);
+    TcpReassembler(FlowTuple flow, uint64_t initial_epoch, size_t maximum_out_of_order_bytes,
+                   uint64_t gap_timeout_ns, FlowDiagnostics *shared_diagnostics,
+                   uint64_t *next_epoch_id);
     [[nodiscard]] bool is_syn_retransmission(uint32_t sequence) const noexcept;
 
     struct Impl;
@@ -210,22 +204,22 @@ private:
 };
 
 class FlowTracker {
-public:
+  public:
     explicit FlowTracker(FlowConfig config);
     ~FlowTracker();
 
-    FlowTracker(const FlowTracker&) = delete;
-    FlowTracker& operator=(const FlowTracker&) = delete;
-    FlowTracker(FlowTracker&&) noexcept;
-    FlowTracker& operator=(FlowTracker&&) noexcept;
+    FlowTracker(const FlowTracker &) = delete;
+    FlowTracker &operator=(const FlowTracker &) = delete;
+    FlowTracker(FlowTracker &&) noexcept;
+    FlowTracker &operator=(FlowTracker &&) noexcept;
 
-    [[nodiscard]] std::vector<StreamOutput> process(const TcpSegment& segment);
+    [[nodiscard]] std::vector<StreamOutput> process(const TcpSegment &segment);
     [[nodiscard]] std::vector<StreamOutput> expire(uint64_t capture_time_ns);
     [[nodiscard]] size_t live_flow_count() const noexcept;
-    [[nodiscard]] size_t buffered_bytes(const FlowTuple& flow) const noexcept;
-    [[nodiscard]] const FlowDiagnostics& diagnostics() const noexcept;
+    [[nodiscard]] size_t buffered_bytes(const FlowTuple &flow) const noexcept;
+    [[nodiscard]] const FlowDiagnostics &diagnostics() const noexcept;
 
-private:
+  private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
@@ -236,16 +230,16 @@ struct NormalizationResult {
 };
 
 class PcapReader {
-public:
-    explicit PcapReader(std::istream& input, uint32_t maximum_capture_length = 16u * 1024u * 1024u);
+  public:
+    explicit PcapReader(std::istream &input, uint32_t maximum_capture_length = 16u * 1024u * 1024u);
 
-    [[nodiscard]] const std::optional<PcapHeader>& header() const noexcept;
+    [[nodiscard]] const std::optional<PcapHeader> &header() const noexcept;
     [[nodiscard]] CaptureError error() const noexcept;
     [[nodiscard]] bool eof() const noexcept;
-    bool read_next(CaptureRecord& record);
+    bool read_next(CaptureRecord &record);
 
-private:
-    std::istream* input_;
+  private:
+    std::istream *input_;
     std::optional<PcapHeader> header_;
     CaptureError error_ = CaptureError::none;
     uint32_t maximum_capture_length_;
@@ -254,8 +248,8 @@ private:
 };
 
 class PacketNormalizer {
-public:
-    [[nodiscard]] static NormalizationResult normalize(const CaptureRecord& record);
+  public:
+    [[nodiscard]] static NormalizationResult normalize(const CaptureRecord &record);
 };
 
-}  // namespace namter
+} // namespace namter

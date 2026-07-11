@@ -1,17 +1,17 @@
 #include "capture_record.hpp"
+#include "namter/core.h"
 
 #include <cstddef>
 
 namespace namter {
 namespace {
 
-uint16_t read_network_u16(const std::vector<uint8_t>& bytes, size_t offset) noexcept {
-    return static_cast<uint16_t>(
-        static_cast<uint16_t>(static_cast<uint16_t>(bytes[offset]) << 8u) |
-        static_cast<uint16_t>(bytes[offset + 1]));
+uint16_t read_network_u16(const std::vector<uint8_t> &bytes, size_t offset) noexcept {
+    return static_cast<uint16_t>(static_cast<uint16_t>(static_cast<uint16_t>(bytes[offset]) << 8u) |
+                                 static_cast<uint16_t>(bytes[offset + 1]));
 }
 
-uint32_t read_network_u32(const std::vector<uint8_t>& bytes, size_t offset) noexcept {
+uint32_t read_network_u32(const std::vector<uint8_t> &bytes, size_t offset) noexcept {
     uint32_t value = 0;
     for (size_t index = 0; index < 4; ++index) {
         value = static_cast<uint32_t>((value << 8u) | bytes[offset + index]);
@@ -23,9 +23,9 @@ NormalizationResult failure(CaptureError error) noexcept {
     return {.error = error, .segment = std::nullopt};
 }
 
-}  // namespace
+} // namespace
 
-NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) {
+NormalizationResult PacketNormalizer::normalize(const CaptureRecord &record) {
     if (record.bytes.size() != static_cast<size_t>(record.captured_length)) {
         return failure(CaptureError::capture_length_mismatch);
     }
@@ -122,27 +122,35 @@ NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) {
     const size_t payload_offset = tcp_offset + tcp_header_size;
     const size_t payload_size = tcp_size - tcp_header_size;
     TcpSegment segment{
-        .flow = {
-            .source_address = read_network_u32(record.bytes, network_offset + 12),
-            .destination_address = read_network_u32(record.bytes, network_offset + 16),
-            .source_port = read_network_u16(record.bytes, tcp_offset),
-            .destination_port = read_network_u16(record.bytes, tcp_offset + 2),
-        },
+        .flow =
+            {
+                .source_address = read_network_u32(record.bytes, network_offset + 12),
+                .destination_address = read_network_u32(record.bytes, network_offset + 16),
+                .source_port = read_network_u16(record.bytes, tcp_offset),
+                .destination_port = read_network_u16(record.bytes, tcp_offset + 2),
+            },
         .sequence = read_network_u32(record.bytes, tcp_offset + 4),
         .flags = record.bytes[tcp_offset + 13],
-        .payload = std::vector<uint8_t>(
-            record.bytes.data() + payload_offset,
-            record.bytes.data() + payload_offset + payload_size),
-        .provenance = {
-            .source = record.source,
-            .timestamp_ns = record.timestamp_ns,
-            .link_type = record.link_type,
-            .captured_length = record.captured_length,
-            .original_length = record.original_length,
-            .file_offset = record.file_offset,
-        },
+        .payload = std::vector<uint8_t>(record.bytes.data() + payload_offset,
+                                        record.bytes.data() + payload_offset + payload_size),
+        .provenance =
+            {
+                .source = record.source,
+                .timestamp_ns = record.timestamp_ns,
+                .link_type = record.link_type,
+                .captured_length = record.captured_length,
+                .original_length = record.original_length,
+                .file_offset = record.file_offset,
+                .direction = record.direction,
+            },
     };
+    if (segment.provenance.direction == CaptureDirection::unknown) {
+        if (segment.flow.source_port == NM_CORE_DEFAULT_GAME_PORT)
+            segment.provenance.direction = CaptureDirection::inbound;
+        else if (segment.flow.destination_port == NM_CORE_DEFAULT_GAME_PORT)
+            segment.provenance.direction = CaptureDirection::outbound;
+    }
     return {.error = CaptureError::none, .segment = segment};
 }
 
-}  // namespace namter
+} // namespace namter
