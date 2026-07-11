@@ -65,12 +65,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Namter.Core.Native\src\frame.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\flow.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\lz4.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\packet.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\pcap.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\tcp.cpp" />
     <ClCompile Include="src\abi_tests.cpp" />
+    <ClCompile Include="src\frame_tests.cpp" />
     <ClCompile Include="src\flow_tests.cpp" />
+    <ClCompile Include="src\lz4_tests.cpp" />
     <ClCompile Include="src\packet_tests.cpp" />
     <ClCompile Include="src\pcap_tests.cpp" />
     <ClCompile Include="src\tcp_tests.cpp" />

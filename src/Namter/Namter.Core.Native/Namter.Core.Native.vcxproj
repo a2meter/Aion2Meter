@@ -66,7 +66,9 @@
   <ItemGroup>
     <ClCompile Include="src\abi.cpp" />
     <ClCompile Include="src\engine.cpp" />
+    <ClCompile Include="src\frame.cpp" />
     <ClCompile Include="src\flow.cpp" />
+    <ClCompile Include="src\lz4.cpp" />
     <ClCompile Include="src\packet.cpp" />
     <ClCompile Include="src\pcap.cpp" />
     <ClCompile Include="src\tcp.cpp" />
