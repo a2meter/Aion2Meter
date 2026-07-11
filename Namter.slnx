@@ -5,6 +5,9 @@
   <Folder Name="/native/">
     <Project Path="src/Namter/Namter.Core.Native/Namter.Core.Native.vcxproj" />
     <Project Path="src/Namter/Namter.Core.Native.Tests/Namter.Core.Native.Tests.vcxproj" />
+    <Project Path="src/Namter/Namter.Core.Native.Tests/Namter.Core.Native.VarintFuzzHarness.vcxproj" />
+    <Project Path="src/Namter/Namter.Core.Native.Tests/Namter.Core.Native.FrameFuzzHarness.vcxproj" />
+    <Project Path="src/Namter/Namter.Core.Native.Tests/Namter.Core.Native.Lz4FuzzHarness.vcxproj" />
   </Folder>
   <Folder Name="/managed/">
     <Project Path="src/Namter/Namter.Core.Interop/Namter.Core.Interop.csproj" />

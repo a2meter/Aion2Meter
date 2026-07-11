@@ -1,4 +1,4 @@
-#include "capture_record.hpp"
+#include "frame_internal.hpp"
 #include "varint.hpp"
 
 #include <lz4.h>
@@ -21,49 +21,14 @@ int32_t read_i32_le(std::span<const uint8_t> bytes) noexcept {
     return std::bit_cast<int32_t>(value);
 }
 
-FrameDiagnosticCode split_nested_frames(
-    std::span<const uint8_t> bytes,
-    size_t max_frame_bytes,
-    std::vector<std::vector<uint8_t>>& nested_frames) {
-    size_t offset = 0;
-    while (offset < bytes.size()) {
-        while (offset < bytes.size() && bytes[offset] == 0) {
-            ++offset;
-        }
-        if (offset == bytes.size()) {
-            return FrameDiagnosticCode::none;
-        }
-
-        const auto decoded = decode_u32_varint(bytes.subspan(offset));
-        if (decoded.status != VarintStatus::complete || decoded.value < 4u) {
-            return FrameDiagnosticCode::invalid_nested_frame;
-        }
-
-        const size_t body_size = static_cast<size_t>(decoded.value - 4u);
-        if (body_size > max_frame_bytes ||
-            decoded.bytes_consumed > max_frame_bytes - body_size) {
-            return FrameDiagnosticCode::invalid_nested_frame;
-        }
-        const size_t frame_size = decoded.bytes_consumed + body_size;
-        if (frame_size > bytes.size() - offset) {
-            return FrameDiagnosticCode::invalid_nested_frame;
-        }
-
-        const auto frame = bytes.subspan(offset, frame_size);
-        nested_frames.emplace_back(frame.begin(), frame.end());
-        offset += frame_size;
-    }
-    return FrameDiagnosticCode::none;
-}
-
 }  // namespace
 
-FrameDiagnosticCode expand_lz4_batch(
+FrameDiagnosticCode decompress_lz4_batch(
     std::span<const uint8_t> body,
-    size_t max_frame_bytes,
     size_t max_decompressed_bytes,
-    std::vector<std::vector<uint8_t>>& nested_frames) {
-    nested_frames.clear();
+    ExpansionBudget& budget,
+    std::vector<uint8_t>& decompressed) {
+    decompressed.clear();
     if (body.size() < 6u) {
         return FrameDiagnosticCode::truncated_lz4_header;
     }
@@ -79,27 +44,29 @@ FrameDiagnosticCode expand_lz4_batch(
     if (output_size > max_decompressed_bytes) {
         return FrameDiagnosticCode::decompressed_size_too_large;
     }
+    if (output_size > budget.remaining_expanded_bytes ||
+        budget.remaining_allocation_nodes == 0) {
+        return FrameDiagnosticCode::resource_limit_exceeded;
+    }
 
     const auto compressed = body.subspan(6u);
     if (compressed.empty() || compressed.size() > static_cast<size_t>(INT_MAX)) {
         return FrameDiagnosticCode::lz4_decompression_failed;
     }
 
-    std::vector<uint8_t> output(output_size);
+    budget.remaining_expanded_bytes -= output_size;
+    --budget.remaining_allocation_nodes;
+    decompressed.resize(output_size);
     const int written = LZ4_decompress_safe(
         reinterpret_cast<const char*>(compressed.data()),
-        reinterpret_cast<char*>(output.data()),
+        reinterpret_cast<char*>(decompressed.data()),
         static_cast<int>(compressed.size()),
         declared_size);
     if (written != declared_size) {
+        decompressed.clear();
         return FrameDiagnosticCode::lz4_decompression_failed;
     }
-
-    const auto error = split_nested_frames(output, max_frame_bytes, nested_frames);
-    if (error != FrameDiagnosticCode::none) {
-        nested_frames.clear();
-    }
-    return error;
+    return FrameDiagnosticCode::none;
 }
 
 }  // namespace namter::detail

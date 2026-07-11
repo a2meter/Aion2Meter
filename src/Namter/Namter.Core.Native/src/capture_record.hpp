@@ -6,7 +6,6 @@
 #include <istream>
 #include <memory>
 #include <optional>
-#include <span>
 #include <variant>
 #include <vector>
 
@@ -165,82 +164,6 @@ struct GapObserved {
 };
 
 using StreamOutput = std::variant<StreamChunk, StreamReset, GapObserved>;
-
-struct FrameConfig {
-    size_t max_frame_bytes = 2u * 1024u * 1024u;
-    size_t max_decompressed_bytes = 4u * 1024u * 1024u;
-};
-
-enum class FrameState : uint8_t {
-    need_length,
-    need_body,
-    need_resync,
-};
-
-enum class FrameDiagnosticCode : uint8_t {
-    none,
-    overlong_varint,
-    invalid_frame_length,
-    frame_too_large,
-    invalid_marker,
-    truncated_lz4_header,
-    invalid_decompressed_size,
-    decompressed_size_too_large,
-    lz4_decompression_failed,
-    invalid_nested_frame,
-};
-
-struct ProtocolMessage {
-    FlowTuple flow;
-    uint64_t epoch = 0;
-    std::vector<uint8_t> bytes;
-    CaptureProvenance first_provenance;
-    CaptureProvenance last_provenance;
-    uint64_t first_timestamp_ns = 0;
-    uint64_t last_timestamp_ns = 0;
-};
-
-struct FrameDiagnostic {
-    FrameDiagnosticCode code = FrameDiagnosticCode::none;
-    FlowTuple flow;
-    uint64_t epoch = 0;
-    CaptureProvenance first_provenance;
-    CaptureProvenance last_provenance;
-    uint64_t first_timestamp_ns = 0;
-    uint64_t last_timestamp_ns = 0;
-};
-
-using FrameOutput = std::variant<ProtocolMessage, FrameDiagnostic>;
-
-class IncrementalFramer {
-public:
-    explicit IncrementalFramer(FrameConfig config);
-    ~IncrementalFramer();
-
-    IncrementalFramer(const IncrementalFramer&) = delete;
-    IncrementalFramer& operator=(const IncrementalFramer&) = delete;
-    IncrementalFramer(IncrementalFramer&&) noexcept;
-    IncrementalFramer& operator=(IncrementalFramer&&) noexcept;
-
-    [[nodiscard]] std::vector<FrameOutput> process(const StreamChunk& chunk);
-    [[nodiscard]] std::vector<FrameOutput> process(const StreamReset& reset);
-    [[nodiscard]] FrameState state() const noexcept;
-    [[nodiscard]] size_t buffered_bytes() const noexcept;
-
-private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
-};
-
-namespace detail {
-
-[[nodiscard]] FrameDiagnosticCode expand_lz4_batch(
-    std::span<const uint8_t> body,
-    size_t max_frame_bytes,
-    size_t max_decompressed_bytes,
-    std::vector<std::vector<uint8_t>>& nested_frames);
-
-}  // namespace detail
 
 class TcpReassembler {
 public:

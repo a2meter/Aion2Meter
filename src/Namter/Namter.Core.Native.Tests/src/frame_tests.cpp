@@ -1,4 +1,5 @@
-#include "capture_record.hpp"
+#include "frame.hpp"
+#include "fuzz_support.hpp"
 #include "varint.hpp"
 
 #include <gtest/gtest.h>
@@ -182,14 +183,14 @@ TEST(IncrementalFramer, RejectsOverlongAndOversizedLengthsWithoutBodyAllocation)
     const auto overlong_outputs = overlong.process(chunk(overlong_bytes, 1));
     ASSERT_EQ(diagnostics(overlong_outputs).size(), 1u);
     EXPECT_EQ(diagnostics(overlong_outputs).front().code, FrameDiagnosticCode::overlong_varint);
-    EXPECT_EQ(overlong.buffered_bytes(), 0u);
+    EXPECT_LE(overlong.buffered_bytes(), 4u);
     EXPECT_EQ(overlong.state(), FrameState::need_resync);
 
     IncrementalFramer oversized(FrameConfig{.max_frame_bytes = 32, .max_decompressed_bytes = 64});
     const auto oversized_outputs = oversized.process(chunk(encode_varint(4096), 2));
     ASSERT_EQ(diagnostics(oversized_outputs).size(), 1u);
     EXPECT_EQ(diagnostics(oversized_outputs).front().code, FrameDiagnosticCode::frame_too_large);
-    EXPECT_EQ(oversized.buffered_bytes(), 0u);
+    EXPECT_LE(oversized.buffered_bytes(), 4u);
 }
 
 TEST(IncrementalFramer, RejectsDeclaredLengthsSmallerThanTheProtocolBias) {
@@ -249,15 +250,60 @@ TEST(IncrementalFramer, ResynchronizesOnlyToACompleteValidatedFrameBoundary) {
     EXPECT_EQ(actual.front().bytes, valid);
 }
 
-int LLVMFuzzerTestOneInputVarint(const uint8_t* data, size_t size) {
-    (void)namter::decode_u32_varint(std::span<const uint8_t>(data, size));
-    return 0;
+TEST(IncrementalFramer, RetainsAnOverlappingFrameAfterAnInvalidLengthCandidate) {
+    const auto valid = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36, 0x99});
+    auto overlapped = std::vector<uint8_t>{0x80};
+    overlapped.insert(overlapped.end(), valid.begin(), valid.end());
+    IncrementalFramer framer(FrameConfig{.max_frame_bytes = 64, .max_decompressed_bytes = 128});
+
+    const auto outputs = framer.process(chunk(overlapped, 77));
+
+    ASSERT_EQ(diagnostics(outputs).size(), 1u);
+    const auto actual = messages(outputs);
+    ASSERT_EQ(actual.size(), 1u);
+    EXPECT_EQ(actual.front().bytes, valid);
+    EXPECT_EQ(actual.front().first_timestamp_ns, 77u);
 }
 
-int LLVMFuzzerTestOneInputFrame(const uint8_t* data, size_t size) {
+TEST(IncrementalFramer, RetainsAnOverlappingFrameAfterAnInvalidCompleteBody) {
+    const auto valid = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36, 0x55});
+    const std::vector<uint8_t> corrupt_prefix{0x08, 0xff};
     IncrementalFramer framer(FrameConfig{.max_frame_bytes = 64, .max_decompressed_bytes = 128});
-    (void)framer.process(chunk(std::span<const uint8_t>(data, size), 1));
-    return 0;
+    EXPECT_TRUE(framer.process(chunk(corrupt_prefix, 10)).empty());
+
+    const auto outputs = framer.process(chunk(valid, 20));
+
+    ASSERT_EQ(diagnostics(outputs).size(), 1u);
+    const auto actual = messages(outputs);
+    ASSERT_EQ(actual.size(), 1u);
+    EXPECT_EQ(actual.front().bytes, valid);
+    EXPECT_EQ(actual.front().first_timestamp_ns, 20u);
+    EXPECT_EQ(actual.front().last_timestamp_ns, 20u);
+}
+
+TEST(IncrementalFramer, OneByteResyncChunksHaveBoundedRevisitsAndProvenanceRuns) {
+    constexpr size_t hostile_byte_count = 5000u;
+    IncrementalFramer framer(FrameConfig{
+        .max_frame_bytes = 8192,
+        .max_decompressed_bytes = 16384,
+    });
+    const std::vector<uint8_t> overlong{0x80, 0x80, 0x80, 0x80, 0x80};
+    (void)framer.process(chunk(overlong, 1));
+
+    const uint8_t continuation = 0x80;
+    for (size_t index = 0; index < hostile_byte_count; ++index) {
+        (void)framer.process(chunk(
+            std::span<const uint8_t>(&continuation, 1u),
+            100u + index));
+    }
+
+    const auto metrics = framer.metrics();
+    EXPECT_LE(metrics.resync_scan_steps, hostile_byte_count * 6u);
+    EXPECT_LE(metrics.resync_incomplete_revisits, hostile_byte_count * 5u);
+    EXPECT_LE(metrics.retained_provenance_runs, namter::frame_max_provenance_runs);
+    EXPECT_LE(
+        metrics.retained_provenance_metadata_bytes,
+        namter::frame_max_provenance_runs * namter::frame_provenance_run_accounted_bytes);
 }
 
 TEST(FrameCorpus, FuzzEntryPointsAcceptHostileInputsWithinConfiguredBounds) {
@@ -270,8 +316,8 @@ TEST(FrameCorpus, FuzzEntryPointsAcceptHostileInputsWithinConfiguredBounds) {
         {0x06, 0x00, 0x36},
     };
     for (const auto& input : corpus) {
-        EXPECT_EQ(LLVMFuzzerTestOneInputVarint(input.data(), input.size()), 0);
-        EXPECT_EQ(LLVMFuzzerTestOneInputFrame(input.data(), input.size()), 0);
+        EXPECT_EQ(namter::fuzz_support::fuzz_varint(input.data(), input.size()), 0);
+        EXPECT_EQ(namter::fuzz_support::fuzz_frame(input.data(), input.size()), 0);
     }
 }
 

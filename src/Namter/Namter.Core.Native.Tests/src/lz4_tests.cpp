@@ -1,4 +1,5 @@
-#include "capture_record.hpp"
+#include "frame.hpp"
+#include "fuzz_support.hpp"
 
 #include <gtest/gtest.h>
 #include <lz4.h>
@@ -77,6 +78,28 @@ std::vector<uint8_t> make_batch(
     const auto compressed = compress(decompressed);
     body.insert(body.end(), compressed.begin(), compressed.end());
     return make_frame(body);
+}
+
+std::vector<uint8_t> wrap_batches(
+    std::vector<uint8_t> bytes,
+    size_t count,
+    size_t& cumulative_expanded_bytes) {
+    for (size_t index = 0; index < count; ++index) {
+        cumulative_expanded_bytes += bytes.size();
+        bytes = make_batch(bytes, static_cast<int32_t>(bytes.size()));
+    }
+    return bytes;
+}
+
+std::vector<uint8_t> repeat_frame(
+    const std::vector<uint8_t>& frame,
+    size_t count) {
+    std::vector<uint8_t> bytes;
+    bytes.reserve(frame.size() * count);
+    for (size_t index = 0; index < count; ++index) {
+        bytes.insert(bytes.end(), frame.begin(), frame.end());
+    }
+    return bytes;
 }
 
 StreamChunk chunk(std::span<const uint8_t> bytes, uint64_t timestamp_ns) {
@@ -203,10 +226,94 @@ TEST(Lz4Batch, RejectsMalformedNestedFramesAsOneBatchDiagnostic) {
     EXPECT_TRUE(messages(outputs).empty());
 }
 
-int LLVMFuzzerTestOneInputLz4(const uint8_t* data, size_t size) {
-    IncrementalFramer framer(FrameConfig{.max_frame_bytes = 64, .max_decompressed_bytes = 128});
-    (void)framer.process(chunk(std::span<const uint8_t>(data, size), 1));
-    return 0;
+TEST(Lz4Batch, RejectsZeroBodyNestedDeclarationsInsteadOfAmplifyingThem) {
+    const std::vector<uint8_t> zero_body_frame{0x04};
+    IncrementalFramer framer(FrameConfig{.max_frame_bytes = 1024, .max_decompressed_bytes = 4096});
+
+    const auto outputs = framer.process(chunk(
+        make_batch(zero_body_frame, static_cast<int32_t>(zero_body_frame.size())),
+        1));
+
+    EXPECT_TRUE(messages(outputs).empty());
+    ASSERT_EQ(diagnostics(outputs).size(), 1u);
+    EXPECT_EQ(diagnostics(outputs).front().code, FrameDiagnosticCode::invalid_nested_frame);
+}
+
+TEST(Lz4Batch, RejectsAllZeroAndEmbeddedZeroPayloadGapsAtomically) {
+    const auto valid = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36});
+    const std::vector<uint8_t> all_zero{0x00, 0x00, 0x00};
+    auto embedded = valid;
+    embedded.push_back(0x00);
+    embedded.insert(embedded.end(), valid.begin(), valid.end());
+
+    for (const auto& invalid : {all_zero, embedded}) {
+        IncrementalFramer framer(FrameConfig{.max_frame_bytes = 1024, .max_decompressed_bytes = 4096});
+        const auto outputs = framer.process(chunk(
+            make_batch(invalid, static_cast<int32_t>(invalid.size())),
+            1));
+
+        EXPECT_TRUE(messages(outputs).empty());
+        ASSERT_EQ(diagnostics(outputs).size(), 1u);
+        EXPECT_EQ(diagnostics(outputs).front().code, FrameDiagnosticCode::invalid_nested_frame);
+    }
+}
+
+TEST(Lz4Batch, SharesOneCumulativeExpansionBudgetAcrossRecursiveBatches) {
+    const auto leaf = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36});
+    size_t cumulative = 0;
+    const auto nested = wrap_batches(leaf, 3, cumulative);
+
+    IncrementalFramer exact(FrameConfig{
+        .max_frame_bytes = 65536,
+        .max_decompressed_bytes = cumulative,
+    });
+    EXPECT_EQ(messages(exact.process(chunk(nested, 1))).size(), 1u);
+
+    IncrementalFramer one_short(FrameConfig{
+        .max_frame_bytes = 65536,
+        .max_decompressed_bytes = cumulative - 1u,
+    });
+    const auto rejected = one_short.process(chunk(nested, 1));
+    EXPECT_TRUE(messages(rejected).empty());
+    EXPECT_EQ(diagnostics(rejected).size(), 1u);
+}
+
+TEST(Lz4Batch, EnforcesDepthAtFourCompressedLayers) {
+    const auto leaf = make_frame(std::vector<uint8_t>{0x06, 0x00, 0x36});
+    size_t four_bytes = 0;
+    const auto four = wrap_batches(leaf, 4, four_bytes);
+    IncrementalFramer accepted(FrameConfig{.max_frame_bytes = 65536, .max_decompressed_bytes = four_bytes});
+    EXPECT_EQ(messages(accepted.process(chunk(four, 1))).size(), 1u);
+
+    size_t five_bytes = 0;
+    const auto five = wrap_batches(leaf, 5, five_bytes);
+    IncrementalFramer rejected(FrameConfig{.max_frame_bytes = 65536, .max_decompressed_bytes = five_bytes});
+    const auto outputs = rejected.process(chunk(five, 1));
+    EXPECT_TRUE(messages(outputs).empty());
+    EXPECT_EQ(diagnostics(outputs).size(), 1u);
+}
+
+TEST(Lz4Batch, BoundsBreadthAndLogicalAllocationNodes) {
+    const auto leaf = make_frame(std::vector<uint8_t>{0x01});
+    const auto at_limit = repeat_frame(leaf, 4095);
+    IncrementalFramer accepted(FrameConfig{
+        .max_frame_bytes = 65536,
+        .max_decompressed_bytes = at_limit.size(),
+    });
+    EXPECT_EQ(messages(accepted.process(chunk(
+        make_batch(at_limit, static_cast<int32_t>(at_limit.size())),
+        1))).size(), 4095u);
+
+    const auto beyond_limit = repeat_frame(leaf, 4096);
+    IncrementalFramer rejected(FrameConfig{
+        .max_frame_bytes = 65536,
+        .max_decompressed_bytes = beyond_limit.size(),
+    });
+    const auto outputs = rejected.process(chunk(
+        make_batch(beyond_limit, static_cast<int32_t>(beyond_limit.size())),
+        1));
+    EXPECT_TRUE(messages(outputs).empty());
+    EXPECT_EQ(diagnostics(outputs).size(), 1u);
 }
 
 TEST(Lz4Corpus, FuzzEntryPointAcceptsMalformedContainersWithinConfiguredBounds) {
@@ -217,7 +324,7 @@ TEST(Lz4Corpus, FuzzEntryPointAcceptsMalformedContainersWithinConfiguredBounds) 
         {0x0e, 0xf0, 0xff, 0xff, 0x40, 0x00, 0x00, 0x00, 0xff},
     };
     for (const auto& input : corpus) {
-        EXPECT_EQ(LLVMFuzzerTestOneInputLz4(input.data(), input.size()), 0);
+        EXPECT_EQ(namter::fuzz_support::fuzz_lz4(input.data(), input.size()), 0);
     }
 }
 
