@@ -65,6 +65,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\abi.cpp" />
+    <ClCompile Include="src\engine.cpp" />
   </ItemGroup>
   <Import Project="C:\Program Files\Microsoft Visual Studio\18\Community\VC\vcpkg\scripts\buildsystems\msbuild\vcpkg.targets" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
