@@ -37,17 +37,24 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <Import Project="C:\Program Files\Microsoft Visual Studio\18\Community\VC\vcpkg\scripts\buildsystems\msbuild\vcpkg.props" />
   <PropertyGroup>
-    <!-- VS 2026 file-access tracking can hang cl.exe under Codex process isolation. -->
-    <TrackFileAccess>false</TrackFileAccess>
+    <NamterDisableFileTracking Condition="'$(NamterDisableFileTracking)' == ''">false</NamterDisableFileTracking>
+    <!-- Codex process isolation requires this explicit opt-in to avoid a VS 2026 tracking hang. -->
+    <TrackFileAccess Condition="'$(NamterDisableFileTracking)' == 'true'">false</TrackFileAccess>
     <OutDir>$(ProjectDir)x64\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)x64\$(Configuration)\obj\</IntDir>
     <TargetName>Namter.Core.Native</TargetName>
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <SDLCheck>true</SDLCheck>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
