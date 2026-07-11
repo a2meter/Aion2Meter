@@ -2,7 +2,10 @@
 
 #include <iterator>
 #include <map>
+#include <stdexcept>
 #include <utility>
+
+#include "sequence.hpp"
 
 namespace namter {
 namespace {
@@ -21,6 +24,13 @@ void append_outputs(std::vector<StreamOutput>& destination, std::vector<StreamOu
         std::make_move_iterator(source.end()));
 }
 
+[[nodiscard]] FlowConfig require_valid_flow_config(FlowConfig config) {
+    if (!valid_sequence_window(config.max_out_of_order_bytes_per_flow)) {
+        throw std::invalid_argument("flow sequence window must be between zero and half-space");
+    }
+    return config;
+}
+
 }  // namespace
 
 struct FlowTracker::Impl {
@@ -37,7 +47,8 @@ struct FlowTracker::Impl {
     std::map<FlowTuple, Entry> flows;
 };
 
-FlowTracker::FlowTracker(FlowConfig config) : impl_(std::make_unique<Impl>(config)) {}
+FlowTracker::FlowTracker(FlowConfig config)
+    : impl_(std::make_unique<Impl>(require_valid_flow_config(config))) {}
 FlowTracker::~FlowTracker() = default;
 FlowTracker::FlowTracker(FlowTracker&&) noexcept = default;
 FlowTracker& FlowTracker::operator=(FlowTracker&&) noexcept = default;
@@ -73,7 +84,8 @@ std::vector<StreamOutput> FlowTracker::process(const TcpSegment& segment) {
         (void)unused;
         found = inserted;
         ++impl_->diagnostics.flows_started;
-    } else if ((segment.flags & tcp_syn) != 0) {
+    } else if ((segment.flags & tcp_syn) != 0 &&
+               !found->second.reassembler.is_syn_retransmission(segment.sequence)) {
         append_outputs(
             outputs,
             found->second.reassembler.start_new_epoch(

@@ -119,6 +119,7 @@ enum class StreamResetReason : uint8_t {
     tuple_reuse,
     buffer_limit,
     flow_limit,
+    ambiguous_sequence,
 };
 
 struct FlowConfig {
@@ -202,6 +203,7 @@ private:
         uint64_t gap_timeout_ns,
         FlowDiagnostics* shared_diagnostics,
         uint64_t* next_epoch_id);
+    [[nodiscard]] bool is_syn_retransmission(uint32_t sequence) const noexcept;
 
     struct Impl;
     std::unique_ptr<Impl> impl_;

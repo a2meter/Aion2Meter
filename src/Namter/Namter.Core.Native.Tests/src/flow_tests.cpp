@@ -138,6 +138,42 @@ TEST(FlowTracker, SynOnAnActiveTupleStartsANewEpoch) {
     EXPECT_EQ(std::get<StreamChunk>(second.back()).sequence, 501u);
 }
 
+TEST(FlowTracker, SameIsnSynRetransmissionsStayInOneEpochAndDedupePayload) {
+    FlowTracker tracker(config(8, 2));
+    EXPECT_TRUE(tracker.process(seg(flow_a, 100, {}, 1, namter::tcp_syn)).empty());
+    const auto repeated_syn = tracker.process(seg(flow_a, 100, {}, 2, namter::tcp_syn));
+    EXPECT_FALSE(has_reset(repeated_syn, StreamResetReason::tuple_reuse));
+    EXPECT_EQ(tracker.diagnostics().epochs_started, 1u);
+
+    const auto with_payload = tracker.process(seg(
+        flow_a,
+        100,
+        "abc",
+        3,
+        static_cast<uint8_t>(namter::tcp_syn | namter::tcp_ack)));
+    ASSERT_EQ(bytes_from(with_payload), "abc");
+    const auto payload_retransmission = tracker.process(seg(
+        flow_a,
+        100,
+        "abc",
+        4,
+        static_cast<uint8_t>(namter::tcp_syn | namter::tcp_ack)));
+    EXPECT_FALSE(has_reset(payload_retransmission, StreamResetReason::tuple_reuse));
+    EXPECT_TRUE(bytes_from(payload_retransmission).empty());
+    EXPECT_EQ(tracker.diagnostics().epochs_started, 1u);
+    EXPECT_EQ(tracker.diagnostics().duplicate_bytes_removed, 3u);
+
+    const auto changed_isn = tracker.process(seg(
+        flow_a,
+        500,
+        "new",
+        5,
+        static_cast<uint8_t>(namter::tcp_syn | namter::tcp_ack)));
+    EXPECT_TRUE(has_reset(changed_isn, StreamResetReason::tuple_reuse));
+    EXPECT_EQ(bytes_from(changed_isn), "new");
+    EXPECT_EQ(tracker.diagnostics().epochs_started, 2u);
+}
+
 TEST(FlowTracker, ReusingAClosedTupleNeverReusesItsEpochIdentifier) {
     FlowTracker tracker(config());
     const auto first = tracker.process(seg(

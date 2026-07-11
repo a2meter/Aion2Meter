@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 #include "sequence.hpp"
@@ -36,6 +38,13 @@ void append_outputs(std::vector<StreamOutput>& destination, std::vector<StreamOu
         std::make_move_iterator(source.end()));
 }
 
+[[nodiscard]] size_t require_valid_sequence_window(size_t window) {
+    if (!valid_sequence_window(window)) {
+        throw std::invalid_argument("TCP sequence window must be between zero and half-space");
+    }
+    return window;
+}
+
 }  // namespace
 
 struct TcpReassembler::Impl {
@@ -48,6 +57,7 @@ struct TcpReassembler::Impl {
     uint64_t* next_epoch_id = nullptr;
     std::optional<int64_t> next_sequence;
     std::optional<int64_t> fin_sequence;
+    std::optional<uint32_t> syn_isn;
     std::optional<uint64_t> gap_since_ns;
     std::map<int64_t, Interval> intervals;
     size_t buffered_byte_count = 0;
@@ -89,6 +99,7 @@ struct TcpReassembler::Impl {
         buffered_byte_count = 0;
         next_sequence.reset();
         fin_sequence.reset();
+        syn_isn.reset();
         gap_since_ns.reset();
         if (begin_another_epoch) {
             epoch = next_epoch_id == nullptr ? epoch + 1 : (*next_epoch_id)++;
@@ -193,8 +204,7 @@ struct TcpReassembler::Impl {
 
         if (enforce_limit && next_sequence.has_value() && start > *next_sequence) {
             const uint64_t gap_size = static_cast<uint64_t>(start - *next_sequence);
-            if (gap_size > maximum_out_of_order_bytes ||
-                buffered_byte_count + segment.payload.size() > maximum_out_of_order_bytes) {
+            if (gap_size > maximum_out_of_order_bytes) {
                 append_outputs(
                     outputs,
                     gap_reset_at(start, StreamResetReason::buffer_limit, capture_time_ns, false));
@@ -239,6 +249,28 @@ struct TcpReassembler::Impl {
             ++interval;
         }
 
+        size_t unique_bytes = 0;
+        bool unique_size_overflow = false;
+        for (const Fragment& fragment : fragments) {
+            const size_t length = static_cast<size_t>(fragment.end - fragment.start);
+            if (length > std::numeric_limits<size_t>::max() - unique_bytes) {
+                unique_size_overflow = true;
+                break;
+            }
+            unique_bytes += length;
+        }
+        const bool buffer_limit_exceeded = enforce_limit && next_sequence.has_value() &&
+            start > *next_sequence &&
+            (unique_size_overflow || buffered_byte_count > maximum_out_of_order_bytes ||
+             unique_bytes > maximum_out_of_order_bytes - buffered_byte_count);
+        if (buffer_limit_exceeded) {
+            append_outputs(
+                outputs,
+                gap_reset_at(start, StreamResetReason::buffer_limit, capture_time_ns, false));
+            append_outputs(outputs, insert_payload(segment, start, capture_time_ns, false));
+            return outputs;
+        }
+
         if (duplicate_bytes != 0) {
             ++diagnostics->overlaps;
             diagnostics->duplicate_bytes_removed += duplicate_bytes;
@@ -273,7 +305,7 @@ TcpReassembler::TcpReassembler(
     : TcpReassembler(
           flow,
           initial_epoch,
-          maximum_out_of_order_bytes,
+          require_valid_sequence_window(maximum_out_of_order_bytes),
           gap_timeout_ns,
           shared_diagnostics,
           nullptr) {}
@@ -306,21 +338,68 @@ std::vector<StreamOutput> TcpReassembler::process(const TcpSegment& segment) {
     const bool has_syn = (segment.flags & tcp_syn) != 0;
     const bool has_fin = (segment.flags & tcp_fin) != 0;
     const bool has_rst = (segment.flags & tcp_rst) != 0;
+    const bool is_syn_retransmission = has_syn && impl_->syn_isn.has_value() &&
+        *impl_->syn_isn == segment.sequence;
     const uint32_t payload_sequence = segment.sequence + (has_syn ? 1u : 0u);
 
     if (!impl_->next_sequence.has_value() && (has_syn || !segment.payload.empty() || has_fin)) {
         impl_->next_sequence = static_cast<int64_t>(payload_sequence);
     }
 
+    int64_t segment_start = 0;
+    if (!segment.payload.empty() || has_fin) {
+        const uint32_t checkpoint_sequence = static_cast<uint32_t>(*impl_->next_sequence);
+        if (sequence_is_ambiguous(checkpoint_sequence, payload_sequence)) {
+            const int64_t observed = static_cast<int64_t>(payload_sequence);
+            append_outputs(
+                outputs,
+                impl_->gap_reset_at(
+                    observed,
+                    StreamResetReason::ambiguous_sequence,
+                    segment.provenance.timestamp_ns,
+                    false));
+            segment_start = observed;
+        } else {
+            const int32_t delta = sequence_distance(checkpoint_sequence, payload_sequence);
+            const int32_t window = static_cast<int32_t>(impl_->maximum_out_of_order_bytes);
+            const int64_t observed = *impl_->next_sequence + static_cast<int64_t>(delta);
+            if (delta > window) {
+                append_outputs(
+                    outputs,
+                    impl_->gap_reset_at(
+                        observed,
+                        StreamResetReason::buffer_limit,
+                        segment.provenance.timestamp_ns,
+                        false));
+            } else if (delta < -window && !is_syn_retransmission) {
+                append_outputs(
+                    outputs,
+                    impl_->gap_reset_at(
+                        observed,
+                        StreamResetReason::tuple_reuse,
+                        segment.provenance.timestamp_ns,
+                        false));
+            }
+            segment_start = observed;
+        }
+    }
+
+    if (has_syn) {
+        impl_->syn_isn = segment.sequence;
+    }
+
     if (!segment.payload.empty()) {
-        const int64_t start = unwrap_sequence(payload_sequence, *impl_->next_sequence);
-        append_outputs(outputs, impl_->insert_payload(segment, start, segment.provenance.timestamp_ns));
+        append_outputs(
+            outputs,
+            impl_->insert_payload(
+                segment,
+                segment_start,
+                segment.provenance.timestamp_ns));
+        append_outputs(outputs, impl_->complete_fin_if_ready(segment.provenance.timestamp_ns));
     }
 
     if (has_fin && !impl_->is_closed) {
-        const int64_t checkpoint = impl_->next_sequence.value_or(static_cast<int64_t>(payload_sequence));
-        const int64_t start = unwrap_sequence(payload_sequence, checkpoint);
-        impl_->fin_sequence = start + static_cast<int64_t>(segment.payload.size());
+        impl_->fin_sequence = segment_start + static_cast<int64_t>(segment.payload.size());
         append_outputs(outputs, impl_->complete_fin_if_ready(segment.provenance.timestamp_ns));
     }
 
@@ -388,6 +467,10 @@ uint64_t TcpReassembler::epoch() const noexcept {
 
 const FlowDiagnostics& TcpReassembler::diagnostics() const noexcept {
     return *impl_->diagnostics;
+}
+
+bool TcpReassembler::is_syn_retransmission(uint32_t sequence) const noexcept {
+    return impl_->syn_isn.has_value() && *impl_->syn_isn == sequence;
 }
 
 }  // namespace namter

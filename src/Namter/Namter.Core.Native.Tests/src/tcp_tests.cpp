@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -148,6 +149,25 @@ TEST(TcpReassembler, BuffersOutOfOrderDataUntilTheGapFills) {
     EXPECT_EQ(tracker.diagnostics().unresolved_byte_gaps, 0u);
 }
 
+TEST(TcpReassembler, CompletesDeferredFinAfterMissingDataFillsTheGap) {
+    FlowTracker tracker(config());
+    EXPECT_EQ(bytes_from(tracker.process(seg(100, "abc", 1))), "abc");
+    EXPECT_TRUE(tracker.process(seg(
+        106,
+        "ghi",
+        2,
+        static_cast<uint8_t>(namter::tcp_ack | namter::tcp_fin))).empty());
+    EXPECT_EQ(tracker.buffered_bytes(flow_a), 3u);
+
+    const auto outputs = tracker.process(seg(103, "def", 3));
+    EXPECT_EQ(bytes_from(outputs), "defghi");
+    EXPECT_TRUE(has_reset(outputs, StreamResetReason::fin));
+    ASSERT_FALSE(outputs.empty());
+    EXPECT_TRUE(std::holds_alternative<StreamReset>(outputs.back()));
+    EXPECT_EQ(tracker.live_flow_count(), 0u);
+    EXPECT_EQ(tracker.diagnostics().resets, 1u);
+}
+
 TEST(TcpReassembler, GapExpiryResetsBeforeStartingAtTheNextObservedRange) {
     FlowTracker tracker(config(1'024, 1'000, 10));
     const auto initial = tracker.process(seg(100, "abc", 1));
@@ -190,13 +210,92 @@ TEST(TcpReassembler, SynAndFinConsumeSequenceSpaceButAckDoesNot) {
 TEST(TcpReassembler, PerFlowBufferCapResetsInsteadOfConcatenatingAcrossTheGap) {
     FlowTracker tracker(config(4));
     const auto initial = tracker.process(seg(100, "abc", 1));
-    const auto outputs = tracker.process(seg(110, "12345", 2));
+    const auto outputs = tracker.process(seg(107, "12345", 2));
 
     EXPECT_TRUE(has_reset(outputs, StreamResetReason::buffer_limit));
     EXPECT_EQ(bytes_from(outputs), "12345");
     EXPECT_NE(chunk_epochs(initial).front(), chunk_epochs(outputs).front());
     EXPECT_EQ(tracker.buffered_bytes(flow_a), 0u);
     EXPECT_EQ(tracker.diagnostics().unresolved_byte_gaps, 1u);
+}
+
+TEST(TcpReassembler, BufferCapCountsOnlyUniqueBytesAfterBufferedOverlapTrimming) {
+    FlowTracker tracker(config(5));
+    EXPECT_EQ(bytes_from(tracker.process(seg(100, "abc", 1))), "abc");
+    EXPECT_TRUE(tracker.process(seg(107, "WXYZ", 2)).empty());
+    EXPECT_EQ(tracker.buffered_bytes(flow_a), 4u);
+
+    const auto outputs = tracker.process(seg(106, "zWXYZ", 3));
+    EXPECT_FALSE(has_reset(outputs, StreamResetReason::buffer_limit));
+    EXPECT_TRUE(bytes_from(outputs).empty());
+    EXPECT_EQ(tracker.buffered_bytes(flow_a), 5u);
+    EXPECT_EQ(tracker.diagnostics().overlaps, 1u);
+    EXPECT_EQ(tracker.diagnostics().duplicate_bytes_removed, 4u);
+}
+
+TEST(TcpReassembler, RejectsInvalidConfiguredSerialWindows) {
+    auto zero = config(0);
+    EXPECT_THROW((void)FlowTracker(zero), std::invalid_argument);
+    EXPECT_THROW((void)namter::TcpReassembler(flow_a, 1, 0, 100), std::invalid_argument);
+
+    auto half_space = config(static_cast<size_t>(uint64_t{1} << 31));
+    EXPECT_THROW((void)FlowTracker(half_space), std::invalid_argument);
+    EXPECT_THROW(
+        (void)namter::TcpReassembler(
+            flow_a,
+            1,
+            static_cast<size_t>(uint64_t{1} << 31),
+            100),
+        std::invalid_argument);
+}
+
+TEST(TcpReassembler, ExactHalfSpaceSequenceIsAmbiguousAndNeverCountedAsDuplicate) {
+    FlowTracker tracker(config(1'024));
+    const auto initial = tracker.process(seg(0, "a", 1));
+    const auto outputs = tracker.process(seg(0x80000001u, "b", 2));
+
+    ASSERT_FALSE(outputs.empty());
+    EXPECT_TRUE(std::holds_alternative<GapObserved>(outputs.front()));
+    EXPECT_TRUE(has_reset(outputs, StreamResetReason::ambiguous_sequence));
+    EXPECT_EQ(bytes_from(outputs), "b");
+    const auto initial_epochs = chunk_epochs(initial);
+    const auto output_epochs = chunk_epochs(outputs);
+    ASSERT_EQ(initial_epochs.size(), 1u);
+    ASSERT_EQ(output_epochs.size(), 1u);
+    EXPECT_NE(initial_epochs.front(), output_epochs.front());
+    EXPECT_EQ(tracker.diagnostics().overlaps, 0u);
+    EXPECT_EQ(tracker.diagnostics().duplicate_bytes_removed, 0u);
+}
+
+TEST(TcpReassembler, FarForwardAndBackwardSequencesResetWithoutDuplicateAccounting) {
+    FlowTracker forward(config(16));
+    const auto forward_initial = forward.process(seg(100, "a", 1));
+    const auto forward_outputs = forward.process(seg(118, "b", 2));
+    ASSERT_FALSE(forward_outputs.empty());
+    EXPECT_TRUE(std::holds_alternative<GapObserved>(forward_outputs.front()));
+    EXPECT_TRUE(has_reset(forward_outputs, StreamResetReason::buffer_limit));
+    EXPECT_EQ(bytes_from(forward_outputs), "b");
+    const auto forward_initial_epochs = chunk_epochs(forward_initial);
+    const auto forward_output_epochs = chunk_epochs(forward_outputs);
+    ASSERT_EQ(forward_initial_epochs.size(), 1u);
+    ASSERT_EQ(forward_output_epochs.size(), 1u);
+    EXPECT_NE(forward_initial_epochs.front(), forward_output_epochs.front());
+    EXPECT_EQ(forward.diagnostics().duplicate_bytes_removed, 0u);
+
+    FlowTracker backward(config(16));
+    const auto backward_initial = backward.process(seg(100, "a", 1));
+    const auto backward_outputs = backward.process(seg(84, "b", 2));
+    ASSERT_FALSE(backward_outputs.empty());
+    EXPECT_TRUE(std::holds_alternative<GapObserved>(backward_outputs.front()));
+    EXPECT_TRUE(has_reset(backward_outputs, StreamResetReason::tuple_reuse));
+    EXPECT_EQ(bytes_from(backward_outputs), "b");
+    const auto backward_initial_epochs = chunk_epochs(backward_initial);
+    const auto backward_output_epochs = chunk_epochs(backward_outputs);
+    ASSERT_EQ(backward_initial_epochs.size(), 1u);
+    ASSERT_EQ(backward_output_epochs.size(), 1u);
+    EXPECT_NE(backward_initial_epochs.front(), backward_output_epochs.front());
+    EXPECT_EQ(backward.diagnostics().overlaps, 0u);
+    EXPECT_EQ(backward.diagnostics().duplicate_bytes_removed, 0u);
 }
 
 TEST(SerialArithmetic, UsesSignedRfcStyleDistanceAndUnwrapsAcrossZero) {
