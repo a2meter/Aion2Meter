@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('\src\Namter\'))">
+    <TargetFramework Condition="'$(MSBuildProjectExtension)' == '.csproj'">net8.0-windows</TargetFramework>
+    <Nullable Condition="'$(MSBuildProjectExtension)' == '.csproj'">enable</Nullable>
+    <ImplicitUsings Condition="'$(MSBuildProjectExtension)' == '.csproj'">enable</ImplicitUsings>
+    <PlatformTarget Condition="'$(MSBuildProjectExtension)' == '.csproj'">x64</PlatformTarget>
+    <Platforms Condition="'$(MSBuildProjectExtension)' == '.csproj'">x64</Platforms>
+    <Platform Condition="'$(MSBuildProjectExtension)' == '.csproj'">x64</Platform>
+    <TreatWarningsAsErrors Condition="'$(MSBuildProjectExtension)' == '.csproj'">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
+    <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
+    <ProjectReference Include="..\Namter.Encounter\Namter.Encounter.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NamterNativeOutput>$(MSBuildThisFileDirectory)..\Namter.Core.Native\x64\$(Configuration)\Namter.Core.Native.dll</NamterNativeOutput>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Namter.Core.Native\Namter.Core.Native.vcxproj"
+                      Condition="'$(MSBuildRuntimeType)' == 'Full'"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
+    <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
+    <ProjectReference Include="..\Namter.Encounter\Namter.Encounter.csproj" />
+  </ItemGroup>
+  <Target Name="CopyNamterNative" BeforeTargets="Build">
+    <Error Condition="!Exists('$(NamterNativeOutput)')" Text="Build Namter.Core.Native $(Configuration)|x64 before running managed ABI tests." />
+    <Copy SourceFiles="$(NamterNativeOutput)" DestinationFolder="$(OutDir)" />
+  </Target>
+</Project>

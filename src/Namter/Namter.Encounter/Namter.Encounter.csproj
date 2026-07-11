@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
+    <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
+  </ItemGroup>
+</Project>

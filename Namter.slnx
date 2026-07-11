@@ -1,0 +1,19 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/native/">
+    <Project Path="src/Namter/Namter.Core.Native/Namter.Core.Native.vcxproj" />
+    <Project Path="src/Namter/Namter.Core.Native.Tests/Namter.Core.Native.Tests.vcxproj" />
+  </Folder>
+  <Folder Name="/managed/">
+    <Project Path="src/Namter/Namter.Core.Interop/Namter.Core.Interop.csproj" />
+    <Project Path="src/Namter/Namter.GameData/Namter.GameData.csproj" />
+    <Project Path="src/Namter/Namter.GameData.Builder/Namter.GameData.Builder.csproj" />
+    <Project Path="src/Namter/Namter.GameData.Publisher/Namter.GameData.Publisher.csproj" />
+    <Project Path="src/Namter/Namter.Encounter/Namter.Encounter.csproj" />
+    <Project Path="src/Namter/Namter.Cli/Namter.Cli.csproj" />
+    <Project Path="src/Namter/Namter.Tests.Unit/Namter.Tests.Unit.csproj" />
+    <Project Path="src/Namter/Namter.Tests.Integration/Namter.Tests.Integration.csproj" />
+  </Folder>
+</Solution>
