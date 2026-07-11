@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
     <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
     <ProjectReference Include="..\Namter.GameData.Builder\Namter.GameData.Builder.csproj" />
+    <ProjectReference Include="..\Namter.GameData.Publisher\Namter.GameData.Publisher.csproj" />
     <ProjectReference Include="..\Namter.Encounter\Namter.Encounter.csproj" />
   </ItemGroup>
   <Target Name="CopyNamterNative" BeforeTargets="Build">
