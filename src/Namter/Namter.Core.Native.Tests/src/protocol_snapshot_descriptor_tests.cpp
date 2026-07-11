@@ -24,6 +24,12 @@ struct Layout {
     std::vector<Field> fields;
 };
 
+struct Opcode {
+    uint16_t kind;
+    std::vector<uint8_t> tag;
+    uint32_t layout;
+};
+
 void append_u16(std::vector<uint8_t>& bytes, uint16_t value) {
     bytes.push_back(static_cast<uint8_t>(value));
     bytes.push_back(static_cast<uint8_t>(value >> 8u));
@@ -70,14 +76,19 @@ std::vector<Field> damage_fields() {
     };
 }
 
-std::vector<uint8_t> make_snapshot(std::vector<Layout> layouts, uint32_t opcode_layout = 1) {
+std::vector<uint8_t> make_snapshot(
+    std::vector<Layout> layouts,
+    std::vector<Opcode> opcodes = {{1, {0x04, 0x38}, 1}}) {
     std::vector<uint8_t> bytes{'N', 'M', 'P', 'S'};
     append_u16(bytes, 1); append_u16(bytes, 28); append_u32(bytes, 0); append_u32(bytes, 0);
     append_u64(bytes, 7); append_u32(bytes, 3);
     append_u16(bytes, 3); bytes.insert(bytes.end(), {0x06, 0x00, 0x36});
     append_u16(bytes, 1); append_u16(bytes, 13328);
-    append_u32(bytes, 1); append_u16(bytes, 1); append_u16(bytes, 2);
-    bytes.insert(bytes.end(), {0x04, 0x38}); append_u32(bytes, opcode_layout);
+    append_u32(bytes, static_cast<uint32_t>(opcodes.size()));
+    for (const auto& opcode : opcodes) {
+        append_u16(bytes, opcode.kind); append_u16(bytes, static_cast<uint16_t>(opcode.tag.size()));
+        bytes.insert(bytes.end(), opcode.tag.begin(), opcode.tag.end()); append_u32(bytes, opcode.layout);
+    }
     append_u32(bytes, static_cast<uint32_t>(layouts.size()));
     for (const auto& layout : layouts) {
         append_u32(bytes, layout.id); append_u32(bytes, 128);
@@ -155,6 +166,27 @@ TEST(ProtocolSnapshotDescriptors, RejectedReplacementPreservesExactOwnedSnapshot
 
     EXPECT_FALSE(store.replace(make_snapshot({{1, invalid}})));
     EXPECT_EQ(store.bytes(), before);
+}
+
+TEST(ProtocolSnapshotDescriptors, RejectsDuplicateWireTagsAcrossDifferentKindsAndPreservesOldSnapshot) {
+    namter::ProtocolSnapshotStore store;
+    const auto valid = valid_snapshot();
+    ASSERT_TRUE(store.replace(valid));
+    const auto before = store.bytes();
+    const auto duplicate_tag = make_snapshot(
+        {{1, damage_fields()}},
+        {{1, {0x04, 0x38}, 1}, {2, {0x04, 0x38}, 1}});
+
+    EXPECT_FALSE(namter::validate_protocol_snapshot_v1(duplicate_tag));
+    EXPECT_FALSE(store.replace(duplicate_tag));
+    EXPECT_EQ(store.bytes(), before);
+}
+
+TEST(ProtocolSnapshotDescriptors, AllowsUnknownKindOnlyWithoutTypedLayout) {
+    EXPECT_TRUE(namter::validate_protocol_snapshot_v1(
+        make_snapshot({}, {{999, {0x55}, 0}})));
+    EXPECT_FALSE(namter::validate_protocol_snapshot_v1(
+        make_snapshot({{1, damage_fields()}}, {{999, {0x55}, 1}})));
 }
 
 }  // namespace

@@ -56,7 +56,7 @@ public static class ProtocolSnapshotCompiler
         {
             writer.Write(layout.Id);
             writer.Write(layout.MaxPayloadBytes);
-            ProtocolFieldDescriptor[] fields = layout.Fields.OrderBy(static value => value.Kind).ToArray();
+            ProtocolFieldDescriptor[] fields = layout.Fields.ToArray();
             writer.Write(checked((ushort)fields.Length));
             writer.Write((ushort)0);
             foreach (ProtocolFieldDescriptor field in fields)
@@ -136,6 +136,17 @@ public static class ProtocolSnapshotCompiler
         {
             throw new InvalidDataException("Opcode wire kinds must be unique and match their dictionary keys.");
         }
+        ProtocolOpcode[] wireOpcodes = snapshot.Opcodes.Values.ToArray();
+        for (var index = 0; index < wireOpcodes.Length; index++)
+        {
+            for (var previous = 0; previous < index; previous++)
+            {
+                if (wireOpcodes[index].Tag.AsSpan().SequenceEqual(wireOpcodes[previous].Tag.AsSpan()))
+                {
+                    throw new InvalidDataException("Opcode wire tags must be unique.");
+                }
+            }
+        }
         if (snapshot.MessageLayouts.Count > MaxLayouts)
         {
             throw new InvalidDataException("Message-layout count is out of bounds.");
@@ -151,6 +162,14 @@ public static class ProtocolSnapshotCompiler
             {
                 throw new InvalidDataException($"Opcode {opcode.Id} references missing layout {opcode.LayoutId}.");
             }
+            bool knownKind = IsKnownOpcodeKind(opcode.Kind);
+            if ((knownKind && opcode.LayoutId == 0) || (!knownKind && opcode.LayoutId != 0))
+            {
+                throw new InvalidDataException(
+                    knownKind
+                        ? $"Known opcode {opcode.Id} requires a typed layout."
+                        : $"Unknown opcode {opcode.Id} cannot reference a typed layout.");
+            }
         }
 
         foreach (ProtocolMessageLayout layout in snapshot.MessageLayouts.Values)
@@ -160,18 +179,85 @@ public static class ProtocolSnapshotCompiler
             {
                 throw new InvalidDataException($"Message layout {layout.Id} is out of bounds.");
             }
+            var seenKinds = new HashSet<ushort>();
+            bool? sequentialMode = null;
+            ulong sequentialMaximum = 0;
             foreach (ProtocolFieldDescriptor field in layout.Fields)
             {
-                if (field.Kind == 0 || field.Size == 0 || field.MaxCount == 0 || field.Offset > layout.MaxPayloadBytes)
+                if (!seenKinds.Add(field.Kind) || !IsValidFieldEncoding(field))
                 {
                     throw new InvalidDataException($"Field {field.Kind} in layout {layout.Id} is out of bounds.");
                 }
-                ulong end = (ulong)field.Offset + ((ulong)field.Size * field.MaxCount);
+                bool sequential = field.Flags >= 3;
+                if (sequentialMode.HasValue && sequentialMode.Value != sequential)
+                {
+                    throw new InvalidDataException($"Layout {layout.Id} mixes absolute and sequential fields.");
+                }
+                sequentialMode = sequential;
+                ulong encodedSize = MaximumEncodedSize(field);
+                ulong end;
+                if (sequential)
+                {
+                    sequentialMaximum = checked(sequentialMaximum + field.Offset + encodedSize);
+                    end = sequentialMaximum;
+                }
+                else
+                {
+                    end = (ulong)field.Offset + encodedSize;
+                }
                 if (end > layout.MaxPayloadBytes)
                 {
                     throw new InvalidDataException($"Field {field.Kind} exceeds layout {layout.Id}'s payload bound.");
                 }
             }
         }
+    }
+
+    private static bool IsKnownOpcodeKind(ushort kind) => kind is
+        1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 10 or 11 or
+        101 or 102 or 103 or 104 or 105 or 106 or 107 or 108 or 201 or 202;
+
+    private static bool IsValidFieldEncoding(ProtocolFieldDescriptor field)
+    {
+        if (field.Kind is 0 or > 26 || field.Flags > 5 || field.Size == 0 || field.MaxCount == 0)
+        {
+            return false;
+        }
+        ushort encoding = field.Flags >= 3 ? checked((ushort)(field.Flags - 3)) : field.Flags;
+        if (encoding == 2)
+        {
+            return field.Kind == 26 && field.Size == 1;
+        }
+        if (field.Kind == 26)
+        {
+            return false;
+        }
+        if (encoding == 1)
+        {
+            return field.Size == 1 && field.MaxCount is >= 1 and <= 5;
+        }
+        if (field.MaxCount != 1)
+        {
+            return false;
+        }
+        return field.Kind switch
+        {
+            <= 10 or 18 or 19 => field.Size is 1 or 2 or 4,
+            11 or 12 => field.Size is 1 or 2,
+            >= 13 and <= 17 => field.Size is 1 or 2 or 4 or 8,
+            >= 20 and <= 25 => field.Size == 1,
+            _ => false,
+        };
+    }
+
+    private static ulong MaximumEncodedSize(ProtocolFieldDescriptor field)
+    {
+        ushort encoding = field.Flags >= 3 ? checked((ushort)(field.Flags - 3)) : field.Flags;
+        return encoding switch
+        {
+            1 => field.MaxCount,
+            2 => checked(5UL + field.MaxCount),
+            _ => field.Size,
+        };
     }
 }

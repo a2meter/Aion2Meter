@@ -2,6 +2,7 @@
 
 #include "event.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -64,13 +65,14 @@ bool field_encoding_is_valid(
     uint16_t flags,
     uint32_t size,
     uint32_t max_count) noexcept {
-    if (kind == 0 || kind > field_kind_max || flags > 2u) return false;
+    if (kind == 0 || kind > field_kind_max || flags > 5u) return false;
     const auto typed_kind = static_cast<ProtocolFieldKind>(kind);
-    if (flags == static_cast<uint16_t>(ProtocolFieldFlags::utf8)) {
+    const uint16_t encoding = flags >= 3u ? static_cast<uint16_t>(flags - 3u) : flags;
+    if (encoding == static_cast<uint16_t>(ProtocolFieldFlags::utf8)) {
         return typed_kind == ProtocolFieldKind::name && size == 1u && max_count != 0;
     }
     if (typed_kind == ProtocolFieldKind::name) return false;
-    if (flags == static_cast<uint16_t>(ProtocolFieldFlags::variable_uint)) {
+    if (encoding == static_cast<uint16_t>(ProtocolFieldFlags::variable_uint)) {
         return size == 1u && max_count >= 1u && max_count <= 5u;
     }
     if (max_count != 1u) return false;
@@ -91,6 +93,15 @@ bool field_encoding_is_valid(
         default:
             return false;
     }
+}
+
+bool is_sequential(uint16_t flags) noexcept { return flags >= 3u; }
+
+uint64_t maximum_encoded_size(uint16_t flags, uint32_t size, uint32_t max_count) noexcept {
+    const uint16_t encoding = flags >= 3u ? static_cast<uint16_t>(flags - 3u) : flags;
+    if (encoding == static_cast<uint16_t>(ProtocolFieldFlags::variable_uint)) return max_count;
+    if (encoding == static_cast<uint16_t>(ProtocolFieldFlags::utf8)) return 5u + max_count;
+    return size;
 }
 
 class reader {
@@ -201,20 +212,28 @@ bool all_opcode_wire_identities_are_valid(
         uint16_t kind = 0;
         uint16_t tag_length = 0;
         uint32_t layout_id = 0;
-        if (!opcodes.read_u16(kind) || !opcodes.read_u16(tag_length) ||
-            !opcodes.skip(tag_length) || !opcodes.read_u32(layout_id)) {
+        if (!opcodes.read_u16(kind) || !opcodes.read_u16(tag_length)) {
             return false;
         }
+        const size_t tag_offset = opcodes.offset();
+        if (!opcodes.skip(tag_length) || !opcodes.read_u32(layout_id)) return false;
         reader previous(bytes.subspan(opcode_section_offset));
         for (uint32_t previous_index = 0; previous_index < index; ++previous_index) {
             uint16_t previous_kind = 0;
             uint16_t previous_tag_length = 0;
             uint32_t previous_layout_id = 0;
-            if (!previous.read_u16(previous_kind) || !previous.read_u16(previous_tag_length) ||
-                !previous.skip(previous_tag_length) || !previous.read_u32(previous_layout_id)) {
+            if (!previous.read_u16(previous_kind) || !previous.read_u16(previous_tag_length)) {
                 return false;
             }
+            const size_t previous_tag_offset = previous.offset();
+            if (!previous.skip(previous_tag_length) || !previous.read_u32(previous_layout_id)) return false;
             if (previous_kind == kind) return false;
+            if (previous_tag_length == tag_length && std::equal(
+                    bytes.begin() + static_cast<std::ptrdiff_t>(opcode_section_offset + previous_tag_offset),
+                    bytes.begin() + static_cast<std::ptrdiff_t>(opcode_section_offset + previous_tag_offset + tag_length),
+                    bytes.begin() + static_cast<std::ptrdiff_t>(opcode_section_offset + tag_offset))) {
+                return false;
+            }
         }
         uint32_t expected_mask = 0;
         if (!expected_fields(kind, expected_mask)) {
@@ -318,6 +337,9 @@ bool validate_protocol_snapshot_v1(std::span<const uint8_t> bytes) noexcept {
             if (previous_id == layout_id) return false;
         }
         uint32_t seen_fields = 0;
+        bool field_mode_set = false;
+        bool sequential_layout = false;
+        uint64_t sequential_max_cursor = 0;
         for (uint16_t field_index = 0; field_index < field_count; ++field_index) {
             uint16_t kind = 0;
             uint16_t flags = 0;
@@ -327,9 +349,19 @@ bool validate_protocol_snapshot_v1(std::span<const uint8_t> bytes) noexcept {
             if (!input.read_u16(kind) || !input.read_u16(flags) ||
                 !input.read_u32(offset) || !input.read_u32(size) || !input.read_u32(max_count) ||
                 !field_encoding_is_valid(kind, flags, size, max_count) ||
-                (seen_fields & (1u << (kind - 1u))) != 0 ||
-                offset > payload_bound ||
-                size > (payload_bound - offset) / max_count) {
+                (seen_fields & (1u << (kind - 1u))) != 0) {
+                return false;
+            }
+            const bool sequential = is_sequential(flags);
+            if (field_mode_set && sequential != sequential_layout) return false;
+            field_mode_set = true;
+            sequential_layout = sequential;
+            const uint64_t encoded_size = maximum_encoded_size(flags, size, max_count);
+            if (sequential) {
+                sequential_max_cursor += offset;
+                sequential_max_cursor += encoded_size;
+                if (sequential_max_cursor > payload_bound) return false;
+            } else if (offset > payload_bound || encoded_size > payload_bound - offset) {
                 return false;
             }
             seen_fields |= 1u << (kind - 1u);

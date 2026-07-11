@@ -35,6 +35,9 @@ public sealed record ProtocolMessageLayout(
     uint MaxPayloadBytes,
     ImmutableArray<ProtocolFieldDescriptor> Fields);
 
+// Flags 0..2 are absolute fixed/varuint/UTF-8 fields. Flags 3..5 use the same
+// encodings as ordered sequential commands, with Offset interpreted as a skip
+// from the bounded cursor before consuming the field.
 public readonly record struct ProtocolFieldDescriptor(
     ushort Kind,
     ushort Flags,

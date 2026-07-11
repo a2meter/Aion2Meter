@@ -53,6 +53,90 @@ public sealed class ProtocolSnapshotCompilerTests
     }
 
     [Fact]
+    public void CompileRejectsDuplicateWireTagsAcrossDifferentKinds()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false);
+        ProtocolOpcode damage = snapshot.Opcodes[1];
+        ProtocolOpcode dot = snapshot.Opcodes[2] with { Tag = damage.Tag };
+        snapshot = snapshot with
+        {
+            Opcodes = new Dictionary<ushort, ProtocolOpcode> { [1] = damage, [2] = dot }.ToFrozenDictionary(),
+        };
+
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+    }
+
+    [Fact]
+    public void CompileAllowsUnknownKindsOnlyWithoutTypedLayouts()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false);
+        var unknownWithoutLayout = new ProtocolOpcode(77, 999, "unknown", [0x55], 0);
+        snapshot = snapshot with
+        {
+            Opcodes = new Dictionary<ushort, ProtocolOpcode> { [999] = unknownWithoutLayout }.ToFrozenDictionary(),
+            MessageLayouts = FrozenDictionary<uint, ProtocolMessageLayout>.Empty,
+        };
+        _ = ProtocolSnapshotCompiler.Compile(snapshot);
+
+        snapshot = snapshot with
+        {
+            Opcodes = new Dictionary<ushort, ProtocolOpcode>
+            {
+                [999] = unknownWithoutLayout with { LayoutId = 1 },
+            }.ToFrozenDictionary(),
+            MessageLayouts = CreateSnapshot(false).MessageLayouts,
+        };
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+
+        snapshot = CreateSnapshot(false) with
+        {
+            Opcodes = new Dictionary<ushort, ProtocolOpcode>
+            {
+                [1] = CreateSnapshot(false).Opcodes[1] with { LayoutId = 0 },
+            }.ToFrozenDictionary(),
+            MessageLayouts = FrozenDictionary<uint, ProtocolMessageLayout>.Empty,
+        };
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+    }
+
+    [Fact]
+    public void CompilePreservesSnapshotFieldOrderForSequentialCommands()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false);
+        ProtocolMessageLayout layout = snapshot.MessageLayouts[1];
+        ImmutableArray<ProtocolFieldDescriptor> fields = layout.Fields;
+        layout = layout with { Fields = [fields[1], fields[0], .. fields[2..]] };
+        snapshot = snapshot with
+        {
+            MessageLayouts = new Dictionary<uint, ProtocolMessageLayout>
+            {
+                [1] = layout,
+                [2] = snapshot.MessageLayouts[2],
+            }.ToFrozenDictionary(),
+        };
+
+        byte[] bytes = ProtocolSnapshotCompiler.Compile(snapshot);
+        var reader = new SnapshotReader(bytes);
+        reader.Skip(ProtocolSnapshotCompiler.HeaderSize);
+        reader.Skip(reader.ReadUInt16());
+        int portCount = reader.ReadUInt16();
+        reader.Skip(portCount * 2);
+        int opcodeCount = checked((int)reader.ReadUInt32());
+        for (var index = 0; index < opcodeCount; index++)
+        {
+            reader.Skip(2);
+            reader.Skip(reader.ReadUInt16());
+            reader.Skip(4);
+        }
+        Assert.Equal(2U, reader.ReadUInt32());
+        Assert.Equal(1U, reader.ReadUInt32());
+        reader.Skip(4);
+        Assert.Equal(9, reader.ReadUInt16());
+        reader.Skip(2);
+        Assert.Equal(2, reader.ReadUInt16());
+    }
+
+    [Fact]
     public void CompileRejectsZeroDataVersion()
     {
         GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false) with { DataVersion = 0 };

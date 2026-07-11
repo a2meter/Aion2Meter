@@ -23,16 +23,13 @@ Implemented and verified. The Lore commit uses the required intent
   malformed lengths, oversized payloads, and truncation produce one decode diagnostic and never
   expose a partial typed event. Unknown tags produce a bounded `UnknownProtocolEvent` with full
   provenance and retained bytes.
-- Added bounded deduplication keyed by flow, epoch, framer-assigned stream message identity,
-  capture provenance, and message identity. The framer assigns a monotonically increasing identity
-  per epoch, so byte-identical nested messages sharing outer PCAP provenance remain distinct while
-  repeated delivery of the same `ProtocolMessage` is suppressed.
+- Added bounded deduplication keyed exclusively by flow, epoch, and a nonzero framer-assigned stream
+  message identity. Zero identities are intentionally never deduplicated.
 - Expanded the managed interop record to mirror the ABI. The unmanaged callback copies UTF-8 names
   and payload views before returning. `CombatEventMapper` creates a closed immutable hierarchy in
   `Namter.Encounter` without collapsing damage, multi-damage, healing, DoT, masks, or provenance.
-- Embedded the smallest selected complete real damage-tag frame from the supplied PCAP in native
-  tests with PCAP offset `250658`. The external fixture root is used only by verification and is
-  not committed.
+- Embedded one oracle-certified real entity-removal frame from the supplied PCAP at record offset
+  `247913`. The external fixture root is used only by verification and is not committed.
 
 ## TDD Evidence
 
@@ -64,7 +61,7 @@ Implemented and verified. The Lore commit uses the required intent
 - The current Task 6 golden seed has placeholder/empty field descriptors for several opcode
   layouts. The decoder deliberately reports those as known-invalid rather than guessing. Publishing
   authoritative descriptors is data work; no legacy or fallback decoder was added.
-- Only a proven damage frame is embedded as a typed real-byte fixture. Other closed event-family
+- Only a proven entity-removal frame is embedded as a typed real-byte fixture. Other closed event-family
   parsers use exhaustive canonical descriptor fixtures because the supplied capture does not prove
   a complete instance for every closed ABI kind.
 - The integration test project still has no discoverable tests. Native-to-managed layout and callback
@@ -102,26 +99,28 @@ This section supersedes the earlier deduplication and fixture-coverage statement
   leaves the previous owned bytes exactly unchanged; `nm_core_set_protocol_snapshot` uses this
   store under its existing engine lock.
 
-### Real supplied-capture evidence
+### Real supplied-capture evidence — corrected certification
 
-The native PCAP/TCP/framer search over `captures/aion2_part001.pcap` yielded complete, framed,
-typed fixtures that are embedded in the test binary (the PCAP itself remains external):
+The earlier five-family certification claim is withdrawn. Exact tag occurrence and a complete frame
+boundary do not prove typed-event semantics. Read-only comparison with the existing PacketDispatcher
+oracle leaves exactly one supplied-capture frame certified:
 
-- damage tag `04 38`, PCAP record offset `250658`;
-- DoT tag `05 38`, offset `612974`;
-- battle/buff tag `2a 38`, offset `105474`;
-- boss-HP tag `01 8d`, offset `986583`;
-- entity-removal tag `21 8d`, offset `247913`.
+- entity-removal tag `21 8d`, PCAP record offset `247913`, actor varint `8137`.
 
-For each certified fixture the tests assert every parser output field plus timestamp, epoch, file
-offset, flow addresses, and ports where applicable. They reject every strict truncation and
-mutations of the declared frame length.
+The test asserts the complete actor value and all provenance and rejects every strict truncation and
+declared-length mutation. It does not consume the trailing `00 01` bytes as part of the actor ID.
 
-Search also found a self-actor tag candidate of about 3,180 bytes at offset `199707` and a party
-candidate of about 284 bytes at offset `90319`. Their semantic completeness could not be certified
-from the supplied capture and active descriptors, so they are intentionally not represented as
-typed golden fixtures. Canonical descriptor tests continue to cover those parser families without
-inventing capture truth.
+The following search hits remain found-but-not-certified and are not typed golden fixtures:
+
+- damage `04 38` at `250658`: its post-tag flags select category zero, so the oracle emits no damage;
+- DoT `05 38` at `612974`: actor equals target and the oracle suppresses the event;
+- battle/buff `2a 38` at `105474`: the former overlapping offsets did not map oracle entity/type/
+  caster semantics to Namter owner/target/action fields;
+- boss-HP `01 8d` at `986583`: the candidate is too short and lacks the required `02 01 00` marker;
+- self-actor candidate around `199707` and party candidate around `90319`: semantic completeness is
+  still not proven by authoritative descriptors.
+
+Canonical fixtures continue to cover all closed parser families without inventing capture truth.
 
 ### ABI and callback lifetime
 
@@ -137,12 +136,45 @@ inventing capture truth.
 
 ### Fresh verification
 
-- Fresh Debug native test-project rebuild with VS 2026/v145 and
+- Fresh Debug `Namter.slnx` rebuild with VS 2026/v145 and
   `NamterDisableFileTracking=true`: exit `0`.
-- Debug native suite with `NAMTER_FIXTURE_ROOT=E:\A2Viewer\A2Meter\captures`: `115/115` passed.
-- Debug managed unit suite: `105/105` passed.
+- Debug native suite with `NAMTER_FIXTURE_ROOT=E:\A2Viewer\A2Meter\captures`: `119/119` passed.
+- Debug managed unit suite: `108/108` passed.
 - Release `Namter.slnx` rebuild with VS 2026/v145 and
   `NamterDisableFileTracking=true`: exit `0`.
-- Release native suite with supplied fixture root: `115/115` passed.
-- Release managed unit suite for `Platform=x64`: `105/105` passed.
+- Release native suite with supplied fixture root: `119/119` passed.
+- Release managed unit suite for `Platform=x64`: `108/108` passed.
+- Debug and Release managed integration commands both exited `0`; both explicitly reported that
+  `Namter.Tests.Integration.dll` contains no discoverable tests.
 - The non-fatal existing native post-build `pwsh.exe` notice remains unchanged.
+
+## Important Review Corrections (2026-07-12)
+
+### Sequential snapshot commands
+
+- Absolute offsets remain supported for genuinely fixed layouts.
+- New sequential fixed, varuint, and UTF-8 descriptor modes interpret `byte_offset` as a bounded
+  skip from the current cursor. The cursor advances by the bytes actually consumed, so every later
+  field moves correctly when an earlier varint changes width.
+- Native validation rejects mixed absolute/sequential layouts and proves the worst-case sequential
+  cursor stays within `max_payload_bytes`. The managed compiler applies the same encoding/mode/bound
+  checks and preserves database `field_order` rather than sorting fields by kind.
+- The RED regression used otherwise identical damage frames whose first actor varint changed from
+  one byte (`127`) to two (`128`); before the change both sequential snapshots were rejected, and
+  afterward every following field decoded identically at its shifted position.
+
+### Unambiguous dispatch and unknown contract
+
+- Native validation and the managed compiler reject duplicate raw wire tags even when kinds differ.
+  A duplicate-tag replacement test proves `ProtocolSnapshotStore` keeps the exact prior bytes.
+- Known kinds require a typed layout. Unknown registered kinds are allowed only with layout zero and
+  produce the same bounded `UnknownProtocolEvent` contract as an unregistered wire tag. Unknown
+  kinds cannot attach a typed layout, so dispatch has no ambiguous parser path.
+
+### Corrected TDD evidence
+
+- Native RED: sequential snapshots were rejected; a registered unknown kind produced a diagnostic;
+  duplicate tags validated and replaced the old snapshot. All four failures were observed.
+- Managed RED: duplicate tags and invalid unknown/layout combinations compiled, and compiler kind
+  sorting destroyed field order. All three failures were observed.
+- Targeted GREEN: native `5/5`; managed protocol snapshot compiler `11/11`.

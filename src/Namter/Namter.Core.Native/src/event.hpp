@@ -45,6 +45,9 @@ enum class ProtocolFieldFlags : uint16_t {
     fixed_little_endian = 0,
     variable_uint = 1,
     utf8 = 2,
+    sequential_fixed_little_endian = 3,
+    sequential_variable_uint = 4,
+    sequential_utf8 = 5,
 };
 
 enum class DecodeDiagnosticCode : uint8_t {

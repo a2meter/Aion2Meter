@@ -139,7 +139,44 @@ struct OpcodeDescriptor {
 
 class FieldReader {
 public:
-    FieldReader(std::span<const uint8_t> payload, const Layout& layout) : payload_(payload), layout_(layout) {}
+    FieldReader(std::span<const uint8_t> payload, const Layout& layout)
+        : payload_(payload), layout_(layout) {
+        resolved_offsets_.reserve(layout.fields.size());
+        size_t cursor = 0;
+        for (const auto& field : layout.fields) {
+            const bool sequential = static_cast<uint16_t>(field.flags) >=
+                                    static_cast<uint16_t>(ProtocolFieldFlags::sequential_fixed_little_endian);
+            if (!sequential) {
+                resolved_offsets_.push_back(field.offset);
+                continue;
+            }
+            if (field.offset > payload_.size() - cursor) { valid_ = false; return; }
+            cursor += field.offset;
+            resolved_offsets_.push_back(cursor);
+            SpanReader reader(payload_.subspan(cursor));
+            switch (field.flags) {
+                case ProtocolFieldFlags::sequential_fixed_little_endian:
+                    if (!reader.skip(field.size)) { valid_ = false; return; }
+                    break;
+                case ProtocolFieldFlags::sequential_variable_uint: {
+                    uint32_t value = 0;
+                    if (!reader.read_var_u32(value) || reader.offset() > field.max_count) { valid_ = false; return; }
+                    break;
+                }
+                case ProtocolFieldFlags::sequential_utf8: {
+                    uint32_t length = 0;
+                    std::string value;
+                    if (!reader.read_var_u32(length) || length > field.max_count || !reader.read_utf8(length, value)) {
+                        valid_ = false; return;
+                    }
+                    break;
+                }
+                default:
+                    valid_ = false; return;
+            }
+            cursor += reader.offset();
+        }
+    }
 
     bool read_u8(ProtocolFieldKind kind, uint8_t& value) const { uint64_t wide = 0; if (!read_integer(kind, wide) || wide > 0xffu) return false; value = static_cast<uint8_t>(wide); return true; }
     bool read_u16(ProtocolFieldKind kind, uint16_t& value) const { uint64_t wide = 0; if (!read_integer(kind, wide) || wide > 0xffffu) return false; value = static_cast<uint16_t>(wide); return true; }
@@ -147,30 +184,39 @@ public:
     bool read_u64(ProtocolFieldKind kind, uint64_t& value) const { return read_integer(kind, value); }
 
     bool read_utf8(ProtocolFieldKind kind, std::string& value) const {
-        const auto* field = find(kind);
-        if (field == nullptr || field->flags != ProtocolFieldFlags::utf8 || field->offset > payload_.size()) return false;
-        SpanReader reader(payload_.subspan(field->offset));
+        size_t offset = 0;
+        const auto* field = find(kind, offset);
+        if (!valid_ || field == nullptr ||
+            (field->flags != ProtocolFieldFlags::utf8 && field->flags != ProtocolFieldFlags::sequential_utf8) ||
+            offset > payload_.size()) return false;
+        SpanReader reader(payload_.subspan(offset));
         uint32_t length = 0;
         return reader.read_var_u32(length) && length <= field->max_count && reader.read_utf8(length, value);
     }
 
 private:
-    const FieldDescriptor* find(ProtocolFieldKind kind) const noexcept {
+    const FieldDescriptor* find(ProtocolFieldKind kind, size_t& offset) const noexcept {
         const auto found = std::find_if(layout_.fields.begin(), layout_.fields.end(), [kind](const auto& field) { return field.kind == kind; });
-        return found == layout_.fields.end() ? nullptr : &*found;
+        if (found == layout_.fields.end()) return nullptr;
+        const size_t index = static_cast<size_t>(found - layout_.fields.begin());
+        offset = resolved_offsets_[index];
+        return &*found;
     }
 
     bool read_integer(ProtocolFieldKind kind, uint64_t& value) const {
-        const auto* field = find(kind);
-        if (field == nullptr || field->offset > payload_.size()) return false;
-        SpanReader reader(payload_.subspan(field->offset));
-        if (field->flags == ProtocolFieldFlags::variable_uint) {
+        size_t offset = 0;
+        const auto* field = find(kind, offset);
+        if (!valid_ || field == nullptr || offset > payload_.size()) return false;
+        SpanReader reader(payload_.subspan(offset));
+        if (field->flags == ProtocolFieldFlags::variable_uint ||
+            field->flags == ProtocolFieldFlags::sequential_variable_uint) {
             uint32_t result = 0;
             if (!reader.read_var_u32(result) || reader.offset() > field->max_count) return false;
             value = result;
             return true;
         }
-        if (field->flags != ProtocolFieldFlags::fixed_little_endian || field->max_count != 1u) return false;
+        if ((field->flags != ProtocolFieldFlags::fixed_little_endian &&
+             field->flags != ProtocolFieldFlags::sequential_fixed_little_endian) || field->max_count != 1u) return false;
         switch (field->size) {
             case 1: { uint8_t result = 0; if (!reader.read_u8(result)) return false; value = result; return true; }
             case 2: { uint16_t result = 0; if (!reader.read_le16(result)) return false; value = result; return true; }
@@ -182,6 +228,8 @@ private:
 
     std::span<const uint8_t> payload_;
     const Layout& layout_;
+    std::vector<size_t> resolved_offsets_;
+    bool valid_ = true;
 };
 
 struct Identity {
@@ -231,6 +279,15 @@ ProtocolDecodeDiagnostic diagnostic(const ProtocolMessage& message, DecodeDiagno
     return {code, message.first_timestamp_ns, message.last_timestamp_ns, message.epoch,
             message.first_provenance.file_offset, message.last_provenance.file_offset,
             std::vector<uint8_t>(message.bytes.begin(), message.bytes.begin() + static_cast<std::ptrdiff_t>(retained))};
+}
+
+DecodedEvent unknown_event(const ProtocolMessage& message) {
+    DecodedEvent unknown(base_event(message, NM_EVENT_UNKNOWN_PROTOCOL));
+    const size_t retained = std::min(message.bytes.size(), unknown_payload_limit);
+    unknown.mutable_payload().assign(
+        message.bytes.begin(),
+        message.bytes.begin() + static_cast<std::ptrdiff_t>(retained));
+    return unknown;
 }
 
 bool parse_frame_prefix(std::span<const uint8_t> bytes, size_t& prefix_size) noexcept {
@@ -441,11 +498,9 @@ struct ProtocolDecoder::Impl {
                 (opcode == nullptr || candidate.tag.size() > opcode->tag.size())) opcode = &candidate;
         }
         if (opcode == nullptr) {
-            DecodedEvent unknown(base_event(message, NM_EVENT_UNKNOWN_PROTOCOL));
-            const size_t retained = std::min(message.bytes.size(), unknown_payload_limit);
-            unknown.mutable_payload().assign(message.bytes.begin(), message.bytes.begin() + static_cast<std::ptrdiff_t>(retained));
-            return {std::move(unknown)};
+            return {unknown_event(message)};
         }
+        if (opcode->layout_id == 0) return {unknown_event(message)};
         const Layout* active_layout = layout(opcode->layout_id);
         if (active_layout == nullptr) return {diagnostic(message, DecodeDiagnosticCode::invalid_layout)};
         const auto payload = body.subspan(opcode->tag.size());
