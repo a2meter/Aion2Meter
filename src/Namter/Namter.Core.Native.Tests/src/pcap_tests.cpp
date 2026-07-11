@@ -259,3 +259,32 @@ TEST(PcapReader, RejectsOutOfRangeTimestampFraction) {
     EXPECT_FALSE(reader.read_next(record));
     EXPECT_EQ(reader.error(), CaptureError::timestamp_fraction_out_of_range);
 }
+
+TEST(PcapReader, RejectsTruncatedRecordData) {
+    std::string bytes = pcap_header(PcapByteOrder::little_endian, TimestampPrecision::microseconds);
+    append_u32(bytes, 1, PcapByteOrder::little_endian);
+    append_u32(bytes, 0, PcapByteOrder::little_endian);
+    append_u32(bytes, 4, PcapByteOrder::little_endian);
+    append_u32(bytes, 4, PcapByteOrder::little_endian);
+    bytes.append("\x01\x02\x03", 3);
+    auto input = stream_for(std::move(bytes));
+
+    PcapReader reader(input);
+    CaptureRecord record;
+    EXPECT_FALSE(reader.read_next(record));
+    EXPECT_EQ(reader.error(), CaptureError::truncated_record_data);
+}
+
+TEST(PcapReader, RejectsOriginalLengthSmallerThanCapturedBeforeReadingData) {
+    std::string bytes = pcap_header(PcapByteOrder::little_endian, TimestampPrecision::microseconds);
+    append_u32(bytes, 1, PcapByteOrder::little_endian);
+    append_u32(bytes, 0, PcapByteOrder::little_endian);
+    append_u32(bytes, 4, PcapByteOrder::little_endian);
+    append_u32(bytes, 3, PcapByteOrder::little_endian);
+    auto input = stream_for(std::move(bytes));
+
+    PcapReader reader(input);
+    CaptureRecord record;
+    EXPECT_FALSE(reader.read_next(record));
+    EXPECT_EQ(reader.error(), CaptureError::original_length_smaller_than_captured);
+}

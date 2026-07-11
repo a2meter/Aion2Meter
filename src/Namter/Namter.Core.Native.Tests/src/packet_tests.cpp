@@ -1,4 +1,7 @@
+#include <algorithm>
+#include <concepts>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -11,6 +14,8 @@ using namter::CaptureError;
 using namter::CaptureRecord;
 using namter::CaptureSource;
 using namter::PacketNormalizer;
+
+static_assert(std::same_as<decltype(namter::TcpSegment::payload), std::vector<uint8_t>>);
 
 std::vector<uint8_t> raw_tcp_packet(
     uint8_t flags = namter::tcp_ack,
@@ -66,6 +71,23 @@ CaptureRecord record_for(
     };
 }
 
+std::vector<uint8_t> ethernet_packet(
+    const std::vector<uint16_t>& ether_types,
+    const std::vector<uint8_t>& network_packet) {
+    std::vector<uint8_t> bytes(12, 0);
+    for (size_t index = 0; index < ether_types.size(); ++index) {
+        const uint16_t ether_type = ether_types[index];
+        bytes.push_back(static_cast<uint8_t>(ether_type >> 8u));
+        bytes.push_back(static_cast<uint8_t>(ether_type & 0xffu));
+        if (index + 1 < ether_types.size()) {
+            bytes.push_back(0);
+            bytes.push_back(static_cast<uint8_t>(index + 1));
+        }
+    }
+    bytes.insert(bytes.end(), network_packet.begin(), network_packet.end());
+    return bytes;
+}
+
 void expect_error(CaptureRecord record, CaptureError expected) {
     const auto result = PacketNormalizer::normalize(record);
     EXPECT_EQ(result.error, expected);
@@ -94,7 +116,26 @@ TEST(PacketNormalizer, NormalizesRawIpv4TcpWithNetworkEndianFieldsAndProvenance)
     EXPECT_EQ(result.segment->payload[1], 0xad);
     EXPECT_EQ(result.segment->provenance.source, CaptureSource::windivert);
     EXPECT_EQ(result.segment->provenance.timestamp_ns, 123'456'789u);
+    EXPECT_EQ(result.segment->provenance.link_type, namter::dlt_raw);
+    EXPECT_EQ(result.segment->provenance.captured_length, record.captured_length);
+    EXPECT_EQ(result.segment->provenance.original_length, record.original_length);
     EXPECT_EQ(result.segment->provenance.file_offset, 99u);
+}
+
+TEST(PacketNormalizer, OwnsPayloadAfterTemporaryAndSourceStorageAreDestroyed) {
+    const auto from_temporary = PacketNormalizer::normalize(
+        record_for(raw_tcp_packet(namter::tcp_ack, {0xde, 0xad})));
+    ASSERT_TRUE(from_temporary.segment.has_value());
+
+    auto source = record_for(raw_tcp_packet(namter::tcp_ack, {0xbe, 0xef}));
+    const auto from_overwritten_source = PacketNormalizer::normalize(source);
+    ASSERT_TRUE(from_overwritten_source.segment.has_value());
+    std::ranges::fill(source.bytes, uint8_t{0});
+    source.bytes.clear();
+    source.bytes.shrink_to_fit();
+
+    EXPECT_EQ(from_temporary.segment->payload, (std::vector<uint8_t>{0xde, 0xad}));
+    EXPECT_EQ(from_overwritten_source.segment->payload, (std::vector<uint8_t>{0xbe, 0xef}));
 }
 
 TEST(PacketNormalizer, NormalizesEthernetIpv4AndIgnoresTrailingPadding) {
@@ -109,6 +150,42 @@ TEST(PacketNormalizer, NormalizesEthernetIpv4AndIgnoresTrailingPadding) {
     ASSERT_EQ(result.error, CaptureError::none);
     ASSERT_TRUE(result.segment.has_value());
     EXPECT_EQ(result.segment->payload.size(), 3u);
+}
+
+TEST(PacketNormalizer, NormalizesSingleTaggedEthernetIpv4) {
+    const auto ethernet = ethernet_packet({0x8100, 0x0800}, raw_tcp_packet());
+    const auto result = PacketNormalizer::normalize(record_for(ethernet, namter::dlt_en10mb));
+    EXPECT_EQ(result.error, CaptureError::none);
+    EXPECT_TRUE(result.segment.has_value());
+}
+
+TEST(PacketNormalizer, NormalizesDoubleTaggedEthernetIpv4QinQ) {
+    const auto ethernet = ethernet_packet({0x88a8, 0x8100, 0x0800}, raw_tcp_packet());
+    const auto result = PacketNormalizer::normalize(record_for(ethernet, namter::dlt_en10mb));
+    EXPECT_EQ(result.error, CaptureError::none);
+    EXPECT_TRUE(result.segment.has_value());
+}
+
+TEST(PacketNormalizer, RejectsTruncatedEthernetVlanTag) {
+    std::vector<uint8_t> ethernet(12, 0);
+    ethernet.insert(ethernet.end(), {0x81, 0x00, 0x00, 0x01, 0x08});
+    expect_error(
+        record_for(std::move(ethernet), namter::dlt_en10mb),
+        CaptureError::truncated_vlan_tag);
+}
+
+TEST(PacketNormalizer, RejectsMoreThanTwoEthernetVlanTags) {
+    const auto ethernet = ethernet_packet(
+        {0x88a8, 0x8100, 0x8100, 0x0800},
+        raw_tcp_packet());
+    expect_error(
+        record_for(ethernet, namter::dlt_en10mb),
+        CaptureError::vlan_tag_depth_exceeded);
+}
+
+TEST(PacketNormalizer, RejectsVlanEncapsulatedNonIpv4) {
+    const auto ethernet = ethernet_packet({0x8100, 0x86dd}, std::vector<uint8_t>(40, 0));
+    expect_error(record_for(ethernet, namter::dlt_en10mb), CaptureError::non_ipv4);
 }
 
 TEST(PacketNormalizer, PreservesAckOnlyFinAndRstSegmentsWithoutPayload) {
@@ -142,7 +219,7 @@ TEST(PacketNormalizer, RejectsUnsupportedAndTruncatedLinkHeaders) {
     expect_error(record_for(std::move(ethernet), namter::dlt_en10mb), CaptureError::non_ipv4);
 }
 
-TEST(PacketNormalizer, RejectsCaptureLengthMismatchBeforeCreatingSpans) {
+TEST(PacketNormalizer, RejectsCaptureLengthMismatchBeforePayloadAllocation) {
     auto record = record_for(raw_tcp_packet());
     ++record.captured_length;
     expect_error(std::move(record), CaptureError::capture_length_mismatch);
@@ -174,6 +251,26 @@ TEST(PacketNormalizer, ValidatesIpv4VersionIhlTotalLengthAndProtocol) {
     bytes = raw_tcp_packet();
     bytes[9] = 17;
     expect_error(record_for(std::move(bytes)), CaptureError::non_tcp_ipv4);
+}
+
+TEST(PacketNormalizer, RejectsIpv4MoreFragmentsBeforeTcpParsing) {
+    auto bytes = raw_tcp_packet();
+    bytes[6] = 0x20;
+    expect_error(record_for(std::move(bytes)), CaptureError::ipv4_more_fragments);
+}
+
+TEST(PacketNormalizer, RejectsIpv4NonzeroFragmentOffsetBeforeTcpParsing) {
+    auto bytes = raw_tcp_packet();
+    bytes[7] = 0x01;
+    expect_error(record_for(std::move(bytes)), CaptureError::ipv4_nonzero_fragment_offset);
+}
+
+TEST(PacketNormalizer, AllowsUnfragmentedIpv4WithDontFragmentFlag) {
+    auto bytes = raw_tcp_packet();
+    bytes[6] = 0x40;
+    const auto result = PacketNormalizer::normalize(record_for(std::move(bytes)));
+    EXPECT_EQ(result.error, CaptureError::none);
+    EXPECT_TRUE(result.segment.has_value());
 }
 
 TEST(PacketNormalizer, ValidatesTcpHeaderAndDataOffset) {

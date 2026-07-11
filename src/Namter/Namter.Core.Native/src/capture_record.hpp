@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <istream>
 #include <optional>
-#include <span>
 #include <vector>
 
 namespace namter {
@@ -48,6 +47,8 @@ enum class CaptureError : uint8_t {
     capture_length_mismatch,
     unsupported_link_type,
     truncated_link_header,
+    truncated_vlan_tag,
+    vlan_tag_depth_exceeded,
     non_ipv4,
     truncated_ipv4_header,
     invalid_ipv4_version,
@@ -55,6 +56,8 @@ enum class CaptureError : uint8_t {
     invalid_ipv4_total_length,
     truncated_ipv4_packet,
     non_tcp_ipv4,
+    ipv4_more_fragments,
+    ipv4_nonzero_fragment_offset,
     truncated_tcp_header,
     invalid_tcp_data_offset,
 };
@@ -100,7 +103,7 @@ struct TcpSegment {
     FlowTuple flow;
     uint32_t sequence = 0;
     uint8_t flags = 0;
-    std::span<const uint8_t> payload;
+    std::vector<uint8_t> payload;
     CaptureProvenance provenance;
 };
 
@@ -129,7 +132,7 @@ private:
 
 class PacketNormalizer {
 public:
-    [[nodiscard]] static NormalizationResult normalize(const CaptureRecord& record) noexcept;
+    [[nodiscard]] static NormalizationResult normalize(const CaptureRecord& record);
 };
 
 }  // namespace namter

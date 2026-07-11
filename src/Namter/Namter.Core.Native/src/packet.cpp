@@ -25,7 +25,7 @@ NormalizationResult failure(CaptureError error) noexcept {
 
 }  // namespace
 
-NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) noexcept {
+NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) {
     if (record.bytes.size() != static_cast<size_t>(record.captured_length)) {
         return failure(CaptureError::capture_length_mismatch);
     }
@@ -36,10 +36,29 @@ NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) noe
         if (record.bytes.size() < ethernet_header_size) {
             return failure(CaptureError::truncated_link_header);
         }
-        if (read_network_u16(record.bytes, 12) != 0x0800) {
+
+        constexpr uint16_t ether_type_ipv4 = 0x0800;
+        constexpr uint16_t ether_type_dot1q = 0x8100;
+        constexpr uint16_t ether_type_dot1ad = 0x88a8;
+        constexpr size_t vlan_tag_size = 4;
+        constexpr size_t maximum_vlan_tags = 2;
+        uint16_t ether_type = read_network_u16(record.bytes, 12);
+        network_offset = ethernet_header_size;
+        size_t vlan_tag_count = 0;
+        while (ether_type == ether_type_dot1q || ether_type == ether_type_dot1ad) {
+            if (vlan_tag_count == maximum_vlan_tags) {
+                return failure(CaptureError::vlan_tag_depth_exceeded);
+            }
+            if (record.bytes.size() - network_offset < vlan_tag_size) {
+                return failure(CaptureError::truncated_vlan_tag);
+            }
+            ether_type = read_network_u16(record.bytes, network_offset + 2);
+            network_offset += vlan_tag_size;
+            ++vlan_tag_count;
+        }
+        if (ether_type != ether_type_ipv4) {
             return failure(CaptureError::non_ipv4);
         }
-        network_offset = ethernet_header_size;
     } else if (record.link_type != dlt_raw) {
         return failure(CaptureError::unsupported_link_type);
     }
@@ -74,6 +93,16 @@ NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) noe
         return failure(CaptureError::non_tcp_ipv4);
     }
 
+    const uint16_t fragment_field = read_network_u16(record.bytes, network_offset + 6);
+    constexpr uint16_t more_fragments = 0x2000;
+    constexpr uint16_t fragment_offset_mask = 0x1fff;
+    if ((fragment_field & fragment_offset_mask) != 0) {
+        return failure(CaptureError::ipv4_nonzero_fragment_offset);
+    }
+    if ((fragment_field & more_fragments) != 0) {
+        return failure(CaptureError::ipv4_more_fragments);
+    }
+
     constexpr size_t minimum_tcp_header_size = 20;
     const size_t tcp_offset = network_offset + ipv4_header_size;
     const size_t tcp_size = ipv4_total_length - ipv4_header_size;
@@ -101,7 +130,9 @@ NormalizationResult PacketNormalizer::normalize(const CaptureRecord& record) noe
         },
         .sequence = read_network_u32(record.bytes, tcp_offset + 4),
         .flags = record.bytes[tcp_offset + 13],
-        .payload = std::span<const uint8_t>(record.bytes.data() + payload_offset, payload_size),
+        .payload = std::vector<uint8_t>(
+            record.bytes.data() + payload_offset,
+            record.bytes.data() + payload_offset + payload_size),
         .provenance = {
             .source = record.source,
             .timestamp_ns = record.timestamp_ns,
