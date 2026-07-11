@@ -108,7 +108,9 @@ The official signed WinDivert DLL and matching x64 driver are packaged for the s
 
 Npcap dynamically loads its `wpcap.dll`, verifies the runtime library identity/version, enumerates adapters, and applies a compiled BPF filter equivalent to the WinDivert selection predicate. It uses immediate mode for responsive delivery, an explicitly sized kernel buffer, an explicitly sized user buffer, event-driven cancellation, and `pcap_stats`/`pcap_stats_ex` when available to surface received and dropped packet counts. Link type is preserved so Ethernet, raw IP, and other supported captures enter the appropriate normalizer.
 
-Namter does not assume that Npcap is installed or bundle its installer under the free license. Product redistribution or silent installation requires an appropriate Npcap OEM redistribution license. Without that license, the application detects and uses a separately installed compatible Npcap runtime selected by the user.
+Namter does not assume that Npcap is installed and never bundles Npcap binaries, drivers, or an installer. It does not download, launch, or silently automate the Npcap installer. When the user selects Npcap and no compatible runtime is detected, Namter marks that backend unavailable and presents the official Npcap download page, installation requirements, detected status, and a retry action. Opening the external download page requires an explicit user action. After the user installs Npcap independently, Namter re-runs runtime, service, adapter, and version probes before enabling capture.
+
+This external-install policy remains in force even if Namter later obtains OEM redistribution rights; changing it requires a separate product and licensing decision. The WinDivert backend and offline PCAP replay remain usable independently of Npcap availability.
 
 ### 5.3 Backend Parity
 
@@ -221,7 +223,7 @@ Unit tests cover:
 - concurrent flow isolation and deterministic capture-clock timeouts;
 - WinDivert/Npcap/PCAP adapter normalization and backend parity;
 - WinDivert sniff/read-only flags, filter validation, batched receive cancellation, queue diagnostics, and driver error mapping;
-- Npcap adapter enumeration, BPF installation, immediate mode, link-type handling, cancellation, and drop statistics;
+- Npcap absence and incompatible-version detection, official-download guidance without automatic installation, adapter enumeration, BPF installation, immediate mode, link-type handling, cancellation, and drop statistics;
 - C ABI version/size negotiation, opaque-handle lifetime, callback ownership, cancellation, and native failure mapping;
 - native AddressSanitizer, UndefinedBehaviorSanitizer where supported, stress, and fuzz targets for packet, stream, frame, LZ4, protocol-snapshot, and decoder inputs;
 - typed event field preservation and deduplication;
@@ -244,10 +246,11 @@ The capture implementation follows the currently selected upstream APIs and rech
 
 - WinDivert 2.2 documentation: <https://reqrypt.org/windivert-doc.html>. It establishes sniff mode for non-modifying capture, administrator and signed-driver requirements, network-layer behavior, batched overlapped receive, queue-loss risk, timestamps, filtering, and documented errors.
 - Npcap reference guide: <https://npcap.com/guide/npcap-api.html> and <https://npcap.com/guide/npcap-devguide.html>. It establishes the libpcap API, Windows buffer/event extensions, immediate delivery, adapter/runtime detection, and capture statistics.
-- Npcap OEM licensing: <https://npcap.com/oem/>. It establishes that product redistribution and silent installation require OEM redistribution rights.
+- Npcap download page: <https://npcap.com/#download>. It is the only download destination Namter presents to users.
+- Npcap OEM licensing: <https://npcap.com/oem/>. It establishes why Namter must not redistribute Npcap or automate silent installation under the free license; the approved product policy is stricter and forbids bundling even if licensing changes later.
 
 WinDivert is licensed under LGPL version 3 according to its official documentation. Packaging must retain the required license notices and permit replacement of the dynamically linked library. Final distribution review must verify the exact bundled versions and license artifacts; this design does not grant redistribution rights.
 
 ## 14. Delivery Boundary
 
-Phase 1 delivers a buildable standalone solution, the C++20 native core, user-selectable WinDivert/Npcap live backends, offline PCAP replay, a versioned C ABI and safe C# interop layer, managed encounter and game-data libraries, `aion.db` update support, CLI replay/comparison commands, automated tests, and evidence reports for the supplied fixtures. It does not deliver the overlay or other desktop UI. Phase 2 begins only after the phase-1 contracts and golden results are accepted.
+Phase 1 delivers a buildable standalone solution, the C++20 native core, user-selectable WinDivert/Npcap live backends, offline PCAP replay, Npcap external-install detection and official-download guidance, a versioned C ABI and safe C# interop layer, managed encounter and game-data libraries, `aion.db` update support, CLI replay/comparison commands, automated tests, and evidence reports for the supplied fixtures. The Namter artifact contains no Npcap binary, driver, or installer. It does not deliver the overlay or other desktop UI. Phase 2 begins only after the phase-1 contracts and golden results are accepted.
