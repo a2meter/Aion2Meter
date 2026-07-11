@@ -8,6 +8,8 @@
 .vs/
 .omc/
 .omx/
+.superpowers/
+.worktrees/
 *.lscache
 
 # Build results
