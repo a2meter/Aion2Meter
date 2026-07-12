@@ -56,7 +56,7 @@ public sealed class GameDataRepositoryTests
             $"Data Source={fixture.DatabasePath};Mode=ReadOnly;Pooling=False");
         await connection.OpenAsync();
 
-        Assert.Equal("aion2-2026-07-10", await ScalarAsync<string>(connection,
+        Assert.Equal("bootstrap-test-aion2-2026-07-10", await ScalarAsync<string>(connection,
             "SELECT name FROM protocol_profiles WHERE is_active = 1;"));
         Assert.Equal("060036", await ScalarAsync<string>(connection,
             "SELECT hex(packet_magic) FROM protocol_profiles WHERE is_active = 1;"));
@@ -163,7 +163,7 @@ public sealed class GameDataRepositoryTests
         Assert.Equal(1UL, snapshot.DataVersion);
         Assert.Equal(1U, snapshot.SchemaVersion);
         Assert.Equal(1U, snapshot.ProtocolProfileVersion);
-        Assert.Equal("aion2-2026-07-10", snapshot.ProtocolProfileName);
+        Assert.Equal("bootstrap-test-aion2-2026-07-10", snapshot.ProtocolProfileName);
         Assert.Equal(new byte[] { 0x06, 0x00, 0x36 }, snapshot.PacketMagic);
         Assert.Equal(new ushort[] { 13328 }, snapshot.ServerPorts);
         Assert.DoesNotContain(snapshot.Opcodes.Values, opcode => opcode.Name == "inactive-opcode");

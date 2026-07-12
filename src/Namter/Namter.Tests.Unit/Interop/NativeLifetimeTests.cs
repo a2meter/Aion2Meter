@@ -6,6 +6,37 @@ namespace Namter.Tests.Unit.Interop;
 public sealed class NativeLifetimeTests
 {
     [Fact]
+    public async Task Replay_completes_only_after_explicit_native_eof_signal()
+    {
+        var observed = new ConcurrentQueue<NativeEventKind>();
+        await using var core = new NativeCore(value => observed.Enqueue(value.Kind));
+        byte[] emptyPcap =
+        [
+            0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
+            0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0,
+            0x65, 0, 0, 0,
+        ];
+
+        await core.ReplayAsync(emptyPcap).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Contains(NativeEventKind.SourceStarted, observed);
+        Assert.DoesNotContain(NativeEventKind.SourceCompleted, observed);
+        Assert.Equal(1UL, core.GetDiagnostics().StopCount);
+    }
+
+    [Fact]
+    public async Task Concurrent_source_start_is_rejected_without_replacing_first_completion_signal()
+    {
+        using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        await using var core = new NativeCore(value => { if (value.Kind == NativeEventKind.SourceStarted) { entered.Set(); release.Wait(); } });
+        byte[] pcap = [0xd4,0xc3,0xb2,0xa1,2,0,4,0,0,0,0,0,0,0,0,0,0xff,0xff,0,0,0x65,0,0,0];
+        Task first = Task.Run(() => core.ReplayAsync(pcap)); Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+        try { await Assert.ThrowsAsync<InvalidOperationException>(() => core.ReplayAsync(pcap)); }
+        finally { release.Set(); }
+        await first.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void SafeHandle_releases_exactly_once()
     {
         var releaseCount = 0;
@@ -87,7 +118,7 @@ public sealed class NativeLifetimeTests
         releaseCallback.Set();
         Assert.True(callbackExited.Wait(TimeSpan.FromSeconds(5)));
         cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await AwaitCompletionOrCancellation(run);
         await dispose;
 
         Assert.Null(callbackFailure);
@@ -133,7 +164,7 @@ public sealed class NativeLifetimeTests
         Assert.Contains(diagnostic, core.GetDiagnostics().ManagedDiagnostics);
 
         cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await AwaitCompletionOrCancellation(run);
     }
 
     [Fact]
@@ -170,7 +201,7 @@ public sealed class NativeLifetimeTests
         var run = core.ReplayAsync(new byte[] { 7 }, cancellation.Token);
         await disposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await AwaitCompletionOrCancellation(run);
         await core!.DisposeAsync();
     }
 
@@ -190,6 +221,12 @@ public sealed class NativeLifetimeTests
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
+    }
+
+    private static async Task AwaitCompletionOrCancellation(Task run)
+    {
+        try { await run; }
+        catch (OperationCanceledException) { }
     }
 
     private static (NativeCoreHandle Handle, WeakReference CallbackTarget) CreateOwnedHandle(

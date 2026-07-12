@@ -2,6 +2,10 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <NamterNativeOutput>$(MSBuildThisFileDirectory)..\Namter.Core.Native\x64\$(Configuration)\Namter.Core.Native.dll</NamterNativeOutput>
+    <NamterVcpkgRoot>$(MSBuildThisFileDirectory)..\..\..\vcpkg_installed\x64-windows\x64-windows</NamterVcpkgRoot>
+    <NamterNativeLz4 Condition="'$(Configuration)' == 'Debug'">$(NamterVcpkgRoot)\debug\bin\lz4d.dll</NamterNativeLz4>
+    <NamterNativeLz4 Condition="'$(Configuration)' != 'Debug'">$(NamterVcpkgRoot)\bin\lz4.dll</NamterNativeLz4>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -15,5 +19,12 @@
     <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
     <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
     <ProjectReference Include="..\Namter.Encounter\Namter.Encounter.csproj" />
+    <ProjectReference Include="..\Namter.Cli\Namter.Cli.csproj" />
+    <ProjectReference Include="..\Namter.GameData.Builder\Namter.GameData.Builder.csproj" />
   </ItemGroup>
+  <Target Name="CopyNamterNative" BeforeTargets="Build">
+    <Error Condition="!Exists('$(NamterNativeOutput)')" Text="Build Namter.Core.Native $(Configuration)|x64 before running integration tests." />
+    <Error Condition="!Exists('$(NamterNativeLz4)')" Text="Build Namter.Core.Native $(Configuration)|x64 with its LZ4 runtime before running integration tests." />
+    <Copy SourceFiles="$(NamterNativeOutput);$(NamterNativeLz4)" DestinationFolder="$(OutDir)" />
+  </Target>
 </Project>

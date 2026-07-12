@@ -40,6 +40,7 @@ public enum NativeEventKind : uint
     Content = 11,
     CombatState = 12,
     UnknownProtocol = 13,
+    SourceCompleted = 14,
 }
 
 public enum NativeBuffOperation : byte

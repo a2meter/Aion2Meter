@@ -58,6 +58,7 @@ typedef enum nm_event_kind {
     NM_EVENT_CONTENT = 11,
     NM_EVENT_COMBAT_STATE = 12,
     NM_EVENT_UNKNOWN_PROTOCOL = 13,
+    NM_EVENT_SOURCE_COMPLETED = 14,
 } nm_event_kind;
 
 typedef enum nm_buff_operation {

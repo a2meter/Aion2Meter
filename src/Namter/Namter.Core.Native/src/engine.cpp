@@ -104,6 +104,21 @@ void emit_diagnostic(nm_core_handle *handle, uint32_t code, const char *message)
     }
 }
 
+void emit_source_completed(nm_core_handle *handle) noexcept {
+    const nm_event_v1 event{.abi_version = abi_version, .struct_size = sizeof(nm_event_v1),
+                            .kind = NM_EVENT_SOURCE_COMPLETED};
+    {
+        std::scoped_lock lock(handle->mutex);
+        ++handle->emitted_event_count;
+    }
+    try {
+        handle->callbacks.event_callback(handle->callbacks.user, &event);
+    } catch (...) {
+        std::scoped_lock lock(handle->mutex);
+        handle->incomplete = true;
+    }
+}
+
 void emit_backend_diagnostic(nm_core_handle *handle, uint32_t kind,
                              const namter::BackendDiagnostic& value,
                              const namter::BackendStats& stats = {},
@@ -404,6 +419,7 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                     pipeline.flush(last_timestamp == 0
                                        ? std::numeric_limits<uint64_t>::max()
                                        : last_timestamp + 120'000'000'001ull);
+                    emit_source_completed(handle);
                     return;
                 }
 
@@ -429,18 +445,25 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                     }
                 }
                 pipeline.flush(std::numeric_limits<uint64_t>::max());
+                emit_source_completed(handle);
             } catch (const std::exception&) {
                 emit_diagnostic(handle, NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED,
                                 "capture worker failed with an internal exception");
-                std::scoped_lock lock(handle->mutex);
-                ++handle->invalid_packet_count;
-                handle->incomplete = true;
+                {
+                    std::scoped_lock lock(handle->mutex);
+                    ++handle->invalid_packet_count;
+                    handle->incomplete = true;
+                }
+                emit_source_completed(handle);
             } catch (...) {
                 emit_diagnostic(handle, NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED,
                                 "capture worker failed with an unknown exception");
-                std::scoped_lock lock(handle->mutex);
-                ++handle->invalid_packet_count;
-                handle->incomplete = true;
+                {
+                    std::scoped_lock lock(handle->mutex);
+                    ++handle->invalid_packet_count;
+                    handle->incomplete = true;
+                }
+                emit_source_completed(handle);
             }
         });
         } catch (...) {

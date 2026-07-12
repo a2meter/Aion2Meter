@@ -11,6 +11,7 @@ public sealed class NativeCore : IAsyncDisposable
     private const uint AbiVersion = 1;
 
     private readonly NativeCoreHandle _handle;
+    private readonly SemaphoreSlim _runGate = new(1, 1);
     private int _disposeState;
     [ThreadStatic]
     private static int s_callbackDepth;
@@ -169,27 +170,26 @@ public sealed class NativeCore : IAsyncDisposable
     {
         ThrowIfDisposed();
         cancellationToken.ThrowIfCancellationRequested();
-
-        StartSource(sourceKind, sourceData);
-
+        if (!await _runGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("A Namter core source is already running.");
         try
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            if (Volatile.Read(ref _disposeState) == 0)
+            Task sourceCompleted = CurrentCallbackState.PrepareSourceCompletion();
+            StartSource(sourceKind, sourceData);
+            try
             {
-                try
+                await sourceCompleted.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (Volatile.Read(ref _disposeState) == 0)
                 {
-                    ThrowIfFailed(NativeMethods.nm_core_stop(_handle));
-                }
-                catch (ObjectDisposedException) when (Volatile.Read(ref _disposeState) != 0)
-                {
-                    // Concurrent disposal owns the stop/destroy sequence.
+                    try { ThrowIfFailed(NativeMethods.nm_core_stop(_handle)); }
+                    catch (ObjectDisposedException) when (Volatile.Read(ref _disposeState) != 0) { }
                 }
             }
         }
+        finally { _runGate.Release(); }
     }
 
     private unsafe void StartSource(NativeSourceKind sourceKind, ReadOnlyMemory<byte> sourceData)
@@ -246,6 +246,12 @@ public sealed class NativeCore : IAsyncDisposable
                 nativeEvent->StructSize < sizeof(NativeEventV1))
             {
                 throw new InvalidOperationException("The native event record has an incompatible layout.");
+            }
+
+            if (nativeEvent->Kind == NativeEventKind.SourceCompleted)
+            {
+                state.SignalSourceCompleted();
+                return;
             }
 
             var nameBytes = CopyBytes(nativeEvent->Name, nativeEvent->NameSize);
@@ -372,11 +378,24 @@ public sealed class NativeCore : IAsyncDisposable
         Action<NativeDiagnostic>? diagnosticCallback)
     {
         private readonly ConcurrentQueue<NativeDiagnostic> _managedDiagnostics = new();
+        private TaskCompletionSource _sourceCompleted = NewCompletion();
 
         internal Action<NativeEvent>? EventCallback { get; } = eventCallback;
 
         internal ImmutableArray<NativeDiagnostic> ManagedDiagnostics =>
             _managedDiagnostics.ToArray().ToImmutableArray();
+
+        internal Task PrepareSourceCompletion()
+        {
+            var completion = NewCompletion();
+            Volatile.Write(ref _sourceCompleted, completion);
+            return completion.Task;
+        }
+
+        internal void SignalSourceCompleted() => Volatile.Read(ref _sourceCompleted).TrySetResult();
+
+        private static TaskCompletionSource NewCompletion() =>
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal void ReportNativeDiagnostic(NativeDiagnostic diagnostic)
         {

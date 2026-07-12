@@ -200,8 +200,8 @@ uint32_t snapshot_crc(std::span<const uint8_t>b){uint32_t c=0xffffffffu;for(size
 std::vector<uint8_t> removal_snapshot(){std::vector<uint8_t>b{'N','M','P','S'};append_le16(b,1);append_le16(b,28);append_le32(b,0);append_le32(b,0);append_le64(b,7);append_le32(b,3);append_le16(b,3);b.insert(b.end(),{6,0,0x36});append_le16(b,1);append_le16(b,13328);append_le32(b,1);append_le16(b,10);append_le16(b,2);b.insert(b.end(),{0x21,0x8d});append_le32(b,1);append_le32(b,1);append_le32(b,1);append_le32(b,128);append_le16(b,1);append_le16(b,0);append_le16(b,1);append_le16(b,4);append_le32(b,0);append_le32(b,1);append_le32(b,5);write_le32(b,8,static_cast<uint32_t>(b.size()));write_le32(b,12,snapshot_crc(b));return b;}
 std::vector<uint8_t> removal_pcap(){std::vector<uint8_t> packet(40,0);packet[0]=0x45;packet[2]=0;packet[3]=47;packet[8]=64;packet[9]=6;packet[12]=10;packet[15]=1;packet[16]=10;packet[19]=2;packet[20]=0x34;packet[21]=0x10;packet[22]=0xc3;packet[23]=0x50;packet[27]=1;packet[32]=0x50;packet[33]=0x18;packet.insert(packet.end(),{0x0a,0x21,0x8d,0xc9,0x3f,0x00,0x01});std::vector<uint8_t>b{0xd4,0xc3,0xb2,0xa1};append_le16(b,2);append_le16(b,4);append_le32(b,0);append_le32(b,0);append_le32(b,65535);append_le32(b,101);append_le32(b,1);append_le32(b,0);append_le32(b,static_cast<uint32_t>(packet.size()));append_le32(b,static_cast<uint32_t>(packet.size()));b.insert(b.end(),packet.begin(),packet.end());return b;}
 
-struct EventProbe{std::mutex mutex;std::condition_variable cv;bool removed=false;uint32_t actor=0;uint16_t source_port=0;uint16_t destination_port=0;};
-void NM_CALL observe_event(void*user,const nm_event_v1*event){if(event->kind!=NM_EVENT_ENTITY_REMOVED)return;auto&probe=*static_cast<EventProbe*>(user);{std::scoped_lock lock(probe.mutex);probe.removed=true;probe.actor=event->actor_id;probe.source_port=event->source_port;probe.destination_port=event->destination_port;}probe.cv.notify_one();}
+struct EventProbe{std::mutex mutex;std::condition_variable cv;bool removed=false;bool completed=false;uint32_t actor=0;uint16_t source_port=0;uint16_t destination_port=0;};
+void NM_CALL observe_event(void*user,const nm_event_v1*event){auto&probe=*static_cast<EventProbe*>(user);{std::scoped_lock lock(probe.mutex);if(event->kind==NM_EVENT_ENTITY_REMOVED){probe.removed=true;probe.actor=event->actor_id;probe.source_port=event->source_port;probe.destination_port=event->destination_port;}else if(event->kind==NM_EVENT_SOURCE_COMPLETED)probe.completed=true;else return;}probe.cv.notify_one();}
 void NM_CALL throwing_event(void*,const nm_event_v1*event){if(event->kind==NM_EVENT_ENTITY_REMOVED)throw std::bad_alloc();}
 void NM_CALL throwing_source_event(void*,const nm_event_v1*event){if(event->kind==NM_EVENT_SOURCE_STARTED)throw std::runtime_error("source callback");}
 struct ReentrantStopProbe{nm_core_handle*handle=nullptr;nm_status status=NM_STATUS_INTERNAL_ERROR;};
@@ -648,6 +648,10 @@ TEST(Abi, PcapBytesReachAuthoritativeDecoderAndEmitTypedEvent) {
     std::fill(pcap.begin(),pcap.end(),uint8_t{0});
     {std::unique_lock lock(probe.mutex);ASSERT_TRUE(probe.cv.wait_for(lock,std::chrono::seconds(2),[&]{return probe.removed;}));EXPECT_EQ(probe.actor,8137u);}
     EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+
+TEST(Abi, PcapEofAndFlushEmitExplicitSourceCompletedAfterTypedEvents) {
+    EventProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&observe_event;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);const auto snapshot=removal_snapshot();ASSERT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);{std::unique_lock lock(probe.mutex);ASSERT_TRUE(probe.cv.wait_for(lock,std::chrono::seconds(2),[&]{return probe.completed;}));EXPECT_TRUE(probe.removed);}EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
 }
 
 TEST(Abi, ThrowingEventSinkBecomesDiagnosticInsteadOfTerminatingWorker) {
