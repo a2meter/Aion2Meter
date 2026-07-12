@@ -8,9 +8,14 @@ struct FakeNpcap {
     NpcapApi api{};
     std::string version = "Npcap version 1.83, based on libpcap";
     std::vector<std::string> resolved;
+    std::vector<std::string> adapters{"\\Device\\NPF_{TEST}"};
     bool activate_ok = true;
+    int error_code = -77;
+    std::string error_message = "injected activation failure";
     bool cancelled = false;
     std::string filter;
+    int compile_result = 0;
+    ApiResult receive_result = ApiResult::would_block;
     int immediate = 0;
     int kernel = 0;
     int user = 0;
@@ -24,7 +29,7 @@ struct FakeNpcap {
             static_cast<FakeNpcap *>(p)->resolved.emplace_back(n);
             return true;
         };
-        api.enumerate = [](void *) { return std::vector<std::string>{"\\Device\\NPF_{TEST}"}; };
+        api.enumerate = [](void *p) { return static_cast<FakeNpcap*>(p)->adapters; };
         api.create = [](void *, const char *) { return reinterpret_cast<void *>(1); };
         api.set_immediate = [](void *p, void *, int v) {
             static_cast<FakeNpcap *>(p)->immediate = v;
@@ -42,8 +47,8 @@ struct FakeNpcap {
             return static_cast<FakeNpcap *>(p)->activate_ok ? 0 : -1;
         };
         api.compile_apply = [](void *p, void *, const char *f) {
-            static_cast<FakeNpcap *>(p)->filter = f;
-            return 0;
+            auto&s=*static_cast<FakeNpcap *>(p);s.filter=f;
+            return s.compile_result;
         };
         api.link_type = [](void *p, void *) { return static_cast<FakeNpcap *>(p)->link; };
         api.get_event = [](void *, void *) { return reinterpret_cast<void *>(2); };
@@ -52,7 +57,7 @@ struct FakeNpcap {
             if (s.cancelled)
                 return ApiResult::cancelled;
             if (s.packets.empty())
-                return ApiResult::would_block;
+                return s.receive_result;
             *out = s.packets.front();
             s.packets.erase(s.packets.begin());
             return ApiResult::ok;
@@ -64,6 +69,8 @@ struct FakeNpcap {
         };
         api.break_loop = [](void *, void *) {};
         api.close = [](void *, void *) {};
+        api.last_error_code=[](void*p){return static_cast<FakeNpcap*>(p)->error_code;};
+        api.last_error_message=[](void*p){return static_cast<FakeNpcap*>(p)->error_message.c_str();};
     }
 };
 BackendConfig config() {
@@ -72,12 +79,42 @@ BackendConfig config() {
             .kernel_buffer_size = 4 * 1024 * 1024,
             .user_buffer_size = 1024 * 1024};
 }
+
+TEST(NpcapBackend, WindowsPcapStatUsesOfficialSixFieldAbiWithoutStackOverwrite) {
+    static_assert(sizeof(NpcapStatNative) == 24);
+    EXPECT_EQ(offsetof(NpcapStatNative, received), 0u);
+    EXPECT_EQ(offsetof(NpcapStatNative, dropped), 4u);
+    EXPECT_EQ(offsetof(NpcapStatNative, interface_dropped), 8u);
+    EXPECT_EQ(offsetof(NpcapStatNative, captured), 12u);
+    EXPECT_EQ(offsetof(NpcapStatNative, sent), 16u);
+    EXPECT_EQ(offsetof(NpcapStatNative, network_dropped), 20u);
+    const auto converted = npcap_stats_from_native({1,2,3,4,5,6});
+    EXPECT_EQ(converted.received,1u); EXPECT_EQ(converted.dropped,2u);
+    EXPECT_EQ(converted.interface_dropped,3u); EXPECT_EQ(converted.captured,4u);
+    EXPECT_EQ(converted.sent,5u); EXPECT_EQ(converted.network_dropped,6u);
+}
 } // namespace
 TEST(NpcapBackend, ReportsDedicatedMissingRuntimeWithStructuredOfficialHelp) {
     auto b = make_npcap_backend(nullptr);
     EXPECT_EQ(b->start(config(), [](const CaptureRecord &) {}), BackendError::npcap_not_installed);
     EXPECT_EQ(b->diagnostic().help_url, "https://npcap.com/#download");
     EXPECT_FALSE(b->diagnostic().automatic_action);
+}
+TEST(NpcapBackend, PreservesExactActivationCodeAndMessage) {
+    FakeNpcap f;f.activate_ok=false;auto backend=make_npcap_backend(&f.api);
+    EXPECT_EQ(backend->start(config(),[](const CaptureRecord&){}),BackendError::activate_failed);
+    EXPECT_EQ(backend->diagnostic().native_error,static_cast<uint32_t>(-77));
+    EXPECT_NE(backend->diagnostic().message.find("injected activation failure"),std::string::npos);
+}
+TEST(NpcapBackend, DistinguishesEnumerationFailureFromNoSelectedAdapter) {
+    FakeNpcap f;f.adapters.clear();auto backend=make_npcap_backend(&f.api);
+    EXPECT_EQ(backend->start(config(),[](const CaptureRecord&){}),BackendError::adapter_not_found);
+    EXPECT_NE(backend->diagnostic().message.find("enumeration failed"),std::string::npos);
+    EXPECT_EQ(backend->diagnostic().native_error,static_cast<uint32_t>(-77));
+}
+TEST(NpcapBackend, PreservesCompileAndNextExErrorsBeforeClose) {
+    FakeNpcap compile;compile.compile_result=-23;compile.error_code=-23;compile.error_message="filter rejected";auto first=make_npcap_backend(&compile.api);EXPECT_EQ(first->start(config(),[](const CaptureRecord&){}),BackendError::activate_failed);EXPECT_EQ(first->diagnostic().native_error,static_cast<uint32_t>(-23));EXPECT_NE(first->diagnostic().message.find("filter rejected"),std::string::npos);
+    FakeNpcap next;next.receive_result=ApiResult::failed;next.error_code=-1;next.error_message="next_ex injected";auto second=make_npcap_backend(&next.api);ASSERT_EQ(second->start(config(),[](const CaptureRecord&){}),BackendError::none);EXPECT_EQ(second->poll(),BackendError::receive_failed);EXPECT_EQ(second->diagnostic().native_error,static_cast<uint32_t>(-1));EXPECT_NE(second->diagnostic().message.find("next_ex injected"),std::string::npos);
 }
 TEST(NpcapBackend, RejectsLegacyWinPcapAndMissingSymbol) {
     FakeNpcap f;

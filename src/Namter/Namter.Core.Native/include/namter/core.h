@@ -118,6 +118,24 @@ typedef struct nm_diagnostic_v1 {
     uint32_t code;
     const uint8_t *message;
     size_t message_size;
+    uint32_t backend_kind;
+    uint32_t stable_error;
+    uint32_t native_error;
+    uint8_t incomplete;
+    uint8_t automatic_action;
+    uint16_t reserved;
+    uint64_t received;
+    uint64_t dropped;
+    uint64_t interface_dropped;
+    uint64_t queue_high_water;
+    const uint8_t *backend_name;
+    size_t backend_name_size;
+    const uint8_t *runtime_version;
+    size_t runtime_version_size;
+    const uint8_t *interface_identity;
+    size_t interface_identity_size;
+    const uint8_t *help_url;
+    size_t help_url_size;
 } nm_diagnostic_v1;
 
 typedef struct nm_core_config_v1 {
@@ -161,6 +179,11 @@ typedef struct nm_diagnostics_v1 {
     uint64_t captured_packet_count;
     uint64_t dropped_capture_count;
     uint64_t invalid_packet_count;
+    uint64_t backend_received;
+    uint64_t backend_dropped;
+    uint64_t backend_interface_dropped;
+    uint64_t queue_high_water;
+    uint8_t incomplete;
 } nm_diagnostics_v1;
 
 NM_API uint32_t NM_CALL nm_core_abi_version(void) noexcept;

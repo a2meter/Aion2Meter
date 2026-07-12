@@ -167,6 +167,8 @@ bool PcapReader::read_next(CaptureRecord& record) {
         .original_length = original_length,
         .bytes = std::vector<uint8_t>(captured_length),
         .file_offset = record_offset,
+        .timestamp_precision = header_->precision,
+        .backend_name = "pcap",
     };
     if (captured_length != 0) {
         input_->read(

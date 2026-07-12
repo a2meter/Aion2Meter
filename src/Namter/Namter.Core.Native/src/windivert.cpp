@@ -6,6 +6,19 @@
 #include <cstring>
 
 namespace namter {
+WinDivertFailureCategory categorize_windivert_error(uint32_t error, bool receiving) noexcept {
+    if (receiving) return WinDivertFailureCategory::receive_failed;
+    switch (error) {
+        case ERROR_FILE_NOT_FOUND: return WinDivertFailureCategory::missing_driver;
+        case ERROR_ACCESS_DENIED: return WinDivertFailureCategory::permission_denied;
+        case ERROR_INVALID_IMAGE_HASH: return WinDivertFailureCategory::invalid_signature;
+        case ERROR_DRIVER_BLOCKED: return WinDivertFailureCategory::driver_blocked;
+        case 654: return WinDivertFailureCategory::incompatible_driver;
+        case 1753: return WinDivertFailureCategory::bfe_disabled;
+        case ERROR_SUCCESS: return WinDivertFailureCategory::none;
+        default: return WinDivertFailureCategory::other;
+    }
+}
 bool split_windivert_batch(std::span<const uint8_t> packed_packets,
                            std::span<const WinDivertPacketMetadata> metadata, int64_t qpc_frequency,
                            WinDivertBoundaryParser parser, void *parser_context,
@@ -103,6 +116,8 @@ class SystemWinDivert {
     std::vector<WinDivertAddress> addresses;
     OVERLAPPED overlapped{};
     LARGE_INTEGER qpc_frequency{};
+    uint32_t last_error = 0;
+    std::string runtime_version;
     SystemWinDivert() {
         if (!dll)
             return;
@@ -132,10 +147,19 @@ class SystemWinDivert {
         api.open = [](void *p, const char *f, uint32_t layer, uint64_t flags) {
             auto &s = *static_cast<SystemWinDivert *>(p);
             void *h = s.open(f, layer, 0, flags);
-            if (h == reinterpret_cast<void *>(static_cast<intptr_t>(-1)))
+            if (h == reinterpret_cast<void *>(static_cast<intptr_t>(-1))) {
+                s.last_error = ::GetLastError();
                 return static_cast<void *>(nullptr);
+            }
             uint64_t major = 0, minor = 0;
-            if (!s.get(h, 3, &major) || !s.get(h, 4, &minor) || major != 2 || minor < 2) {
+            if (!s.get(h, 3, &major) || !s.get(h, 4, &minor)) {
+                s.last_error = ::GetLastError();
+                s.close(h);
+                return static_cast<void *>(nullptr);
+            }
+            s.runtime_version = std::to_string(major) + "." + std::to_string(minor);
+            if (major != 2 || minor < 2) {
+                s.last_error = ERROR_REVISION_MISMATCH;
                 s.close(h);
                 return static_cast<void *>(nullptr);
             }
@@ -162,6 +186,7 @@ class SystemWinDivert {
             if (!s.receive(h, s.packet_buffer.data(), static_cast<uint32_t>(s.packet_buffer.size()),
                            &received, 0, s.addresses.data(), &address_length, &s.overlapped)) {
                 const auto error = ::GetLastError();
+                s.last_error = error;
                 if (error == ERROR_IO_PENDING) {
                     const DWORD wait = ::WaitForSingleObject(s.overlapped.hEvent, INFINITE);
                     DWORD transferred = 0;
@@ -169,6 +194,7 @@ class SystemWinDivert {
                         !::GetOverlappedResult(static_cast<HANDLE>(h), &s.overlapped, &transferred,
                                                FALSE)) {
                         const auto completion_error = ::GetLastError();
+                        s.last_error = completion_error;
                         return completion_error == ERROR_NO_DATA ||
                                        completion_error == ERROR_OPERATION_ABORTED
                                    ? ApiResult::cancelled
@@ -209,10 +235,14 @@ class SystemWinDivert {
             return ApiResult::ok;
         };
         api.stats = [](void *, void *, BackendStats *) { return true; };
-        api.cancel = [](void *p, void *h) {
-            return static_cast<SystemWinDivert *>(p)->shutdown(h, 0) != 0;
+        api.cancel = [](void *p, void *h, uint32_t how) {
+            return static_cast<SystemWinDivert *>(p)->shutdown(h, how) != 0;
         };
         api.close = [](void *p, void *h) { static_cast<SystemWinDivert *>(p)->close(h); };
+        api.last_error = [](void *p) { return static_cast<SystemWinDivert *>(p)->last_error; };
+        api.runtime_version = [](void *p) {
+            return static_cast<SystemWinDivert *>(p)->runtime_version.c_str();
+        };
     }
     ~SystemWinDivert() {
         if (overlapped.hEvent != nullptr)
@@ -229,6 +259,7 @@ class WinDivertBackend final : public CaptureBackend {
     explicit WinDivertBackend(const WinDivertApi *api, std::shared_ptr<void> owner = {})
         : api_(api), owner_(std::move(owner)) {
         diagnostic_.backend = "windivert";
+        diagnostic_.runtime_version = "2.2+";
     }
     ~WinDivertBackend() override { stop(); }
     BackendError start(const BackendConfig &c, CaptureSink sink) override {
@@ -256,6 +287,7 @@ class WinDivertBackend final : public CaptureBackend {
             (handle_ = api_->open(api_->context, filter, windivert_layer_network,
                                   windivert_flag_sniff | windivert_flag_recv_only)) == nullptr)
             return fail(BackendError::open_failed, "WinDivertOpen failed");
+        if (api_->runtime_version) diagnostic_.runtime_version=api_->runtime_version(api_->context);
         if (!api_->set_param ||
             !api_->set_param(api_->context, handle_, windivert_param_queue_length,
                              c.queue_length) ||
@@ -294,7 +326,14 @@ class WinDivertBackend final : public CaptureBackend {
                             .original_length = p.original_length,
                             .bytes = std::vector<uint8_t>(p.bytes, p.bytes + p.captured_length),
                             .direction = p.outbound ? CaptureDirection::outbound
-                                                    : CaptureDirection::inbound};
+                                                    : CaptureDirection::inbound,
+                            .backend_name = diagnostic_.backend,
+                            .runtime_version = diagnostic_.runtime_version,
+                            .interface_identity = diagnostic_.interface_identity};
+            const auto current_stats = stats();
+            r.backend_received = current_stats.received;
+            r.backend_dropped = current_stats.dropped;
+            r.backend_interface_dropped = current_stats.interface_dropped;
             sink_(r);
             ++stats_.received;
         }
@@ -312,7 +351,7 @@ class WinDivertBackend final : public CaptureBackend {
     }
     void request_stop() noexcept override {
         if (handle_ && api_ && api_->cancel)
-            api_->cancel(api_->context, handle_);
+            api_->cancel(api_->context, handle_, 0x1u);
     }
     BackendStats stats() const noexcept override {
         auto value = stats_;
@@ -326,6 +365,16 @@ class WinDivertBackend final : public CaptureBackend {
     BackendError fail(BackendError e, std::string m) {
         diagnostic_.error = e;
         diagnostic_.message = std::move(m);
+        if (api_ && api_->runtime_version) {
+            const char *version=api_->runtime_version(api_->context);
+            if (version && *version) diagnostic_.runtime_version=version;
+        }
+        if (api_ && api_->last_error) {
+            diagnostic_.native_error = api_->last_error(api_->context);
+            diagnostic_.stable_native_category = static_cast<uint32_t>(
+                categorize_windivert_error(diagnostic_.native_error,
+                                           e == BackendError::receive_failed));
+        }
         return e;
     }
     const WinDivertApi *api_;

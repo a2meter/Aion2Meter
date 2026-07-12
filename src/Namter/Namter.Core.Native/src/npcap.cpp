@@ -22,6 +22,8 @@ constexpr std::array required_symbols{"pcap_lib_version",
                                       "pcap_breakloop",
                                       "pcap_datalink",
                                       "pcap_stats",
+                                      "pcap_geterr",
+                                      "pcap_statustostr",
                                       "pcap_close"};
 struct PcapIf {
     PcapIf *next;
@@ -38,11 +40,6 @@ struct PcapHeaderNative {
     PcapTimeval timestamp;
     uint32_t captured_length;
     uint32_t original_length;
-};
-struct PcapStat {
-    uint32_t received;
-    uint32_t dropped;
-    uint32_t interface_dropped;
 };
 struct BpfProgram {
     uint32_t length;
@@ -64,9 +61,11 @@ class SystemNpcap {
     using Datalink = int(__cdecl *)(void *);
     using GetEvent = void *(__cdecl *)(void *);
     using Next = int(__cdecl *)(void *, PcapHeaderNative **, const uint8_t **);
-    using Stats = int(__cdecl *)(void *, PcapStat *);
+    using Stats = int(__cdecl *)(void *, NpcapStatNative *);
     using Break = void(__cdecl *)(void *);
     using Close = void(__cdecl *)(void *);
+    using GetError = const char *(__cdecl *)(void *);
+    using StatusToString = const char *(__cdecl *)(int);
     Identity identity{};
     Find find{};
     Free free_devices{};
@@ -82,6 +81,10 @@ class SystemNpcap {
     Stats stats{};
     Break break_loop{};
     Close close{};
+    GetError get_error{};
+    StatusToString status_to_string{};
+    int last_error_code = 0;
+    std::string last_error_message;
     SystemNpcap() {
         if (!dll)
             return;
@@ -102,6 +105,8 @@ class SystemNpcap {
         stats = dll.symbol<Stats>("pcap_stats");
         break_loop = dll.symbol<Break>("pcap_breakloop");
         close = dll.symbol<Close>("pcap_close");
+        get_error = dll.symbol<GetError>("pcap_geterr");
+        status_to_string = dll.symbol<StatusToString>("pcap_statustostr");
         api.context = this;
         api.identity = [](void *p) { return static_cast<SystemNpcap *>(p)->identity(); };
         api.resolve = [](void *p, const char *n) {
@@ -112,17 +117,24 @@ class SystemNpcap {
             std::vector<std::string> v;
             PcapIf *all = nullptr;
             char error[256]{};
-            if (s.find(&all, error) == 0) {
+            const int result=s.find(&all,error);
+            if (result == 0) {
                 for (auto *i = all; i; i = i->next)
                     if (i->name)
                         v.emplace_back(i->name);
                 s.free_devices(all);
+            } else {
+                s.last_error_code=result;
+                s.last_error_message=error;
             }
             return v;
         };
         api.create = [](void *p, const char *n) {
+            auto &s=*static_cast<SystemNpcap *>(p);
             char error[256]{};
-            return static_cast<SystemNpcap *>(p)->create(n, error);
+            void *handle=s.create(n, error);
+            if(!handle){s.last_error_code=-1;s.last_error_message=error;}
+            return handle;
         };
         api.set_immediate = [](void *p, void *h, int v) {
             return static_cast<SystemNpcap *>(p)->immediate(h, v);
@@ -134,13 +146,16 @@ class SystemNpcap {
             auto &s = *static_cast<SystemNpcap *>(p);
             return s.user ? s.user(h, v) : 0;
         };
-        api.activate = [](void *p, void *h) { return static_cast<SystemNpcap *>(p)->activate(h); };
+        api.activate = [](void *p, void *h) { auto&s=*static_cast<SystemNpcap *>(p);const int code=s.activate(h);if(code<0){s.last_error_code=code;const char*status=s.status_to_string?s.status_to_string(code):nullptr;const char*detail=s.get_error?s.get_error(h):nullptr;s.last_error_message=status?status:"pcap_activate failed";if(detail&&*detail){s.last_error_message += ": ";s.last_error_message += detail;}}return code; };
         api.compile_apply = [](void *p, void *h, const char *f) {
             auto &s = *static_cast<SystemNpcap *>(p);
             BpfProgram b{};
-            if (s.compile(h, &b, f, 1, 0xffffffffu) != 0)
+            if (s.compile(h, &b, f, 1, 0xffffffffu) != 0) {
+                s.last_error_code=-1;const char*text=s.get_error?s.get_error(h):nullptr;s.last_error_message=text?text:"pcap_compile failed";
                 return -1;
+            }
             const int result = s.set_filter(h, &b);
+            if(result!=0){s.last_error_code=result;const char*text=s.get_error?s.get_error(h):nullptr;s.last_error_message=text?text:"pcap_setfilter failed";}
             if (s.free_code)
                 s.free_code(&b);
             return result;
@@ -165,8 +180,10 @@ class SystemNpcap {
                 return ApiResult::would_block;
             if (result == -2)
                 return ApiResult::cancelled;
-            if (result != 1 || !header)
+            if (result != 1 || !header) {
+                s.last_error_code=result;const char*text=s.get_error?s.get_error(h):nullptr;s.last_error_message=text?text:"pcap_next_ex failed";
                 return ApiResult::failed;
+            }
             out->bytes = bytes;
             out->captured_length = header->captured_length;
             out->original_length = header->original_length;
@@ -176,19 +193,21 @@ class SystemNpcap {
             return ApiResult::ok;
         };
         api.stats = [](void *p, void *h, BackendStats *out) {
-            PcapStat s{};
+            NpcapStatNative s{};
             if (static_cast<SystemNpcap *>(p)->stats(h, &s) != 0)
                 return false;
-            *out = {s.received, s.dropped, s.interface_dropped};
+            *out = npcap_stats_from_native(s);
             return true;
         };
         api.break_loop = [](void *p, void *h) { static_cast<SystemNpcap *>(p)->break_loop(h); };
         api.close = [](void *p, void *h) { static_cast<SystemNpcap *>(p)->close(h); };
+        api.last_error_code=[](void*p){return static_cast<SystemNpcap*>(p)->last_error_code;};
+        api.last_error_message=[](void*p){return static_cast<SystemNpcap*>(p)->last_error_message.c_str();};
     }
     [[nodiscard]] bool ready() const noexcept {
         return dll && identity && find && free_devices && create && immediate && kernel && user &&
                activate && compile && set_filter && free_code && datalink && get_event && next &&
-               stats && break_loop && close;
+               stats && break_loop && close && get_error && status_to_string;
     }
 };
 class NpcapBackend final : public CaptureBackend {
@@ -220,10 +239,13 @@ class NpcapBackend final : public CaptureBackend {
         if (!api_->enumerate || !api_->create)
             return fail(BackendError::symbol_missing, "Npcap adapter API is missing");
         auto adapters = api_->enumerate(api_->context);
+        if(adapters.empty()&&api_->last_error_code&&api_->last_error_code(api_->context)!=0)
+            return fail(BackendError::adapter_not_found,"Npcap adapter enumeration failed");
         const auto selected = c.adapter.empty() && !adapters.empty() ? adapters.front() : c.adapter;
         if (std::find(adapters.begin(), adapters.end(), selected) == adapters.end())
             return fail(BackendError::adapter_not_found, "selected Npcap adapter was not found");
         handle_ = api_->create(api_->context, selected.c_str());
+        diagnostic_.interface_identity = selected;
         if (!handle_)
             return fail(BackendError::open_failed, "pcap_create failed");
         char filter[80]{};
@@ -273,10 +295,16 @@ class NpcapBackend final : public CaptureBackend {
                         .captured_length = p.captured_length,
                         .original_length = p.original_length,
                         .bytes = std::vector<uint8_t>(p.bytes, p.bytes + p.captured_length),
-                        .direction =
-                            p.outbound ? CaptureDirection::outbound : CaptureDirection::unknown};
+                        .direction = p.outbound ? CaptureDirection::outbound : CaptureDirection::unknown,
+                        .backend_name = diagnostic_.backend,
+                        .runtime_version = diagnostic_.runtime_version,
+                        .interface_identity = diagnostic_.interface_identity};
         if (r.direction == CaptureDirection::unknown)
             r.direction = infer_direction(r, server_port_);
+        const auto current_stats = stats();
+        r.backend_received = current_stats.received;
+        r.backend_dropped = current_stats.dropped;
+        r.backend_interface_dropped = current_stats.interface_dropped;
         sink_(r);
         return BackendError::none;
     }
@@ -304,6 +332,9 @@ class NpcapBackend final : public CaptureBackend {
   private:
     BackendError fail(BackendError e, std::string m) {
         diagnostic_.error = e;
+        if(api_&&api_->last_error_code) diagnostic_.native_error=static_cast<uint32_t>(api_->last_error_code(api_->context));
+        diagnostic_.stable_native_category=diagnostic_.native_error;
+        if(api_&&api_->last_error_message){const char*detail=api_->last_error_message(api_->context);if(detail&&*detail)m += ": "+std::string(detail);}
         diagnostic_.message = std::move(m);
         diagnostic_.automatic_action = false;
         return e;
@@ -320,6 +351,10 @@ class NpcapBackend final : public CaptureBackend {
 } // namespace
 std::unique_ptr<CaptureBackend> make_npcap_backend(const NpcapApi *api) {
     return std::make_unique<NpcapBackend>(api);
+}
+BackendStats npcap_stats_from_native(const NpcapStatNative &stats) noexcept {
+    return {stats.received, stats.dropped, stats.interface_dropped,
+            stats.captured, stats.sent, stats.network_dropped};
 }
 std::unique_ptr<CaptureBackend> make_system_npcap_backend() {
     auto owner = std::make_shared<SystemNpcap>();

@@ -142,6 +142,13 @@ NormalizationResult PacketNormalizer::normalize(const CaptureRecord &record) {
                 .original_length = record.original_length,
                 .file_offset = record.file_offset,
                 .direction = record.direction,
+                .timestamp_precision = record.timestamp_precision,
+                .backend_name = record.backend_name,
+                .runtime_version = record.runtime_version,
+                .interface_identity = record.interface_identity,
+                .backend_received = record.backend_received,
+                .backend_dropped = record.backend_dropped,
+                .backend_interface_dropped = record.backend_interface_dropped,
             },
     };
     if (segment.provenance.direction == CaptureDirection::unknown) {

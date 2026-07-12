@@ -1,9 +1,13 @@
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <crtdbg.h>
 #include <cstddef>
 #include <thread>
+#include <span>
+#include <stdexcept>
 #include <type_traits>
+#include <tuple>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -16,29 +20,88 @@ namespace {
 static_assert(std::is_standard_layout_v<nm_event_v1>);
 static_assert(sizeof(void *) == 8);
 static_assert(sizeof(nm_event_v1) == 200);
+static_assert(sizeof(nm_diagnostic_v1) == 144);
+static_assert(offsetof(nm_diagnostic_v1, abi_version) == 0);
+static_assert(offsetof(nm_diagnostic_v1, struct_size) == 4);
+static_assert(offsetof(nm_diagnostic_v1, code) == 8);
+static_assert(offsetof(nm_diagnostic_v1, message) == 16);
+static_assert(offsetof(nm_diagnostic_v1, message_size) == 24);
+static_assert(offsetof(nm_diagnostic_v1, backend_kind) == 32);
+static_assert(offsetof(nm_diagnostic_v1, stable_error) == 36);
+static_assert(offsetof(nm_diagnostic_v1, native_error) == 40);
+static_assert(offsetof(nm_diagnostic_v1, incomplete) == 44);
+static_assert(offsetof(nm_diagnostic_v1, automatic_action) == 45);
+static_assert(offsetof(nm_diagnostic_v1, reserved) == 46);
+static_assert(offsetof(nm_diagnostic_v1, received) == 48);
+static_assert(offsetof(nm_diagnostic_v1, dropped) == 56);
+static_assert(offsetof(nm_diagnostic_v1, interface_dropped) == 64);
+static_assert(offsetof(nm_diagnostic_v1, queue_high_water) == 72);
+static_assert(offsetof(nm_diagnostic_v1, backend_name) == 80);
+static_assert(offsetof(nm_diagnostic_v1, backend_name_size) == 88);
+static_assert(offsetof(nm_diagnostic_v1, runtime_version) == 96);
+static_assert(offsetof(nm_diagnostic_v1, runtime_version_size) == 104);
+static_assert(offsetof(nm_diagnostic_v1, interface_identity) == 112);
+static_assert(offsetof(nm_diagnostic_v1, interface_identity_size) == 120);
+static_assert(offsetof(nm_diagnostic_v1, help_url) == 128);
+static_assert(offsetof(nm_diagnostic_v1, help_url_size) == 136);
+static_assert(sizeof(nm_diagnostics_v1) == 96);
+static_assert(offsetof(nm_diagnostics_v1, abi_version) == 0);
+static_assert(offsetof(nm_diagnostics_v1, struct_size) == 4);
+static_assert(offsetof(nm_diagnostics_v1, start_count) == 8);
+static_assert(offsetof(nm_diagnostics_v1, stop_count) == 16);
+static_assert(offsetof(nm_diagnostics_v1, emitted_event_count) == 24);
+static_assert(offsetof(nm_diagnostics_v1, captured_packet_count) == 32);
+static_assert(offsetof(nm_diagnostics_v1, dropped_capture_count) == 40);
+static_assert(offsetof(nm_diagnostics_v1, invalid_packet_count) == 48);
+static_assert(offsetof(nm_diagnostics_v1, backend_received) == 56);
+static_assert(offsetof(nm_diagnostics_v1, backend_dropped) == 64);
+static_assert(offsetof(nm_diagnostics_v1, backend_interface_dropped) == 72);
+static_assert(offsetof(nm_diagnostics_v1, queue_high_water) == 80);
+static_assert(offsetof(nm_diagnostics_v1, incomplete) == 88);
 
 void NM_CALL ignore_event(void *, const nm_event_v1 *) {}
 void NM_CALL ignore_diagnostic(void *, const nm_diagnostic_v1 *) {}
-
-std::atomic_uint32_t observed_diagnostic{0};
-void NM_CALL observe_diagnostic(void *, const nm_diagnostic_v1 *value) {
-    observed_diagnostic.store(value->code);
+void NM_CALL throw_diagnostic(void *, const nm_diagnostic_v1 *) {
+    throw std::runtime_error("diagnostic callback failed");
 }
 
-enum class EngineFakeMode { packet, overflow, failure, blocking };
+std::atomic_uint32_t observed_diagnostic{0};
+std::atomic_uint32_t observed_backend_kind{0}, observed_native_error{0};
+std::atomic_bool observed_incomplete{false};
+std::string observed_backend_name;
+void NM_CALL observe_diagnostic(void *, const nm_diagnostic_v1 *value) {
+    observed_backend_kind.store(value->backend_kind);
+    observed_native_error.store(value->native_error);
+    observed_incomplete.store(value->incomplete != 0);
+    observed_backend_name = value->backend_name_size == 0
+                                ? std::string{}
+                                : std::string(reinterpret_cast<const char *>(value->backend_name),
+                                              value->backend_name_size);
+    observed_diagnostic.store(value->code, std::memory_order_release);
+}
+
+enum class EngineFakeMode { packet, overflow, failure, blocking, start_blocking, throwing, typed };
 EngineFakeMode engine_fake_mode = EngineFakeMode::packet;
 std::atomic_bool engine_fake_stop{false};
+std::atomic_bool engine_fake_start_entered{false}, engine_fake_allow_start{false};
+namter::CaptureSource engine_fake_source = namter::CaptureSource::npcap;
 
 class EngineFakeBackend final : public namter::CaptureBackend {
   public:
     namter::BackendError start(const namter::BackendConfig &, namter::CaptureSink sink) override {
         sink_ = std::move(sink);
+        if (engine_fake_mode == EngineFakeMode::start_blocking) {
+            engine_fake_start_entered = true;
+            while (!engine_fake_allow_start.load())
+                std::this_thread::yield();
+        }
         return namter::BackendError::none;
     }
     namter::BackendError poll() override {
         if (polled_)
             return namter::BackendError::cancelled;
-        polled_ = true;
+    polled_ = true;
+    if (engine_fake_mode == EngineFakeMode::throwing) throw std::runtime_error("injected poll");
         if (engine_fake_mode == EngineFakeMode::blocking) {
             while (!engine_fake_stop.load())
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -46,12 +109,16 @@ class EngineFakeBackend final : public namter::CaptureBackend {
         }
         if (engine_fake_mode == EngineFakeMode::failure)
             return namter::BackendError::receive_failed;
-        const std::vector<uint8_t> packet = {
+        std::vector<uint8_t> packet = {
             0x45, 0,    0, 0x28, 0, 0, 0, 0, 64, 6, 0, 0, 10,   0,    0, 1, 10, 0, 0, 2,
-            0x34, 0x10, 0, 0x50, 0, 0, 0, 1, 0,  0, 0, 0, 0x50, 0x18, 0, 0, 0,  0, 0, 0};
+            0x34, 0x10, 0xc3, 0x50, 0, 0, 0, 1, 0,  0, 0, 0, 0x50, 0x18, 0, 0, 0,  0, 0, 0};
+        if (engine_fake_mode == EngineFakeMode::typed) {
+            packet[3] = 47;
+            packet.insert(packet.end(), {0x0a,0x21,0x8d,0xc9,0x3f,0,1});
+        }
         const size_t count = engine_fake_mode == EngineFakeMode::overflow ? 65 : 1;
         for (size_t index = 0; index < count; ++index) {
-            sink_({.source = namter::CaptureSource::npcap,
+            sink_({.source = engine_fake_source,
                    .timestamp_ns = index,
                    .link_type = namter::dlt_raw,
                    .captured_length = static_cast<uint32_t>(packet.size()),
@@ -62,7 +129,11 @@ class EngineFakeBackend final : public namter::CaptureBackend {
     }
     void stop() noexcept override {}
     void request_stop() noexcept override { engine_fake_stop = true; }
-    namter::BackendStats stats() const noexcept override { return {}; }
+    namter::BackendStats stats() const noexcept override {
+        return engine_fake_mode == EngineFakeMode::blocking && engine_fake_stop.load()
+                   ? namter::BackendStats{9, 2, 1, 9, 0, 0}
+                   : namter::BackendStats{};
+    }
     const namter::BackendDiagnostic &diagnostic() const noexcept override { return diagnostic_; }
 
   private:
@@ -71,9 +142,30 @@ class EngineFakeBackend final : public namter::CaptureBackend {
     namter::BackendDiagnostic diagnostic_{};
 };
 
-std::unique_ptr<namter::CaptureBackend> engine_fake_factory(uint32_t) {
+std::unique_ptr<namter::CaptureBackend> engine_fake_factory(uint32_t kind) {
+    engine_fake_source = kind == NM_SOURCE_WINDIVERT
+        ? namter::CaptureSource::windivert : namter::CaptureSource::npcap;
     return std::make_unique<EngineFakeBackend>();
 }
+
+void append_le16(std::vector<uint8_t>& b,uint16_t v){b.push_back(static_cast<uint8_t>(v));b.push_back(static_cast<uint8_t>(v>>8));}
+void append_le32(std::vector<uint8_t>& b,uint32_t v){for(int s=0;s<32;s+=8)b.push_back(static_cast<uint8_t>(v>>s));}
+void append_le64(std::vector<uint8_t>& b,uint64_t v){append_le32(b,static_cast<uint32_t>(v));append_le32(b,static_cast<uint32_t>(v>>32));}
+void write_le32(std::vector<uint8_t>&b,size_t o,uint32_t v){for(int s=0;s<32;s+=8)b[o++]=static_cast<uint8_t>(v>>s);}
+uint32_t snapshot_crc(std::span<const uint8_t>b){uint32_t c=0xffffffffu;for(size_t i=0;i<b.size();++i){uint8_t v=i>=12&&i<16?0:b[i];c^=v;for(int bit=0;bit<8;++bit)c=(c>>1)^((0u-(c&1u))&0xedb88320u);}return~c;}
+std::vector<uint8_t> removal_snapshot(){std::vector<uint8_t>b{'N','M','P','S'};append_le16(b,1);append_le16(b,28);append_le32(b,0);append_le32(b,0);append_le64(b,7);append_le32(b,3);append_le16(b,3);b.insert(b.end(),{6,0,0x36});append_le16(b,1);append_le16(b,13328);append_le32(b,1);append_le16(b,10);append_le16(b,2);b.insert(b.end(),{0x21,0x8d});append_le32(b,1);append_le32(b,1);append_le32(b,1);append_le32(b,128);append_le16(b,1);append_le16(b,0);append_le16(b,1);append_le16(b,4);append_le32(b,0);append_le32(b,1);append_le32(b,5);write_le32(b,8,static_cast<uint32_t>(b.size()));write_le32(b,12,snapshot_crc(b));return b;}
+std::vector<uint8_t> removal_pcap(){std::vector<uint8_t> packet(40,0);packet[0]=0x45;packet[2]=0;packet[3]=47;packet[8]=64;packet[9]=6;packet[12]=10;packet[15]=1;packet[16]=10;packet[19]=2;packet[20]=0x34;packet[21]=0x10;packet[22]=0xc3;packet[23]=0x50;packet[27]=1;packet[32]=0x50;packet[33]=0x18;packet.insert(packet.end(),{0x0a,0x21,0x8d,0xc9,0x3f,0x00,0x01});std::vector<uint8_t>b{0xd4,0xc3,0xb2,0xa1};append_le16(b,2);append_le16(b,4);append_le32(b,0);append_le32(b,0);append_le32(b,65535);append_le32(b,101);append_le32(b,1);append_le32(b,0);append_le32(b,static_cast<uint32_t>(packet.size()));append_le32(b,static_cast<uint32_t>(packet.size()));b.insert(b.end(),packet.begin(),packet.end());return b;}
+
+struct EventProbe{std::mutex mutex;std::condition_variable cv;bool removed=false;uint32_t actor=0;uint16_t source_port=0;uint16_t destination_port=0;};
+void NM_CALL observe_event(void*user,const nm_event_v1*event){if(event->kind!=NM_EVENT_ENTITY_REMOVED)return;auto&probe=*static_cast<EventProbe*>(user);{std::scoped_lock lock(probe.mutex);probe.removed=true;probe.actor=event->actor_id;probe.source_port=event->source_port;probe.destination_port=event->destination_port;}probe.cv.notify_one();}
+void NM_CALL throwing_event(void*,const nm_event_v1*event){if(event->kind==NM_EVENT_ENTITY_REMOVED)throw std::bad_alloc();}
+void NM_CALL throwing_source_event(void*,const nm_event_v1*event){if(event->kind==NM_EVENT_SOURCE_STARTED)throw std::runtime_error("source callback");}
+struct ReentrantStopProbe{nm_core_handle*handle=nullptr;nm_status status=NM_STATUS_INTERNAL_ERROR;};
+void NM_CALL stop_on_source_event(void*user,const nm_event_v1*event){if(event->kind==NM_EVENT_SOURCE_STARTED){auto&probe=*static_cast<ReentrantStopProbe*>(user);probe.status=nm_core_stop(probe.handle);}}
+void NM_CALL destroy_on_source_event(void*user,const nm_event_v1*event){if(event->kind==NM_EVENT_SOURCE_STARTED){auto&probe=*static_cast<ReentrantStopProbe*>(user);nm_core_destroy(probe.handle);probe.status=NM_STATUS_OK;}}
+struct WorkerReentryProbe{nm_core_handle*handle=nullptr;std::atomic_bool fired=false;bool destroy=false;};
+void NM_CALL worker_reentry_event(void*user,const nm_event_v1*event){auto&probe=*static_cast<WorkerReentryProbe*>(user);if(event->kind==NM_EVENT_ENTITY_REMOVED&&!probe.fired.exchange(true)){if(probe.destroy)nm_core_destroy(probe.handle);else nm_core_stop(probe.handle);}}
+void NM_CALL worker_reentry_diagnostic(void*user,const nm_diagnostic_v1*){auto&probe=*static_cast<WorkerReentryProbe*>(user);if(!probe.fired.exchange(true)){if(probe.destroy)nm_core_destroy(probe.handle);else nm_core_stop(probe.handle);}}
 
 nm_core_config_v1 valid_config() {
     return {
@@ -364,6 +456,31 @@ TEST(Abi, ConcurrentDoubleStartReservesStateBeforeOpeningSource) {
     nm_core_destroy(handle);
 }
 
+TEST(Abi, StopCancelsStartingBackendBeforeCommitAndWaitsForIdleRollback) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);
+    engine_fake_mode=EngineFakeMode::start_blocking;
+    engine_fake_start_entered=false; engine_fake_allow_start=false;
+    auto config=valid_config(); auto callbacks=valid_callbacks();
+    nm_core_handle*handle=nullptr; ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);
+    auto source=valid_source(); source.kind=NM_SOURCE_WINDIVERT;
+    nm_status start_status=NM_STATUS_OK, stop_status=NM_STATUS_INTERNAL_ERROR;
+    std::thread starter([&]{start_status=nm_core_start(handle,&source);});
+    while(!engine_fake_start_entered.load()) std::this_thread::yield();
+    std::thread stopper([&]{stop_status=nm_core_stop(handle);});
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    engine_fake_allow_start=true;
+    starter.join(); stopper.join();
+    EXPECT_EQ(start_status,NM_STATUS_INVALID_STATE); EXPECT_EQ(stop_status,NM_STATUS_OK);
+    nm_diagnostics_v1 diagnostics{.abi_version=nm_core_abi_version(),.struct_size=sizeof(nm_diagnostics_v1)};
+    ASSERT_EQ(nm_core_get_diagnostics(handle,&diagnostics),NM_STATUS_OK);
+    EXPECT_EQ(diagnostics.start_count,0u); EXPECT_EQ(diagnostics.stop_count,1u);
+    nm_core_destroy(handle); namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, DestroyWaitsForStartingBackendRollbackBeforeDeletingHandle) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);engine_fake_mode=EngineFakeMode::start_blocking;engine_fake_start_entered=false;engine_fake_allow_start=false;auto config=valid_config();auto callbacks=valid_callbacks();nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);auto source=valid_source();source.kind=NM_SOURCE_WINDIVERT;nm_status start_status=NM_STATUS_OK;std::thread starter([&]{start_status=nm_core_start(handle,&source);});while(!engine_fake_start_entered.load())std::this_thread::yield();std::thread destroyer([&]{nm_core_destroy(handle);});std::this_thread::sleep_for(std::chrono::milliseconds(5));engine_fake_allow_start=true;starter.join();destroyer.join();EXPECT_EQ(start_status,NM_STATUS_INVALID_STATE);namter::set_backend_factory_for_testing(nullptr);
+}
+
 TEST(Abi, LiveAdapterNameRejectsEmbeddedNulAndOversize) {
     auto config = valid_config();
     auto callbacks = valid_callbacks();
@@ -425,6 +542,29 @@ TEST(Abi, InjectedPollFailureEmitsStructuredDiagnosticAndStopDoesNotDeadlock) {
     }
     EXPECT_EQ(observed_diagnostic.load(),
               static_cast<uint32_t>(NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED));
+    EXPECT_EQ(observed_backend_kind.load(),static_cast<uint32_t>(NM_SOURCE_WINDIVERT));
+    EXPECT_TRUE(observed_incomplete.load());
+    EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_core_destroy(handle);
+    namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, ThrowingBackendPollBecomesDiagnosticInsteadOfTerminatingWorker) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);engine_fake_mode=EngineFakeMode::throwing;observed_diagnostic=0;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.diagnostic_callback=&observe_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);auto source=valid_source();source.kind=NM_SOURCE_WINDIVERT;ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&observed_diagnostic.load()==0;++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_EQ(observed_diagnostic.load(),static_cast<uint32_t>(NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED));EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, ThrowingDiagnosticCallbackNeverEscapesWorkerOrStop) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);
+    engine_fake_mode = EngineFakeMode::failure;
+    auto config = valid_config();
+    auto callbacks = valid_callbacks();
+    callbacks.diagnostic_callback = &throw_diagnostic;
+    nm_core_handle *handle = nullptr;
+    ASSERT_EQ(nm_core_create(&config, &callbacks, &handle), NM_STATUS_OK);
+    auto source = valid_source();
+    source.kind = NM_SOURCE_WINDIVERT;
+    ASSERT_EQ(nm_core_start(handle, &source), NM_STATUS_OK);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
     nm_core_destroy(handle);
     namter::set_backend_factory_for_testing(nullptr);
@@ -442,8 +582,62 @@ TEST(Abi, BlockingPollIsCancelledJoinedThenClosedWithoutDeadlock) {
     source.kind = NM_SOURCE_WINDIVERT;
     ASSERT_EQ(nm_core_start(handle, &source), NM_STATUS_OK);
     EXPECT_EQ(nm_core_stop(handle), NM_STATUS_OK);
+    nm_diagnostics_v1 diagnostics{.abi_version=nm_core_abi_version(),
+                                  .struct_size=sizeof(nm_diagnostics_v1)};
+    ASSERT_EQ(nm_core_get_diagnostics(handle,&diagnostics),NM_STATUS_OK);
+    EXPECT_EQ(diagnostics.backend_received,9u);
+    EXPECT_EQ(diagnostics.backend_dropped,2u);
+    EXPECT_EQ(diagnostics.backend_interface_dropped,1u);
     nm_core_destroy(handle);
     namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, PcapBytesReachAuthoritativeDecoderAndEmitTypedEvent) {
+    EventProbe probe;
+    auto config=valid_config();
+    auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&observe_event;
+    nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);
+    const auto snapshot=removal_snapshot();ASSERT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);
+    auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();
+    ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);
+    std::fill(pcap.begin(),pcap.end(),uint8_t{0});
+    {std::unique_lock lock(probe.mutex);ASSERT_TRUE(probe.cv.wait_for(lock,std::chrono::seconds(2),[&]{return probe.removed;}));EXPECT_EQ(probe.actor,8137u);}
+    EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+
+TEST(Abi, ThrowingEventSinkBecomesDiagnosticInsteadOfTerminatingWorker) {
+    observed_diagnostic=0;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.event_callback=&throwing_event;callbacks.diagnostic_callback=&observe_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);const auto snapshot=removal_snapshot();ASSERT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&observed_diagnostic.load()==0;++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_EQ(observed_diagnostic.load(),static_cast<uint32_t>(NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED));EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+
+TEST(Abi, ThrowingSourceStartedCallbackRollsBackWithoutWorkerOrLeak) {
+    auto config=valid_config();auto callbacks=valid_callbacks();callbacks.event_callback=&throwing_source_event;callbacks.diagnostic_callback=&observe_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();EXPECT_EQ(nm_core_start(handle,&source),NM_STATUS_INTERNAL_ERROR);nm_diagnostics_v1 diagnostics{.abi_version=nm_core_abi_version(),.struct_size=sizeof(nm_diagnostics_v1)};ASSERT_EQ(nm_core_get_diagnostics(handle,&diagnostics),NM_STATUS_OK);EXPECT_EQ(diagnostics.start_count,0u);EXPECT_TRUE(diagnostics.incomplete);EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+TEST(Abi, SourceStartedReentrantStopCancelsCommitWithoutDeadlock) {
+    ReentrantStopProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&stop_on_source_event;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();EXPECT_EQ(nm_core_start(handle,&source),NM_STATUS_INVALID_STATE);EXPECT_EQ(probe.status,NM_STATUS_OK);nm_diagnostics_v1 diagnostics{.abi_version=nm_core_abi_version(),.struct_size=sizeof(nm_diagnostics_v1)};ASSERT_EQ(nm_core_get_diagnostics(handle,&diagnostics),NM_STATUS_OK);EXPECT_EQ(diagnostics.start_count,0u);nm_core_destroy(handle);
+}
+TEST(Abi, SourceStartedReentrantDestroyDefersDeleteUntilStartRollback) {
+    ReentrantStopProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&destroy_on_source_event;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();EXPECT_EQ(nm_core_start(handle,&source),NM_STATUS_INVALID_STATE);EXPECT_EQ(probe.status,NM_STATUS_OK);
+}
+TEST(Abi, WorkerEventReentrantStopSelfFinalizesAndAllowsNextStart) {
+    WorkerReentryProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&worker_reentry_event;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;const auto snapshot=removal_snapshot();ASSERT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&!probe.fired.load();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));ASSERT_TRUE(probe.fired.load());nm_status restart=NM_STATUS_INVALID_STATE;for(int i=0;i<100&&restart==NM_STATUS_INVALID_STATE;++i){restart=nm_core_start(handle,&source);if(restart==NM_STATUS_INVALID_STATE)std::this_thread::sleep_for(std::chrono::milliseconds(1));}EXPECT_EQ(restart,NM_STATUS_OK);EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+TEST(Abi, WorkerEventReentrantDestroyDefersDeleteUntilWorkerExit) {
+    WorkerReentryProbe probe;probe.destroy=true;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&worker_reentry_event;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;const auto snapshot=removal_snapshot();ASSERT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);const auto pcap=removal_pcap();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&!probe.fired.load();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_TRUE(probe.fired.load());std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+TEST(Abi, WorkerDiagnosticReentrantStopSelfFinalizesWithoutSelfJoin) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);engine_fake_mode=EngineFakeMode::failure;WorkerReentryProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.diagnostic_callback=&worker_reentry_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;auto source=valid_source();source.kind=NM_SOURCE_WINDIVERT;ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&!probe.fired.load();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_TRUE(probe.fired.load());std::this_thread::sleep_for(std::chrono::milliseconds(10));nm_core_destroy(handle);namter::set_backend_factory_for_testing(nullptr);
+}
+TEST(Abi, WorkerDiagnosticReentrantDestroyDefersDeleteUntilWorkerExit) {
+    namter::set_backend_factory_for_testing(&engine_fake_factory);engine_fake_mode=EngineFakeMode::failure;WorkerReentryProbe probe;probe.destroy=true;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.diagnostic_callback=&worker_reentry_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);probe.handle=handle;auto source=valid_source();source.kind=NM_SOURCE_WINDIVERT;ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&!probe.fired.load();++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_TRUE(probe.fired.load());std::this_thread::sleep_for(std::chrono::milliseconds(10));namter::set_backend_factory_for_testing(nullptr);
+}
+
+TEST(Abi, TruncatedPcapEmitsStructuredIncompleteDiagnostic) {
+    observed_diagnostic=0;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.diagnostic_callback=&observe_diagnostic;nm_core_handle*handle=nullptr;ASSERT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);auto pcap=removal_pcap();pcap.pop_back();auto source=valid_source();source.source_data=pcap.data();source.source_data_size=pcap.size();ASSERT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);for(int i=0;i<100&&observed_diagnostic.load()==0;++i)std::this_thread::sleep_for(std::chrono::milliseconds(1));EXPECT_EQ(observed_diagnostic.load(),static_cast<uint32_t>(NM_DIAGNOSTIC_INCOMPLETE_STREAM));EXPECT_EQ(observed_backend_kind.load(),static_cast<uint32_t>(NM_SOURCE_PCAP));EXPECT_EQ(observed_backend_name,"pcap");EXPECT_NE(observed_native_error.load(),0u);EXPECT_TRUE(observed_incomplete.load());EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);
+}
+
+TEST(Abi, InjectedWinDivertNpcapAndPcapProduceIdenticalTypedLedger) {
+    const auto run=[&](uint32_t kind){EventProbe probe;auto config=valid_config();auto callbacks=valid_callbacks();callbacks.user=&probe;callbacks.event_callback=&observe_event;nm_core_handle*handle=nullptr;EXPECT_EQ(nm_core_create(&config,&callbacks,&handle),NM_STATUS_OK);const auto snapshot=removal_snapshot();EXPECT_EQ(nm_core_set_protocol_snapshot(handle,snapshot.data(),snapshot.size()),NM_STATUS_OK);std::vector<uint8_t> source_bytes;if(kind==NM_SOURCE_PCAP){namter::set_backend_factory_for_testing(nullptr);source_bytes=removal_pcap();}else{engine_fake_mode=EngineFakeMode::typed;namter::set_backend_factory_for_testing(&engine_fake_factory);}auto source=valid_source();source.kind=kind;source.source_data=source_bytes.empty()?nullptr:source_bytes.data();source.source_data_size=source_bytes.size();EXPECT_EQ(nm_core_start(handle,&source),NM_STATUS_OK);{std::unique_lock lock(probe.mutex);EXPECT_TRUE(probe.cv.wait_for(lock,std::chrono::seconds(2),[&]{return probe.removed;}));}EXPECT_EQ(nm_core_stop(handle),NM_STATUS_OK);nm_core_destroy(handle);namter::set_backend_factory_for_testing(nullptr);return std::tuple{probe.actor,probe.source_port,probe.destination_port};};
+    const auto windivert=run(NM_SOURCE_WINDIVERT);const auto npcap=run(NM_SOURCE_NPCAP);const auto pcap=run(NM_SOURCE_PCAP);EXPECT_EQ(windivert,npcap);EXPECT_EQ(npcap,pcap);EXPECT_EQ(std::get<0>(pcap),8137u);EXPECT_EQ(std::get<1>(pcap),13328u);EXPECT_EQ(std::get<2>(pcap),50000u);
 }
 
 TEST(Abi, DestroyingStoppedHandleLeaksNoNativeAllocations) {

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NamterNativeOutput>$(MSBuildThisFileDirectory)..\Namter.Core.Native\x64\$(Configuration)\Namter.Core.Native.dll</NamterNativeOutput>
     <NamterVcpkgRoot>$(MSBuildThisFileDirectory)..\..\..\vcpkg_installed\x64-windows\x64-windows</NamterVcpkgRoot>
     <NamterNativeLz4 Condition="'$(Configuration)' == 'Debug'">$(NamterVcpkgRoot)\debug\bin\lz4d.dll</NamterNativeLz4>

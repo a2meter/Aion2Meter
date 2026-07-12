@@ -100,7 +100,30 @@ public sealed record NativeEvent
     public ImmutableArray<byte> Payload { get; init; } = ImmutableArray<byte>.Empty;
 }
 
-public sealed record NativeDiagnostic(NativeDiagnosticCode Code, string Message);
+public sealed record NativeDiagnostic(
+    NativeDiagnosticCode Code,
+    string Message,
+    NativeSourceKind? Backend = null,
+    uint StableError = 0,
+    uint NativeError = 0,
+    bool Incomplete = false,
+    bool AutomaticAction = false,
+    ulong Received = 0,
+    ulong Dropped = 0,
+    ulong InterfaceDropped = 0,
+    ulong QueueHighWater = 0,
+    string BackendName = "",
+    string RuntimeVersion = "",
+    string InterfaceIdentity = "",
+    string HelpUrl = "");
+
+public sealed class NativeCoreException : InvalidOperationException
+{
+    public NativeCoreException(uint statusCode, string message, string? helpUrl = null)
+        : base(message) { StatusCode = statusCode; HelpUrl = helpUrl; }
+    public uint StatusCode { get; }
+    public string? HelpUrl { get; }
+}
 
 public sealed record NativeDiagnostics(
     ulong StartCount,
@@ -109,6 +132,11 @@ public sealed record NativeDiagnostics(
     ulong CapturedPacketCount,
     ulong DroppedCaptureCount,
     ulong InvalidPacketCount,
+    ulong BackendReceived,
+    ulong BackendDropped,
+    ulong BackendInterfaceDropped,
+    ulong QueueHighWater,
+    bool Incomplete,
     ImmutableArray<NativeDiagnostic> ManagedDiagnostics);
 
 internal enum NativeStatus
@@ -211,6 +239,24 @@ internal struct NativeDiagnosticV1
     internal NativeDiagnosticCode Code;
     internal nint Message;
     internal nuint MessageSize;
+    internal uint BackendKind;
+    internal uint StableError;
+    internal uint NativeError;
+    internal byte Incomplete;
+    internal byte AutomaticAction;
+    internal ushort Reserved;
+    internal ulong Received;
+    internal ulong Dropped;
+    internal ulong InterfaceDropped;
+    internal ulong QueueHighWater;
+    internal nint BackendName;
+    internal nuint BackendNameSize;
+    internal nint RuntimeVersion;
+    internal nuint RuntimeVersionSize;
+    internal nint InterfaceIdentity;
+    internal nuint InterfaceIdentitySize;
+    internal nint HelpUrl;
+    internal nuint HelpUrlSize;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -224,4 +270,9 @@ internal struct NativeDiagnosticsV1
     internal ulong CapturedPacketCount;
     internal ulong DroppedCaptureCount;
     internal ulong InvalidPacketCount;
+    internal ulong BackendReceived;
+    internal ulong BackendDropped;
+    internal ulong BackendInterfaceDropped;
+    internal ulong QueueHighWater;
+    internal byte Incomplete;
 }

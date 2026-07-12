@@ -45,16 +45,47 @@ struct BackendConfig {
 };
 
 struct BackendStats {
-    uint64_t received = 0, dropped = 0, interface_dropped = 0;
+    uint64_t received = 0;
+    uint64_t dropped = 0;
+    uint64_t interface_dropped = 0;
+    uint64_t captured = 0;
+    uint64_t sent = 0;
+    uint64_t network_dropped = 0;
 };
+struct NpcapStatNative {
+    uint32_t received;
+    uint32_t dropped;
+    uint32_t interface_dropped;
+    uint32_t captured;
+    uint32_t sent;
+    uint32_t network_dropped;
+};
+static_assert(sizeof(NpcapStatNative) == 24);
+static_assert(offsetof(NpcapStatNative, received) == 0);
+static_assert(offsetof(NpcapStatNative, dropped) == 4);
+static_assert(offsetof(NpcapStatNative, interface_dropped) == 8);
+static_assert(offsetof(NpcapStatNative, captured) == 12);
+static_assert(offsetof(NpcapStatNative, sent) == 16);
+static_assert(offsetof(NpcapStatNative, network_dropped) == 20);
+[[nodiscard]] BackendStats npcap_stats_from_native(const NpcapStatNative &stats) noexcept;
 struct BackendDiagnostic {
     BackendError error = BackendError::none;
     std::string backend;
     std::string runtime_version;
+    std::string interface_identity;
     std::string message;
     std::string help_url;
     bool automatic_action = false;
+    uint32_t native_error = 0;
+    uint32_t stable_native_category = 0;
 };
+
+enum class WinDivertFailureCategory : uint32_t {
+    none, missing_driver, permission_denied, invalid_signature, driver_blocked,
+    bfe_disabled, incompatible_driver, receive_failed, other,
+};
+[[nodiscard]] WinDivertFailureCategory categorize_windivert_error(uint32_t error,
+                                                                  bool receiving) noexcept;
 
 struct LivePacket {
     const uint8_t *bytes = nullptr;
@@ -94,8 +125,10 @@ struct WinDivertApi {
     bool (*set_param)(void *, void *, uint32_t, uint64_t) = nullptr;
     ApiResult (*receive_batch)(void *, void *, LivePacket *, size_t, size_t *) = nullptr;
     bool (*stats)(void *, void *, BackendStats *) = nullptr;
-    bool (*cancel)(void *, void *) = nullptr;
+    bool (*cancel)(void *, void *, uint32_t) = nullptr;
     void (*close)(void *, void *) = nullptr;
+    uint32_t (*last_error)(void *) = nullptr;
+    const char *(*runtime_version)(void *) = nullptr;
 };
 
 struct NpcapApi {
@@ -115,6 +148,8 @@ struct NpcapApi {
     bool (*stats)(void *, void *, BackendStats *) = nullptr;
     void (*break_loop)(void *, void *) = nullptr;
     void (*close)(void *, void *) = nullptr;
+    int (*last_error_code)(void *) = nullptr;
+    const char *(*last_error_message)(void *) = nullptr;
 };
 
 class CaptureBackend {
@@ -158,6 +193,7 @@ class BoundedCaptureQueue {
             return false;
         }
         records_.push_back(record);
+        high_water_ = (std::max)(high_water_, records_.size());
         return true;
     }
     std::optional<CaptureRecord> pop() {
@@ -176,12 +212,17 @@ class BoundedCaptureQueue {
         std::scoped_lock lock(mutex_);
         return dropped_;
     }
+    [[nodiscard]] uint64_t high_water() const noexcept {
+        std::scoped_lock lock(mutex_);
+        return high_water_;
+    }
 
   private:
     size_t capacity_;
     mutable std::mutex mutex_;
     std::vector<CaptureRecord> records_;
     uint64_t dropped_ = 0;
+    size_t high_water_ = 0;
     bool stopped_ = false;
 };
 

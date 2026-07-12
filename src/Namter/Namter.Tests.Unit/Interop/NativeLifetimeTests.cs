@@ -141,15 +141,37 @@ public sealed class NativeLifetimeTests
     {
         await using var core = new NativeCore();
         using var cancellation = new CancellationTokenSource();
-        var run = core.CaptureAsync(
-            NativeSourceKind.Npcap,
-            ReadOnlyMemory<byte>.Empty,
+        var run = core.ReplayAsync(
+            new byte[]
+            {
+                0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
+                0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0,
+                0x65, 0, 0, 0,
+            },
             cancellation.Token);
 
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
 
         Assert.True(core.GetDiagnostics().StopCount >= 1);
+    }
+
+    [Fact]
+    public async Task Worker_diagnostic_can_dispose_core_reentrantly_without_deadlock()
+    {
+        NativeCore? core = null;
+        var disposed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        core = new NativeCore(diagnosticCallback: _diagnostic =>
+        {
+            core!.DisposeAsync();
+            disposed.TrySetResult();
+        });
+        using var cancellation = new CancellationTokenSource();
+        var run = core.ReplayAsync(new byte[] { 7 }, cancellation.Token);
+        await disposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await core!.DisposeAsync();
     }
 
     private static (NativeCore Core, WeakReference WeakSink, TaskCompletionSource<NativeEvent> Received)

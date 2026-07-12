@@ -6,6 +6,7 @@
 #include <istream>
 #include <memory>
 #include <optional>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -86,6 +87,13 @@ struct CaptureRecord {
     std::vector<uint8_t> bytes;
     uint64_t file_offset = 0;
     CaptureDirection direction = CaptureDirection::unknown;
+    TimestampPrecision timestamp_precision = TimestampPrecision::nanoseconds;
+    std::string backend_name;
+    std::string runtime_version;
+    std::string interface_identity;
+    uint64_t backend_received = 0;
+    uint64_t backend_dropped = 0;
+    uint64_t backend_interface_dropped = 0;
 };
 
 struct CaptureProvenance {
@@ -96,6 +104,13 @@ struct CaptureProvenance {
     uint32_t original_length = 0;
     uint64_t file_offset = 0;
     CaptureDirection direction = CaptureDirection::unknown;
+    TimestampPrecision timestamp_precision = TimestampPrecision::nanoseconds;
+    std::string backend_name;
+    std::string runtime_version;
+    std::string interface_identity;
+    uint64_t backend_received = 0;
+    uint64_t backend_dropped = 0;
+    uint64_t backend_interface_dropped = 0;
 };
 
 struct FlowTuple {

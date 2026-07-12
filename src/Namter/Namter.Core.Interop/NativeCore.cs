@@ -12,6 +12,8 @@ public sealed class NativeCore : IAsyncDisposable
 
     private readonly NativeCoreHandle _handle;
     private int _disposeState;
+    [ThreadStatic]
+    private static int s_callbackDepth;
 
     public unsafe NativeCore(
         Action<NativeEvent>? eventCallback = null,
@@ -110,6 +112,11 @@ public sealed class NativeCore : IAsyncDisposable
             native.CapturedPacketCount,
             native.DroppedCaptureCount,
             native.InvalidPacketCount,
+            native.BackendReceived,
+            native.BackendDropped,
+            native.BackendInterfaceDropped,
+            native.QueueHighWater,
+            native.Incomplete != 0,
             CurrentCallbackState.ManagedDiagnostics);
     }
 
@@ -120,7 +127,14 @@ public sealed class NativeCore : IAsyncDisposable
             return ValueTask.CompletedTask;
         }
 
-        _handle.Dispose();
+        if (s_callbackDepth != 0)
+        {
+            ThreadPool.QueueUserWorkItem(_ => _handle.Dispose());
+        }
+        else
+        {
+            _handle.Dispose();
+        }
 
         return ValueTask.CompletedTask;
     }
@@ -133,6 +147,16 @@ public sealed class NativeCore : IAsyncDisposable
             ((delegate* unmanaged[Cdecl]<nint, NativeEventV1*, void>)&OnNativeEvent)(
                 _handle.CallbackToken,
                 pointer);
+        }
+    }
+
+    internal unsafe void InvokeDiagnosticCallbackForTesting(ref NativeDiagnosticV1 diagnostic)
+    {
+        ThrowIfDisposed();
+        fixed (NativeDiagnosticV1* pointer = &diagnostic)
+        {
+            ((delegate* unmanaged[Cdecl]<nint, NativeDiagnosticV1*, void>)&OnNativeDiagnostic)(
+                _handle.CallbackToken, pointer);
         }
     }
 
@@ -200,7 +224,10 @@ public sealed class NativeCore : IAsyncDisposable
     {
         if (status != NativeStatus.Ok)
         {
-            throw new InvalidOperationException($"The native Namter core returned {status}.");
+            throw new NativeCoreException(
+                (uint)status,
+                $"The native Namter core returned {status}.",
+                status == NativeStatus.NpcapNotInstalled ? "https://npcap.com/#download" : null);
         }
     }
 
@@ -210,6 +237,7 @@ public sealed class NativeCore : IAsyncDisposable
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void OnNativeEvent(nint user, NativeEventV1* nativeEvent)
     {
+        ++s_callbackDepth;
         CallbackState? state = null;
         try
         {
@@ -267,11 +295,16 @@ public sealed class NativeCore : IAsyncDisposable
         {
             state?.ReportCallbackException(exception);
         }
+        finally
+        {
+            --s_callbackDepth;
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void OnNativeDiagnostic(nint user, NativeDiagnosticV1* nativeDiagnostic)
     {
+        ++s_callbackDepth;
         CallbackState? state = null;
         try
         {
@@ -283,13 +316,28 @@ public sealed class NativeCore : IAsyncDisposable
             }
 
             var messageBytes = CopyBytes(nativeDiagnostic->Message, nativeDiagnostic->MessageSize);
+            static string CopyText(byte* pointer, nuint size) =>
+                Encoding.UTF8.GetString(NativeCore.CopyBytes((nint)pointer, size).AsSpan());
             state.ReportNativeDiagnostic(new NativeDiagnostic(
                 nativeDiagnostic->Code,
-                Encoding.UTF8.GetString(messageBytes.AsSpan())));
+                Encoding.UTF8.GetString(messageBytes.AsSpan()),
+                nativeDiagnostic->BackendKind == 0 ? null : (NativeSourceKind)nativeDiagnostic->BackendKind,
+                nativeDiagnostic->StableError, nativeDiagnostic->NativeError,
+                nativeDiagnostic->Incomplete != 0, nativeDiagnostic->AutomaticAction != 0,
+                nativeDiagnostic->Received, nativeDiagnostic->Dropped,
+                nativeDiagnostic->InterfaceDropped, nativeDiagnostic->QueueHighWater,
+                CopyText((byte*)nativeDiagnostic->BackendName, nativeDiagnostic->BackendNameSize),
+                CopyText((byte*)nativeDiagnostic->RuntimeVersion, nativeDiagnostic->RuntimeVersionSize),
+                CopyText((byte*)nativeDiagnostic->InterfaceIdentity, nativeDiagnostic->InterfaceIdentitySize),
+                CopyText((byte*)nativeDiagnostic->HelpUrl, nativeDiagnostic->HelpUrlSize)));
         }
         catch (Exception exception)
         {
             state?.ReportCallbackException(exception);
+        }
+        finally
+        {
+            --s_callbackDepth;
         }
     }
 

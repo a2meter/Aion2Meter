@@ -1,4 +1,7 @@
+#define NOMINMAX
+
 #include <array>
+#include <Windows.h>
 #include <gtest/gtest.h>
 
 #include "live_backend.hpp"
@@ -19,6 +22,7 @@ struct FakeWinDivert {
     std::vector<std::pair<uint32_t, uint64_t>> params;
     std::vector<LivePacket> packets;
     BackendStats backend_stats{10, 3, 0};
+    uint32_t cancel_how = 0;
 
     FakeWinDivert() {
         api.context = this;
@@ -58,7 +62,10 @@ struct FakeWinDivert {
             *out = static_cast<FakeWinDivert *>(p)->backend_stats;
             return true;
         };
-        api.cancel = [](void *, void *) { return true; };
+        api.cancel = [](void *p, void *, uint32_t how) {
+            static_cast<FakeWinDivert *>(p)->cancel_how = how;
+            return true;
+        };
         api.close = [](void *, void *) {};
     }
 };
@@ -71,6 +78,15 @@ BackendConfig config() {
             .batch_size = 8};
 }
 } // namespace
+
+TEST(WinDivertBackend, CancellationUsesOfficialReceiveShutdownFlag) {
+    FakeWinDivert fake;
+    auto backend = make_windivert_backend(&fake.api);
+    ASSERT_EQ(backend->start(config(), [](const CaptureRecord &) {}), BackendError::none);
+    backend->request_stop();
+    EXPECT_EQ(fake.cancel_how, 0x1u);
+    backend->stop();
+}
 
 TEST(WinDivertBackend, RejectsMissingDllAndMissingRequiredSymbol) {
     auto missing = make_windivert_backend(nullptr);
@@ -144,6 +160,16 @@ TEST(WinDivertBackend, ReportsInjectedBackendDropStatistics) {
     const auto stats = backend->stats();
     EXPECT_EQ(stats.received, 10u);
     EXPECT_EQ(stats.dropped, 3u);
+}
+
+TEST(WinDivertBackend, MapsWindowsFailuresToStableDiagnosticCategories) {
+  EXPECT_EQ(categorize_windivert_error(2,false),WinDivertFailureCategory::missing_driver);
+  EXPECT_EQ(categorize_windivert_error(5,false),WinDivertFailureCategory::permission_denied);
+  EXPECT_EQ(categorize_windivert_error(577,false),WinDivertFailureCategory::invalid_signature);
+  EXPECT_EQ(categorize_windivert_error(1275,false),WinDivertFailureCategory::driver_blocked);
+  EXPECT_EQ(categorize_windivert_error(654,false),WinDivertFailureCategory::incompatible_driver);
+  EXPECT_EQ(categorize_windivert_error(1753,false),WinDivertFailureCategory::bfe_disabled);
+  EXPECT_EQ(categorize_windivert_error(995,true),WinDivertFailureCategory::receive_failed);
 }
 
 TEST(WinDivertBackend, SplitsPackedBatchOnlyAtHelperBoundariesAndConvertsQpcMetadata) {

@@ -67,6 +67,7 @@
   <ItemGroup>
     <ClCompile Include="..\Namter.Core.Native\src\frame.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\engine.cpp" />
+    <ClCompile Include="..\Namter.Core.Native\src\capture_pipeline.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\flow.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\lz4.cpp" />
     <ClCompile Include="..\Namter.Core.Native\src\windivert.cpp" />
@@ -89,6 +90,7 @@
     <ClCompile Include="src\windivert_tests.cpp" />
     <ClCompile Include="src\npcap_tests.cpp" />
     <ClCompile Include="src\backend_parity_tests.cpp" />
+    <ClCompile Include="src\capture_pipeline_tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Namter.Core.Native\Namter.Core.Native.vcxproj">
