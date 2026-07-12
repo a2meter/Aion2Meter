@@ -283,7 +283,7 @@ void expect_provenance(const nm_event_v1& event, uint64_t file_offset) {
 
 TEST(ProtocolDecoder, DecodesEveryTypedClosedEventFieldAndProvenance) {
     const std::vector<Opcode> opcodes{
-        {1, {0x11}, 1}, {2, {0x12}, 1}, {3, {0x13}, 1}, {5, {0x15}, 1},
+        {1, {0x11}, 1}, {2, {0x12}, 1}, {3, {0x13}, 1}, {4, {0x14}, 1}, {5, {0x15}, 1},
         {6, {0x16}, 1}, {7, {0x17}, 1}, {8, {0x18}, 1}, {10, {0x1a}, 1},
         {101, {0x21}, 1}, {201, {0x31}, 1}, {202, {0x32}, 1},
     };
@@ -303,7 +303,12 @@ TEST(ProtocolDecoder, DecodesEveryTypedClosedEventFieldAndProvenance) {
 
     const auto buff = only_event(decoder.decode(message(0x13, 402))).view();
     EXPECT_EQ(buff.kind, static_cast<uint32_t>(NM_EVENT_BUFF)); EXPECT_EQ(buff.owner_id, 303u); EXPECT_EQ(buff.target_id, 202u);
-    EXPECT_EQ(buff.buff_id, 505u); EXPECT_EQ(buff.duration_ms, 18'009u); EXPECT_EQ(buff.action, 20u); expect_provenance(buff, 402);
+    EXPECT_EQ(buff.buff_id, 505u); EXPECT_EQ(buff.duration_ms, 18'009u); EXPECT_EQ(buff.action, 20u);
+    EXPECT_EQ(buff.buff_operation, static_cast<uint8_t>(NM_BUFF_OPERATION_APPLY)); expect_provenance(buff, 402);
+
+    const auto removed_buff = only_event(decoder.decode(message(0x14, 411))).view();
+    EXPECT_EQ(removed_buff.action, 20u);
+    EXPECT_EQ(removed_buff.buff_operation, static_cast<uint8_t>(NM_BUFF_OPERATION_REMOVE));
 
     const auto self_owner = only_event(decoder.decode(message(0x15, 403)));
     const auto self = self_owner.view();

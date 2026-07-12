@@ -283,6 +283,7 @@ public sealed class NativeCore : IAsyncDisposable
                 DurationMs = nativeEvent->DurationMs,
                 State = nativeEvent->State,
                 Action = nativeEvent->Action,
+                BuffOperation = nativeEvent->BuffOperation,
                 DamageType = nativeEvent->DamageType,
                 IsDot = nativeEvent->IsDot != 0,
                 IsSelf = nativeEvent->IsSelf != 0,

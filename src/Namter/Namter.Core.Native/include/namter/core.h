@@ -60,6 +60,13 @@ typedef enum nm_event_kind {
     NM_EVENT_UNKNOWN_PROTOCOL = 13,
 } nm_event_kind;
 
+typedef enum nm_buff_operation {
+    NM_BUFF_OPERATION_UNKNOWN = 0,
+    NM_BUFF_OPERATION_APPLY = 1,
+    NM_BUFF_OPERATION_REFRESH = 2,
+    NM_BUFF_OPERATION_REMOVE = 3,
+} nm_buff_operation;
+
 typedef enum nm_diagnostic_code {
     NM_DIAGNOSTIC_INCOMPLETE_STREAM = 1,
     NM_DIAGNOSTIC_CAPTURE_QUEUE_OVERFLOW = 2,
@@ -105,7 +112,8 @@ typedef struct nm_event_v1 {
     uint8_t is_dot;
     uint8_t is_self;
     uint8_t is_boss;
-    uint16_t flags_reserved;
+    uint8_t buff_operation;
+    uint8_t flags_reserved;
     const uint8_t *name;
     size_t name_size;
     const uint8_t *payload;

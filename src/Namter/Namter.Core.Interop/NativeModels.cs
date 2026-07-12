@@ -42,6 +42,14 @@ public enum NativeEventKind : uint
     UnknownProtocol = 13,
 }
 
+public enum NativeBuffOperation : byte
+{
+    Unknown = 0,
+    Apply = 1,
+    Refresh = 2,
+    Remove = 3,
+}
+
 public enum NativeDiagnosticCode : uint
 {
     IncompleteStream = 1,
@@ -92,6 +100,7 @@ public sealed record NativeEvent
     public uint DurationMs { get; init; }
     public byte State { get; init; }
     public byte Action { get; init; }
+    public NativeBuffOperation BuffOperation { get; init; }
     public byte DamageType { get; init; }
     public bool IsDot { get; init; }
     public bool IsSelf { get; init; }
@@ -224,7 +233,8 @@ internal struct NativeEventV1
     internal byte IsDot;
     internal byte IsSelf;
     internal byte IsBoss;
-    internal ushort FlagsReserved;
+    internal NativeBuffOperation BuffOperation;
+    internal byte FlagsReserved;
     internal nint Name;
     internal nuint NameSize;
     internal nint Payload;

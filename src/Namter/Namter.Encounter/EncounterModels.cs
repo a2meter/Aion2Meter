@@ -4,11 +4,12 @@ namespace Namter.Encounter;
 
 public enum EncounterState { Idle, Active, Completed, Incomplete }
 public enum EncounterCompletionReason { BossDeath, BossRemoved, CombatEnded, ContentExited, IdleTimeout, EndOfInput }
-public enum EncounterDiagnosticCode { OutOfOrderEvent, CapacityExceeded, ArithmeticOverflow, CaptureIncomplete }
+public enum EncounterDiagnosticCode { OutOfOrderEvent, BossIdentityConflict, CapacityExceeded, ArithmeticOverflow, CaptureIncomplete, TimestampOutOfRange }
 public enum DamageCategory { Damage, Dot }
-public enum BuffAction : byte { Apply = 1, Refresh = 2, Remove = 3 }
-public enum BuffWindowEnd { Removed, EncounterEnd }
-public enum EntityKind { Player, Summon, Boss, Add }
+public enum BuffOperation : byte { Unknown = 0, Apply = 1, Refresh = 2, Remove = 3 }
+public enum BuffWindowEnd { Removed, Expired, EncounterEnd }
+public enum EntityKind { Unknown, Add, Player, Summon, Boss }
+public enum IncompleteReasonCode { OutOfOrderEvent, BossIdentityConflict, CapacityExceeded, ArithmeticOverflow, ExternalIncomplete, TimestampOutOfRange, ReasonLimitReached }
 
 public sealed record EncounterReducerOptions(
     long IdleTimeoutMs,
@@ -20,7 +21,10 @@ public sealed record EncounterReducerOptions(
     int MaxParticipants = 1024,
     int MaxEntities = 4096,
     int MaxEvents = 1_000_000,
-    int MaxBuffWindows = 65_536)
+    int MaxBuffWindows = 65_536,
+    int MaxIncompleteReasons = 32,
+    int MaxIncompleteReasonUtf8Bytes = 256,
+    int MaxDiagnosticsPerUpdate = 64)
 {
     public EncounterReducerOptions() : this(30_000, Guid.Empty, "", 1, "", "") { }
 }
@@ -31,8 +35,8 @@ public sealed record EncounterIdentity(
     uint BossActorId,
     uint BossCode,
     string Name,
-    ulong LastHp,
-    ulong MaxHp);
+    ulong? LastHp,
+    ulong? MaxHp);
 
 public sealed record ParticipantRecord(
     uint ActorId,
@@ -72,6 +76,16 @@ public sealed record BuffWindowRecord(
     long EndTimestampMs,
     BuffWindowEnd EndReason);
 
+public sealed record BuffUptimeRecord(
+    uint OwnerId,
+    uint TargetId,
+    uint BuffId,
+    string Name,
+    ulong TotalDurationMs,
+    uint WindowCount);
+
+public sealed record IncompleteReasonRecord(IncompleteReasonCode Code, string Message, ulong Count);
+
 public sealed record DataProvenance(
     string AppVersion,
     uint AbiVersion,
@@ -82,7 +96,7 @@ public sealed record DataProvenance(
     string Backend,
     string CaptureId,
     bool IsComplete,
-    ImmutableArray<string> IncompleteReasons);
+    ImmutableArray<IncompleteReasonRecord> IncompleteReasons);
 
 public sealed record EncounterSnapshot(
     Guid Id,
@@ -93,6 +107,7 @@ public sealed record EncounterSnapshot(
     ImmutableArray<EntityRecord> Entities,
     ImmutableArray<DamageRecord> Events,
     ImmutableArray<BuffWindowRecord> BuffWindows,
+    ImmutableArray<BuffUptimeRecord> BuffUptimes,
     DataProvenance Provenance);
 
 public sealed record EncounterRecord(
@@ -106,6 +121,7 @@ public sealed record EncounterRecord(
     ImmutableArray<EntityRecord> Entities,
     ImmutableArray<DamageRecord> Events,
     ImmutableArray<BuffWindowRecord> BuffWindows,
+    ImmutableArray<BuffUptimeRecord> BuffUptimes,
     DataProvenance Provenance);
 
 public sealed record EncounterDiagnostic(EncounterDiagnosticCode Code, string Message, long TimestampMs);

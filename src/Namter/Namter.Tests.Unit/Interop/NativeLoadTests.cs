@@ -35,7 +35,8 @@ public sealed class NativeLoadTests
             (nameof(NativeEventV1.State), 160), (nameof(NativeEventV1.Action), 161),
             (nameof(NativeEventV1.DamageType), 162), (nameof(NativeEventV1.IsDot), 163),
             (nameof(NativeEventV1.IsSelf), 164), (nameof(NativeEventV1.IsBoss), 165),
-            (nameof(NativeEventV1.FlagsReserved), 166), (nameof(NativeEventV1.Name), 168),
+            (nameof(NativeEventV1.BuffOperation), 166), (nameof(NativeEventV1.FlagsReserved), 167),
+            (nameof(NativeEventV1.Name), 168),
             (nameof(NativeEventV1.NameSize), 176), (nameof(NativeEventV1.Payload), 184),
             (nameof(NativeEventV1.PayloadSize), 192),
         };

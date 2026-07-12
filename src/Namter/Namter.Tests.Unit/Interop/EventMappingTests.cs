@@ -42,6 +42,7 @@ public sealed class EventMappingTests
         DurationMs = 28,
         State = 29,
         Action = 30,
+        BuffOperation = NativeBuffOperation.Remove,
         DamageType = 31,
         IsDot = true,
         IsSelf = true,
@@ -73,8 +74,8 @@ public sealed class EventMappingTests
     public void MapsAllClosedIdentityLifecycleAndContextVariants()
     {
         var buff = Assert.IsType<BuffEvent>(CombatEventMapper.Map(Complete(NativeEventKind.Buff)));
-        Assert.Equal((13U, 12U, 15U, 28U, (byte)30),
-            (buff.OwnerId, buff.TargetId, buff.BuffId, buff.DurationMs, buff.Action));
+        Assert.Equal((13U, 12U, 15U, 28U, BuffOperation.Remove, (byte)30),
+            (buff.OwnerId, buff.TargetId, buff.BuffId, buff.DurationMs, buff.Operation, buff.RawAction));
 
         var self = Assert.IsType<ActorObservedEvent>(CombatEventMapper.Map(Complete(NativeEventKind.SelfActor)));
         Assert.Equal("Namter", self.Name); Assert.True(self.IsSelf); Assert.Equal((ushort)21, self.ServerId);
@@ -136,6 +137,7 @@ public sealed class EventMappingTests
                 ServerId = 21, JobId = 22, Damage = 23, MultiDamage = 24, Healing = 25,
                 CurrentHp = 26, MaxHp = 27, SpecialMask = 0x1234, DurationMs = 28,
                 State = 29, Action = 30, DamageType = 31, IsDot = 1, IsSelf = 1, IsBoss = 1,
+                BuffOperation = NativeBuffOperation.Remove,
                 Name = namePin.AddrOfPinnedObject(), NameSize = (nuint)name.Length,
                 Payload = payloadPin.AddrOfPinnedObject(), PayloadSize = (nuint)payload.Length,
             };
@@ -163,6 +165,7 @@ public sealed class EventMappingTests
             (value.Damage, value.MultiDamage, value.Healing, value.CurrentHp, value.MaxHp));
         Assert.Equal((0x1234U, 28U, (byte)29, (byte)30, (byte)31),
             (value.SpecialMask, value.DurationMs, value.State, value.Action, value.DamageType));
+        Assert.Equal(NativeBuffOperation.Remove, value.BuffOperation);
         Assert.True(value.IsDot); Assert.True(value.IsSelf); Assert.True(value.IsBoss);
         Assert.Equal("Namter", value.Name);
         Assert.Equal<byte>([1, 2, 3, 4], value.Payload);

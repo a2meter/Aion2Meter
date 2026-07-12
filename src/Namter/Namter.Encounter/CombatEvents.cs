@@ -34,7 +34,8 @@ public sealed record BuffEvent(
     uint TargetId,
     uint BuffId,
     uint DurationMs,
-    byte Action) : CombatEvent(Provenance);
+    BuffOperation Operation,
+    byte RawAction) : CombatEvent(Provenance);
 
 public sealed record ActorObservedEvent(
     EventProvenance Provenance,
@@ -103,7 +104,7 @@ public static class CombatEventMapper
             NativeEventKind.Damage => Damage(value, provenance, value.IsDot),
             NativeEventKind.Dot => Damage(value, provenance, true),
             NativeEventKind.Buff => new BuffEvent(provenance, value.OwnerId, value.TargetId,
-                value.BuffId, value.DurationMs, value.Action),
+                value.BuffId, value.DurationMs, (BuffOperation)value.BuffOperation, value.Action),
             NativeEventKind.SelfActor => Actor(value, provenance, true),
             NativeEventKind.OtherActor => Actor(value, provenance, false),
             NativeEventKind.MobSpawn => new MobSpawnedEvent(provenance, value.ActorId, value.OwnerId,

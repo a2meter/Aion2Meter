@@ -44,7 +44,7 @@ public sealed class EncounterReducerTests
 
         Assert.Equal(EncounterState.Completed, completed.State);
         Assert.Equal(EncounterCompletionReason.BossDeath, record.CompletionReason);
-        Assert.Equal((500UL, 1200UL), (record.Encounter.LastHp, record.Encounter.MaxHp));
+        Assert.Equal((0UL, 1200UL), (record.Encounter.LastHp, record.Encounter.MaxHp));
         Assert.Equal("Known Boss", record.Encounter.Name);
         Assert.Same(record, reducer.Apply(Damage(14, 1, 900, 999)).FinalRecord);
         Assert.Equal(10UL, Assert.Single(record.Participants).Damage);
@@ -116,8 +116,8 @@ public sealed class EncounterReducerTests
 
         Assert.Contains(outOfOrder.Diagnostics, d => d.Code == EncounterDiagnosticCode.OutOfOrderEvent);
         Assert.False(record.IsComplete);
-        Assert.Contains("out-of-order event", record.Provenance.IncompleteReasons);
-        Assert.Contains("capture queue overflow", record.Provenance.IncompleteReasons);
+        Assert.Contains(record.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.OutOfOrderEvent);
+        Assert.Contains(record.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.ExternalIncomplete && r.Message == "capture queue overflow");
         Assert.Equal(ulong.MaxValue, Assert.Single(record.Participants).Damage);
     }
 
@@ -161,6 +161,9 @@ public sealed class EncounterReducerTests
         }
         Assert.NotEqual(Guid.Empty, first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id);
         Assert.Equal(first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id, second.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id);
+        string text = first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id.ToString();
+        Assert.Equal('5', text[14]);
+        Assert.Contains(text[19], "89ab");
     }
 
     [Fact]
@@ -192,6 +195,113 @@ public sealed class EncounterReducerTests
         Assert.Contains(update.Diagnostics, d => d.Code == EncounterDiagnosticCode.OutOfOrderEvent);
         Assert.Equal(20, reducer.Current!.LastTimestampMs);
         Assert.False(reducer.Current.Provenance.IsComplete);
+    }
+
+    [Fact]
+    public void CaptureClockAdvanceMakesAnEarlierLaterEventOutOfOrder()
+    {
+        EncounterReducer reducer = CreateReducer(idleMs: 1_000);
+        reducer.Apply(Mob(1, 900, 0, 42, 42)); reducer.Apply(Damage(2, 1, 900, 1));
+        reducer.AdvanceTo(100);
+        EncounterUpdate ignored = reducer.Apply(Damage(90, 1, 900, 99));
+        Assert.Contains(ignored.Diagnostics, d => d.Code == EncounterDiagnosticCode.OutOfOrderEvent);
+        Assert.Equal(100, reducer.Current!.LastTimestampMs);
+        Assert.Equal(1UL, Assert.Single(reducer.Current.Participants).Damage);
+    }
+
+    [Fact]
+    public void ActiveBossIdentityIsPinnedAndConflictingKnownBossBecomesAdd()
+    {
+        GameDataSnapshot snapshot = Snapshot() with { Bosses = new Dictionary<uint, Boss>
+        {
+            [42] = new(42, "First"), [43] = new(43, "Second")
+        }.ToFrozenDictionary() };
+        EncounterReducer reducer = CreateReducer(snapshot: snapshot);
+        reducer.Apply(new CombatStateEvent(P(1), 777, 1));
+        reducer.Apply(Mob(2, 900, 0, 42, 42));
+        EncounterUpdate collision = reducer.Apply(Mob(3, 901, 0, 43, 43));
+        reducer.Apply(new BossHpEvent(P(4), 901, 43, 999, 1000));
+
+        Assert.Equal((900U, 42U, "First"), (reducer.Current!.Encounter.BossActorId, reducer.Current.Encounter.BossCode, reducer.Current.Encounter.Name));
+        Assert.Equal(EntityKind.Boss, reducer.Current.Entities.Single(e => e.ActorId == 900).Kind);
+        Assert.Equal(EntityKind.Add, reducer.Current.Entities.Single(e => e.ActorId == 901).Kind);
+        Assert.Contains(collision.Diagnostics, d => d.Code == EncounterDiagnosticCode.BossIdentityConflict);
+    }
+
+    [Fact]
+    public void EntityRolePrecedenceAndSummonOwnerAreOrderIndependent()
+    {
+        EncounterReducer reducer = CreateReducer();
+        reducer.Apply(Mob(1, 50, 10, 777, name: "Summon"));
+        reducer.Apply(Actor(2, 50, "Player-shaped update"));
+        reducer.Apply(new PartyEvent(P(3), 1, 50, 0, 0, 1, "Party-shaped update"));
+        reducer.Apply(Mob(4, 900, 0, 42, 42)); reducer.Apply(Damage(5, 50, 900, 1));
+        EntityRecord entity = reducer.Current!.Entities.Single(e => e.ActorId == 50);
+        Assert.Equal((EntityKind.Summon, 10U), (entity.Kind, entity.OwnerActorId));
+        Assert.Equal(10U, Assert.Single(reducer.Current.Participants).ActorId);
+    }
+
+    [Fact]
+    public void ActivationDowngradesEarlierBossCandidateToAdd()
+    {
+        GameDataSnapshot snapshot = Snapshot() with { Bosses = new Dictionary<uint, Boss>
+        {
+            [42] = new(42, "First"), [43] = new(43, "Second")
+        }.ToFrozenDictionary() };
+        EncounterReducer reducer = CreateReducer(snapshot: snapshot);
+        reducer.Apply(Mob(1, 901, 0, 43, 43));
+        reducer.Apply(Mob(2, 900, 0, 42, 42));
+        reducer.Apply(Damage(3, 1, 900, 1));
+        Assert.Equal(EntityKind.Add, reducer.Current!.Entities.Single(e => e.ActorId == 901).Kind);
+        Assert.Equal(EntityKind.Boss, reducer.Current.Entities.Single(e => e.ActorId == 900).Kind);
+    }
+
+    [Fact]
+    public void DiagnosticsPerUpdateAreBoundedEvenWhenFinalizationDropsManyWindows()
+    {
+        EncounterReducer reducer = new(Snapshot(), new EncounterReducerOptions(100_000, Guid.Empty, "1", 1, "pcap", "c",
+            MaxBuffWindows: 100, MaxDiagnosticsPerUpdate: 8));
+        reducer.Apply(Mob(1, 900, 0, 42, 42)); reducer.Apply(Damage(2, 1, 900, 1));
+        for (uint i = 0; i < 100; i++)
+        {
+            reducer.Apply(new BuffEvent(P(3 + i * 2), 1, 1, i, 10_000, BuffOperation.Apply, 0));
+            reducer.Apply(new BuffEvent(P(4 + i * 2), 1, 1, i, 0, BuffOperation.Remove, 0));
+        }
+        for (uint i = 0; i < 100; i++)
+            reducer.Apply(new BuffEvent(P(1_000), 2, 2, i, 10_000, BuffOperation.Apply, 0));
+        EncounterUpdate completed = reducer.CompleteInput(1_001);
+        Assert.Equal(8, completed.Diagnostics.Length);
+        Assert.Equal(100, completed.FinalRecord!.BuffUptimes.Length);
+        Assert.Contains(completed.FinalRecord!.Provenance.IncompleteReasons,
+            r => r.Code == IncompleteReasonCode.CapacityExceeded && r.Count == 100);
+    }
+
+    [Fact]
+    public void IncompleteReasonsAndMessagesAreBoundedWithDeterministicOverflowMarker()
+    {
+        EncounterReducer reducer = new(Snapshot(), new EncounterReducerOptions(100, Guid.Empty, "1", 1, "pcap", "c",
+            MaxIncompleteReasons: 2, MaxIncompleteReasonUtf8Bytes: 8));
+        reducer.Apply(Mob(1, 900, 0, 42, 42)); reducer.Apply(Damage(2, 1, 900, 1));
+        for (int i = 0; i < 100; i++) reducer.MarkIncomplete($"{i:D8}-고유한-매우긴-사유");
+        EncounterRecord record = reducer.CompleteInput(3).FinalRecord!;
+        Assert.Equal(3, record.Provenance.IncompleteReasons.Length);
+        Assert.Contains(record.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.ReasonLimitReached && r.Count == 98);
+        Assert.All(record.Provenance.IncompleteReasons, r => Assert.True(System.Text.Encoding.UTF8.GetByteCount(r.Message) <= 8));
+    }
+
+    [Fact]
+    public void ArithmeticAndCapacityOverflowSaturateAndUseLiveReasonCodes()
+    {
+        EncounterReducer reducer = new(Snapshot(), new EncounterReducerOptions(100, Guid.Empty, "1", 1, "pcap", "c", MaxEvents: 2));
+        reducer.Apply(Mob(1, 900, 0, 42, 42));
+        reducer.Apply(Damage(2, 1, 900, ulong.MaxValue - 1, healing: ulong.MaxValue));
+        reducer.Apply(Damage(3, 1, 900, 2, healing: 1));
+        reducer.Apply(Damage(4, 1, 900, 1));
+        EncounterRecord record = reducer.CompleteInput(5).FinalRecord!;
+        ParticipantRecord participant = Assert.Single(record.Participants);
+        Assert.Equal((ulong.MaxValue, ulong.MaxValue), (participant.Damage, participant.Healing));
+        Assert.Contains(record.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.ArithmeticOverflow);
+        Assert.Contains(record.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.CapacityExceeded);
     }
 
     internal static EncounterReducer CreateReducer(long idleMs = 30_000, GameDataSnapshot? snapshot = null) =>

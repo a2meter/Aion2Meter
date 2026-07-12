@@ -12,8 +12,10 @@ public static class EncounterRecordWriter
         {
             writer.WriteStartObject();
             writer.WriteString("id", record.Id);
-            writer.WriteString("startUtc", DateTimeOffset.FromUnixTimeMilliseconds(record.StartTimestampMs));
-            writer.WriteString("endUtc", DateTimeOffset.FromUnixTimeMilliseconds(record.EndTimestampMs));
+            WriteUtc(writer, "startUtc", "startUtcStatus", record.StartTimestampMs);
+            writer.WriteNumber("startTimestampMs", record.StartTimestampMs);
+            WriteUtc(writer, "endUtc", "endUtcStatus", record.EndTimestampMs);
+            writer.WriteNumber("endTimestampMs", record.EndTimestampMs);
             writer.WriteBoolean("isComplete", record.IsComplete);
             writer.WriteString("completionReason", record.CompletionReason.ToString());
             WriteIdentity(writer, record.Encounter);
@@ -45,6 +47,14 @@ public static class EncounterRecordWriter
                 writer.WriteString("endReason", b.EndReason.ToString()); writer.WriteEndObject();
             }
             writer.WriteEndArray();
+            writer.WriteStartArray("buffUptimes");
+            foreach (BuffUptimeRecord u in record.BuffUptimes.OrderBy(x => x.OwnerId).ThenBy(x => x.TargetId).ThenBy(x => x.BuffId))
+            {
+                writer.WriteStartObject(); writer.WriteNumber("ownerId", u.OwnerId); writer.WriteNumber("targetId", u.TargetId);
+                writer.WriteNumber("buffId", u.BuffId); writer.WriteString("name", u.Name); writer.WriteNumber("totalDurationMs", u.TotalDurationMs);
+                writer.WriteNumber("windowCount", u.WindowCount); writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
             WriteProvenance(writer, record.Provenance);
             writer.WriteEndObject();
         }
@@ -61,7 +71,9 @@ public static class EncounterRecordWriter
     {
         writer.WriteStartObject("encounter"); writer.WriteNumber("contentId", value.ContentId); writer.WriteNumber("dungeonId", value.DungeonId);
         writer.WriteNumber("bossActorId", value.BossActorId); writer.WriteNumber("bossCode", value.BossCode); writer.WriteString("name", value.Name);
-        writer.WriteNumber("lastHp", value.LastHp); writer.WriteNumber("maxHp", value.MaxHp); writer.WriteEndObject();
+        if (value.LastHp.HasValue) writer.WriteNumber("lastHp", value.LastHp.Value); else writer.WriteNull("lastHp");
+        if (value.MaxHp.HasValue) writer.WriteNumber("maxHp", value.MaxHp.Value); else writer.WriteNull("maxHp");
+        writer.WriteEndObject();
     }
 
     private static void WriteEvent(Utf8JsonWriter writer, DamageRecord e)
@@ -79,7 +91,22 @@ public static class EncounterRecordWriter
         writer.WriteNumber("dataVersion", p.DataVersion); writer.WriteNumber("schemaVersion", p.SchemaVersion); writer.WriteNumber("profileVersion", p.ProtocolProfileVersion);
         writer.WriteString("profileName", p.ProtocolProfileName); writer.WriteString("backend", p.Backend); writer.WriteString("captureId", p.CaptureId);
         writer.WriteBoolean("isComplete", p.IsComplete); writer.WriteStartArray("incompleteReasons");
-        foreach (string reason in p.IncompleteReasons.Order(StringComparer.Ordinal)) writer.WriteStringValue(reason);
+        foreach (IncompleteReasonRecord reason in p.IncompleteReasons.OrderBy(x => x.Code).ThenBy(x => x.Message, StringComparer.Ordinal))
+        {
+            writer.WriteStartObject(); writer.WriteString("code", reason.Code.ToString()); writer.WriteString("message", reason.Message);
+            writer.WriteNumber("count", reason.Count); writer.WriteEndObject();
+        }
         writer.WriteEndArray(); writer.WriteEndObject();
+    }
+
+    private static void WriteUtc(Utf8JsonWriter writer, string property, string statusProperty, long timestampMs)
+    {
+        if (timestampMs is >= -62_135_596_800_000 and <= 253_402_300_799_999)
+            writer.WriteString(property, DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        else
+        {
+            writer.WriteNull(property);
+            writer.WriteString(statusProperty, "outOfRange");
+        }
     }
 }

@@ -509,6 +509,8 @@ struct ProtocolDecoder::Impl {
         if (!populate(event, opcode->kind, FieldReader(payload, *active_layout))) {
             return {diagnostic(message, DecodeDiagnosticCode::invalid_layout)};
         }
+        if (opcode->kind == 3u) event.mutable_record().buff_operation = NM_BUFF_OPERATION_APPLY;
+        else if (opcode->kind == 4u) event.mutable_record().buff_operation = NM_BUFF_OPERATION_REMOVE;
         return {std::move(event)};
     }
 };
