@@ -1,6 +1,8 @@
 using Namter.Cli;
 using Namter.GameData.Builder;
 using Namter.Cli.Commands;
+using Namter.Encounter;
+using System.Collections.Immutable;
 
 namespace Namter.Tests.Integration.Cli;
 
@@ -78,6 +80,8 @@ public sealed class CommandLineTests
             Assert.Equal(0,await CliApplication.RunAsync(["data","status","--data-dir",dataDir],TextWriter.Null,TextWriter.Null));
             Assert.Equal(0,await CliApplication.RunAsync(["data","check","--data-dir",dataDir],TextWriter.Null,TextWriter.Null));
             Assert.Equal(0,await CliApplication.RunAsync(["data","rollback","--data-dir",dataDir],TextWriter.Null,TextWriter.Null));
+            string activeDb=Path.Combine(dataDir,"aion.db"),operationBackup=Path.Combine(dataDir,".update","aion.operation-backup.db");File.Copy(activeDb,operationBackup,true);File.Delete(activeDb);Assert.Equal(0,await CliApplication.RunAsync(["data","check","--data-dir",dataDir],TextWriter.Null,TextWriter.Null));Assert.True(File.Exists(activeDb));
+            string truncated=Path.Combine(root,"truncated.pcap");await File.WriteAllBytesAsync(truncated,[..await File.ReadAllBytesAsync(pcap),1]);string incomplete=Path.Combine(root,"incomplete");Assert.Equal(0,await CliApplication.RunAsync(["replay","--input",truncated,"--data",database,"--output",incomplete,"--speed","0"],TextWriter.Null,TextWriter.Null));string incompleteMetadata=await File.ReadAllTextAsync(Path.Combine(incomplete,"metadata.json"));Assert.Contains("\"isComplete\":false",incompleteMetadata,StringComparison.Ordinal);Assert.Contains("native:IncompleteStream",incompleteMetadata,StringComparison.Ordinal);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -100,6 +104,19 @@ public sealed class CommandLineTests
     {
         string root=Path.Combine(Path.GetTempPath(),"namter-invalid-db-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
         try{string db=Path.Combine(root,"aion.db"),pcap=Path.Combine(root,"empty.pcap");await File.WriteAllTextAsync(db,"not sqlite");await File.WriteAllBytesAsync(pcap,[0xd4,0xc3,0xb2,0xa1,2,0,4,0,0,0,0,0,0,0,0,0,0xff,0xff,0,0,0x65,0,0,0]);int exit=await CliApplication.RunAsync(["replay","--input",pcap,"--data",db,"--output",Path.Combine(root,"out")],TextWriter.Null,TextWriter.Null);Assert.Equal((int)CliExitCode.InvalidData,exit);}finally{Directory.Delete(root,true);}
+    }
+
+    [Fact]
+    public void Artifact_transaction_removes_stale_files_rolls_back_failure_and_rejects_unrelated_content()
+    {
+        string root=Path.Combine(Path.GetTempPath(),"namter-artifacts-"+Guid.NewGuid().ToString("N"));
+        try{Directory.CreateDirectory(root);ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[1]},{"encounters/encounter-0001.json",[2]}});ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[3]}});Assert.False(File.Exists(Path.Combine(root,"encounters","encounter-0001.json")));byte[] before=File.ReadAllBytes(Path.Combine(root,"metadata.json"));Assert.Throws<IOException>(()=>ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[4]}},()=>throw new IOException("injected")));Assert.Equal(before,File.ReadAllBytes(Path.Combine(root,"metadata.json")));Directory.Delete(root,true);Directory.CreateDirectory(root);File.WriteAllText(Path.Combine(root,"user.txt"),"keep");Assert.Throws<InvalidDataException>(()=>ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[5]}}));Assert.Equal("keep",File.ReadAllText(Path.Combine(root,"user.txt")));}finally{if(Directory.Exists(root))Directory.Delete(root,true);}
+    }
+
+    [Fact]
+    public void Incomplete_reasons_mark_final_record_and_preserve_deterministic_counts()
+    {
+        var provenance=new DataProvenance("1",1,1,1,1,"p","pcap","c",true,ImmutableArray<IncompleteReasonRecord>.Empty);var record=new EncounterRecord(Guid.Empty,new EncounterIdentity(1,2,3,4,"boss",1,2),1,2,true,EncounterCompletionReason.EndOfInput,[],[],[],[],[],provenance);ImmutableArray<IncompleteReasonRecord> reasons=[new(IncompleteReasonCode.ExternalIncomplete,"managed:event-channel-overflow",2)];EncounterRecord changed=PipelineRunner.ApplyReasons(record,reasons);Assert.False(changed.IsComplete);Assert.False(changed.Provenance.IsComplete);Assert.Equal(2UL,Assert.Single(changed.Provenance.IncompleteReasons).Count);
     }
 
     private static string FindRepositoryRoot()

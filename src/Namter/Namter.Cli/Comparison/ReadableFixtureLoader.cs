@@ -14,7 +14,7 @@ public sealed record ReadableFixture(string DirectoryPath, FixtureEvidence Evide
 
 public static class ReadableFixtureLoader
 {
-    private const int MaxRows = 1_000_000, MaxLineBytes = 16_384;
+    private const int MaxRows = 1_000_000, MaxLineBytes = 16_384, MaxSummaryBytes=262_144, MaxSummaryLines=4096;
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static readonly string[] ParticipantHeader = ["rank","actorId","name","serverName","job","damage","dps","hits","healing","selfHealing","otherHealing","hps","healHits"];
     private static readonly string[] EventHeader = ["index","offsetMs","timestampUtc","isDot","actorId","actorName","targetId","targetName","skillId","damage","multiDamage","heal","totalDamage","specialMask","specialFlags","skillLevel","baseSkillLevel","actorIndex","targetIndex","skillIndex"];
@@ -37,9 +37,11 @@ public static class ReadableFixtureLoader
 
     private static ReadableSummary ReadSummary(string path)
     {
+        if(!File.Exists(path))throw new FileNotFoundException("Required readable fixture file is missing.",path);if(new FileInfo(path).Length>MaxSummaryBytes)throw new InvalidDataException("summary.txt exceeds its byte bound.");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (string line in ReadLines(path))
+        int lineCount=0;foreach (string line in ReadLines(path))
         {
+            if(++lineCount>MaxSummaryLines)throw new InvalidDataException("summary.txt exceeds its line-count bound.");
             string trimmed = line.Trim(); int colon = trimmed.IndexOf(':'); if (colon <= 0) continue;
             string key = trimmed[..colon], value = trimmed[(colon + 1)..].Trim();
             if (RequiredSummaryKeys.Contains(key) && !values.TryAdd(key, value)) throw new InvalidDataException($"Duplicate summary field '{key}'.");

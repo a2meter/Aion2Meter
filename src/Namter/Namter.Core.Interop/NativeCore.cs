@@ -118,7 +118,8 @@ public sealed class NativeCore : IAsyncDisposable
             native.BackendInterfaceDropped,
             native.QueueHighWater,
             native.Incomplete != 0,
-            CurrentCallbackState.ManagedDiagnostics);
+            CurrentCallbackState.ManagedDiagnostics,
+            CurrentCallbackState.SuppressedDiagnosticCount);
     }
 
     public ValueTask DisposeAsync()
@@ -378,12 +379,16 @@ public sealed class NativeCore : IAsyncDisposable
         Action<NativeDiagnostic>? diagnosticCallback)
     {
         private readonly ConcurrentQueue<NativeDiagnostic> _managedDiagnostics = new();
+        private const int MaximumRetainedDiagnostics = 10_000;
+        private int _retainedDiagnosticCount;
+        private long _suppressedDiagnosticCount;
         private TaskCompletionSource _sourceCompleted = NewCompletion();
 
         internal Action<NativeEvent>? EventCallback { get; } = eventCallback;
 
         internal ImmutableArray<NativeDiagnostic> ManagedDiagnostics =>
             _managedDiagnostics.ToArray().ToImmutableArray();
+        internal ulong SuppressedDiagnosticCount => checked((ulong)Math.Max(0,Interlocked.Read(ref _suppressedDiagnosticCount)));
 
         internal Task PrepareSourceCompletion()
         {
@@ -399,7 +404,7 @@ public sealed class NativeCore : IAsyncDisposable
 
         internal void ReportNativeDiagnostic(NativeDiagnostic diagnostic)
         {
-            _managedDiagnostics.Enqueue(diagnostic);
+            Retain(diagnostic);
             diagnosticCallback?.Invoke(diagnostic);
         }
 
@@ -407,8 +412,9 @@ public sealed class NativeCore : IAsyncDisposable
         {
             var diagnostic = new NativeDiagnostic(
                 NativeDiagnosticCode.IncompleteStream,
-                exception.Message);
-            _managedDiagnostics.Enqueue(diagnostic);
+                exception.Message,
+                Incomplete: true);
+            Retain(diagnostic);
             try
             {
                 diagnosticCallback?.Invoke(diagnostic);
@@ -417,6 +423,13 @@ public sealed class NativeCore : IAsyncDisposable
             {
                 // A callback failure must never escape an unmanaged entry point.
             }
+        }
+
+        private void Retain(NativeDiagnostic diagnostic)
+        {
+            int count=Interlocked.Increment(ref _retainedDiagnosticCount);
+            if(count<=MaximumRetainedDiagnostics)_managedDiagnostics.Enqueue(diagnostic);
+            else Interlocked.Increment(ref _suppressedDiagnosticCount);
         }
     }
 }

@@ -62,4 +62,12 @@ public sealed class NativeDiagnosticTests
         Assert.Equal(5u, exception.StatusCode);
         Assert.Equal("https://npcap.com/#download", exception.HelpUrl);
     }
+
+    [Fact]
+    public async Task Managed_diagnostic_retention_is_bounded_and_suppression_is_counted()
+    {
+        var core=new NativeCore();byte[] message=Encoding.UTF8.GetBytes("loss");byte[] empty=[];
+        for(int i=0;i<10_005;i++)InvokeNativeDiagnostic(core,message,empty,empty,empty,empty);
+        NativeDiagnostics diagnostics=core.GetDiagnostics();Assert.Equal(10_000,diagnostics.ManagedDiagnostics.Length);Assert.Equal(5UL,diagnostics.SuppressedManagedDiagnosticCount);await core.DisposeAsync();
+    }
 }

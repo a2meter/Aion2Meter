@@ -77,6 +77,8 @@ public sealed record GameDataCheckResult(GameDataCheckStatus Status, GameDataMan
 public sealed record GameDataStageResult(GameDataStageStatus Status, string? Detail = null);
 public sealed record GameDataActivationResult(GameDataActivationStatus Status, string? Detail = null);
 public sealed record GameDataRollbackResult(GameDataRollbackStatus Status, string? Detail = null);
+public enum GameDataLocalStatus { Valid, Missing, Invalid, RecoveryRequired, UnsafeFilesystem, Cancelled }
+public sealed record GameDataLocalResult(GameDataLocalStatus Status, bool BackupAvailable, string? Detail = null);
 
 public sealed class GameDataUpdater
 {
@@ -117,6 +119,33 @@ public sealed class GameDataUpdater
         : this(dataDirectory, appVersion, supportedSchemaVersion, trustedPublicKeySpki, transport,
             isEncounterActive, reopenAndRebuild, PhysicalGameDataFileSystem.Instance)
     {
+    }
+
+    public static GameDataUpdater CreateLocal(string dataDirectory, Version appVersion, uint supportedSchemaVersion) =>
+        new(dataDirectory, appVersion, supportedSchemaVersion, [1], new LocalOnlyTransport(), static () => false);
+
+    public async Task<GameDataLocalResult> InspectLocalAsync(CancellationToken cancellationToken)
+    {
+        try { await gate.WaitAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { return new(GameDataLocalStatus.Cancelled, false); }
+        try
+        {
+            try
+            {
+                EnsureSafeDirectories();
+                RecoveryResult recovery = await ReconcileRecoveryAsync(false, cancellationToken).ConfigureAwait(false);
+                if (!recovery.Success) return new(GameDataLocalStatus.RecoveryRequired, fileSystem.FileExists(backupPath), recovery.Detail);
+                if (!fileSystem.FileExists(activePath)) return new(GameDataLocalStatus.Missing, fileSystem.FileExists(backupPath));
+                ValidationResult active = await ValidateDatabaseAsync(activePath, null, cancellationToken).ConfigureAwait(false);
+                return active.Status == GameDataStageStatus.Staged
+                    ? new(GameDataLocalStatus.Valid, fileSystem.FileExists(backupPath))
+                    : new(GameDataLocalStatus.Invalid, fileSystem.FileExists(backupPath), active.Detail ?? active.Status.ToString());
+            }
+            catch (OperationCanceledException) { return new(GameDataLocalStatus.Cancelled, false); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            { return new(GameDataLocalStatus.UnsafeFilesystem, false, exception.Message); }
+        }
+        finally { gate.Release(); }
     }
 
     internal GameDataUpdater(
@@ -893,5 +922,11 @@ public sealed class GameDataUpdater
     private sealed class StageValidationException(GameDataStageStatus status) : Exception
     {
         public GameDataStageStatus Status { get; } = status;
+    }
+
+    private sealed class LocalOnlyTransport : IGameDataTransport
+    {
+        public ValueTask<Stream> OpenReadAsync(Uri uri, CancellationToken cancellationToken) =>
+            ValueTask.FromException<Stream>(new InvalidOperationException("Remote transport is unavailable for local operations."));
     }
 }

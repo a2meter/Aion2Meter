@@ -160,6 +160,7 @@ public sealed class NativeLifetimeTests
         var diagnostic = await received.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(NativeDiagnosticCode.IncompleteStream, diagnostic.Code);
+        Assert.True(diagnostic.Incomplete);
         Assert.Contains("managed callback failed", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains(diagnostic, core.GetDiagnostics().ManagedDiagnostics);
 

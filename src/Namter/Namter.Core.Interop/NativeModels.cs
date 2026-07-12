@@ -147,7 +147,8 @@ public sealed record NativeDiagnostics(
     ulong BackendInterfaceDropped,
     ulong QueueHighWater,
     bool Incomplete,
-    ImmutableArray<NativeDiagnostic> ManagedDiagnostics);
+    ImmutableArray<NativeDiagnostic> ManagedDiagnostics,
+    ulong SuppressedManagedDiagnosticCount = 0);
 
 internal enum NativeStatus
 {

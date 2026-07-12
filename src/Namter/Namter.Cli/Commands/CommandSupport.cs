@@ -8,7 +8,7 @@ internal static class CommandSupport
 {
     internal static string ExistingFile(string path) { string full=Path.GetFullPath(path); if(!File.Exists(full))throw new FileNotFoundException("Input file was not found.",full); return full; }
     internal static string ExistingFileOrDirectory(string path) { string full=Path.GetFullPath(path); if(!File.Exists(full)&&!Directory.Exists(full))throw new FileNotFoundException("Input file or directory was not found.",full); return full; }
-    internal static string OutputDirectory(string path) { string full=Path.GetFullPath(path); if(File.Exists(full))throw new InvalidDataException("Output path is a file."); Directory.CreateDirectory(full); return full; }
+    internal static string OutputDirectory(string path) { string full=Path.GetFullPath(path); if(File.Exists(full))throw new InvalidDataException("Output path is a file."); return full; }
     internal static void AtomicWrite(string path, ReadOnlySpan<byte> bytes)
     {
         string full=Path.GetFullPath(path); string? dir=Path.GetDirectoryName(full); if(string.IsNullOrEmpty(dir))throw new InvalidDataException("Output has no directory."); Directory.CreateDirectory(dir); string temp=Path.Combine(dir,$".{Path.GetFileName(full)}.{Guid.NewGuid():N}.tmp");

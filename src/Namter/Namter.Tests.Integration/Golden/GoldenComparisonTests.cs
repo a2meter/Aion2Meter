@@ -29,16 +29,31 @@ public sealed class GoldenComparisonTests
         try
         {
             File.WriteAllText(actual, """
-              {"startTimestampMs":1000,"endTimestampMs":2000,"encounter":{"contentId":600153,"dungeonId":0,"bossActorId":18804,"bossCode":2301721},"participants":[{"actorId":886,"name":"A","jobId":13,"damage":99,"multiDamage":0,"dotDamage":0,"healing":0}],"events":[{"timestampMs":1000,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":10,"damage":99,"multiDamage":0,"healing":0,"specialMask":1,"damageType":0,"category":"Damage"}],"buffWindows":[],"buffUptimes":[],"provenance":{"captureId":"tiny"}}
+              {"startTimestampMs":1000,"endTimestampMs":2000,"encounter":{"contentId":600153,"dungeonId":0,"bossActorId":18804,"bossCode":2301721,"name":"Wrong","maxHp":null},"participants":[{"actorId":886,"name":"A","jobId":13,"damage":99,"multiDamage":0,"dotDamage":0,"healing":0}],"events":[{"timestampMs":1000,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":10,"damage":99,"multiDamage":0,"healing":0,"specialMask":1,"damageType":0,"category":"Damage"}],"buffWindows":[],"buffUptimes":[],"provenance":{"captureId":"tiny"}}
               """);
             ComparisonReport report = GoldenComparator.Compare(actual, ReadableFixtureLoader.Load(root));
             Assert.False(report.IsMatch);
             Assert.Contains(report.Discrepancies, x => x.Field == "totalBossDamage");
+            Assert.Contains(report.Discrepancies, x => x.Field == "bossName");
+            Assert.Contains(report.Discrepancies, x => x.Field == "bossMaxHp");
             Assert.DoesNotContain(report.Discrepancies, x => x.Field == "eventCount");
             Assert.All(report.Discrepancies, x => Assert.False(string.IsNullOrWhiteSpace(x.Provenance)));
             string reportPath=Path.Combine(root,"report.json");int exit=await Namter.Cli.CliApplication.RunAsync(["compare","--actual",actual,"--expected",root,"--report",reportPath],TextWriter.Null,TextWriter.Null);Assert.Equal((int)Namter.Cli.CliExitCode.ComparisonMismatch,exit);Assert.True(File.Exists(reportPath));Assert.Empty(Directory.GetFiles(root,"*.tmp",SearchOption.AllDirectories));
+            ComparisonReport reducerOnly=GoldenComparator.Compare(actual,ReadableFixtureLoader.Load(root) with{Evidence=FixtureEvidence.ReducerOnly});Assert.Equal("ReducerOnly",reducerOnly.FixtureEvidence);Assert.Contains("\"fixtureEvidence\":\"ReducerOnly\"",System.Text.Encoding.UTF8.GetString(reducerOnly.WriteStableJson()),StringComparison.Ordinal);
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task Malformed_actual_json_is_invalid_data_exit_not_internal_error()
+    {
+        string root=CreateFixture();try{string actual=Path.Combine(root,"bad.json"),report=Path.Combine(root,"report.json");await File.WriteAllTextAsync(actual,"{\"encounter\":42}");int exit=await Namter.Cli.CliApplication.RunAsync(["compare","--actual",actual,"--expected",root,"--report",report],TextWriter.Null,TextWriter.Null);Assert.Equal((int)Namter.Cli.CliExitCode.InvalidData,exit);Assert.False(File.Exists(report));}finally{Directory.Delete(root,true);}
+    }
+
+    [Fact]
+    public void Strict_loader_rejects_invalid_utf8_duplicate_summary_and_summary_bounds()
+    {
+        string root=CreateFixture();try{string summary=Path.Combine(root,"summary.txt");File.AppendAllText(summary,"\n  BossActorId: 18804\n");Assert.Throws<InvalidDataException>(()=>ReadableFixtureLoader.Load(root));File.WriteAllBytes(summary,[0xff,0xfe,0xfd]);Assert.Throws<InvalidDataException>(()=>ReadableFixtureLoader.Load(root));File.WriteAllBytes(summary,new byte[262_145]);Assert.Throws<InvalidDataException>(()=>ReadableFixtureLoader.Load(root));}finally{Directory.Delete(root,true);}
     }
 
     [Fact]
