@@ -24,7 +24,8 @@ public sealed record EncounterReducerOptions(
     int MaxBuffWindows = 65_536,
     int MaxIncompleteReasons = 32,
     int MaxIncompleteReasonUtf8Bytes = 256,
-    int MaxDiagnosticsPerUpdate = 64)
+    int MaxDiagnosticsPerUpdate = 64,
+    int MaxBossCandidates = 32)
 {
     public EncounterReducerOptions() : this(30_000, Guid.Empty, "", 1, "", "") { }
 }

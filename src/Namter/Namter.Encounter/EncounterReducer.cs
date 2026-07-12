@@ -31,6 +31,14 @@ public sealed class EncounterReducer
     }
 
     private sealed class UptimeState { public ulong Duration; public uint Windows; }
+    private sealed class BossCandidate(uint actor, uint code, string name, ulong? hp, ulong? maxHp)
+    {
+        public uint Actor { get; } = actor;
+        public uint Code { get; set; } = code;
+        public string Name { get; set; } = name;
+        public ulong? Hp { get; set; } = hp;
+        public ulong? MaxHp { get; set; } = maxHp;
+    }
 
     private readonly EncounterReducerOptions _options;
     private readonly Dictionary<uint, ParticipantState> _participants = [];
@@ -38,13 +46,14 @@ public sealed class EncounterReducer
     private readonly Dictionary<uint, EntityRecord> _entities = [];
     private readonly Dictionary<(uint Owner, uint Target, uint Buff), OpenBuff> _openBuffs = [];
     private readonly Dictionary<(uint Owner, uint Target, uint Buff), UptimeState> _uptimes = [];
+    private readonly Dictionary<uint, BossCandidate> _bossCandidates = [];
     private readonly List<DamageRecord> _events = [];
     private readonly List<BuffWindowRecord> _buffWindows = [];
     private readonly Dictionary<(IncompleteReasonCode Code, string Message), ulong> _reasons = [];
     private readonly List<EncounterDiagnostic> _callDiagnostics = [];
     private ulong _reasonOverflowCount;
     private EncounterRecord? _final;
-    private uint _contentId, _dungeonId, _bossActorId, _bossCode, _combatActorHint;
+    private uint _contentId, _dungeonId, _bossActorId, _bossCode;
     private string _bossName = "";
     private ulong? _lastHp, _maxHp;
     private long _startMs, _captureClockMs = -1, _lastCombatMs;
@@ -55,7 +64,7 @@ public sealed class EncounterReducer
         _options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.IdleTimeoutMs < 0 || options.MaxParticipants <= 0 || options.MaxEntities <= 0 ||
             options.MaxEvents <= 0 || options.MaxBuffWindows <= 0 || options.MaxIncompleteReasons <= 0 ||
-            options.MaxIncompleteReasonUtf8Bytes <= 0 || options.MaxDiagnosticsPerUpdate <= 0)
+            options.MaxIncompleteReasonUtf8Bytes <= 0 || options.MaxDiagnosticsPerUpdate <= 0 || options.MaxBossCandidates <= 0)
             throw new ArgumentOutOfRangeException(nameof(options));
     }
 
@@ -161,7 +170,13 @@ public sealed class EncounterReducer
         uint code = mob.BossId != 0 ? mob.BossId : mob.MobId;
         if (PinnedGameData.Bosses.TryGetValue(code, out Boss? boss))
         {
-            if (BindBoss(mob.ActorId, code, boss.Name))
+            if (State == EncounterState.Idle)
+            {
+                if (AddBossCandidate(mob.ActorId, code, boss.Name, mob.CurrentHp, mob.MaxHp))
+                    MergeEntity(new(mob.ActorId, 0, code, EntityKind.Boss, boss.Name));
+                else MergeEntity(new(mob.ActorId, 0, code, EntityKind.Add, mob.Name));
+            }
+            else if (AcceptActiveBoss(mob.ActorId, code, boss.Name))
             {
                 _lastHp = mob.CurrentHp; _maxHp = mob.MaxHp;
                 MergeEntity(new(mob.ActorId, 0, code, EntityKind.Boss, boss.Name));
@@ -176,7 +191,14 @@ public sealed class EncounterReducer
     {
         uint code = hp.BossId != 0 ? hp.BossId : _bossCode;
         if (!PinnedGameData.Bosses.TryGetValue(code, out Boss? boss)) return;
-        if (!BindBoss(hp.ActorId, code, boss.Name))
+        if (State == EncounterState.Idle)
+        {
+            if (AddBossCandidate(hp.ActorId, code, boss.Name, hp.CurrentHp, hp.MaxHp))
+                MergeEntity(new(hp.ActorId, 0, code, EntityKind.Boss, boss.Name));
+            else MergeEntity(new(hp.ActorId, 0, code, EntityKind.Add, boss.Name));
+            return;
+        }
+        if (!AcceptActiveBoss(hp.ActorId, code, boss.Name))
         {
             MergeEntity(new(hp.ActorId, 0, code, EntityKind.Add, boss.Name));
             return;
@@ -187,14 +209,34 @@ public sealed class EncounterReducer
         if (State == EncounterState.Active && hp.CurrentHp == 0) Finalize(timestamp, EncounterCompletionReason.BossDeath);
     }
 
-    private bool BindBoss(uint actor, uint code, string name)
+    private bool AddBossCandidate(uint actor, uint code, string name, ulong? hp, ulong? maxHp)
     {
-        if (State != EncounterState.Active || _bossCode == 0)
+        if (_bossCandidates.TryGetValue(actor, out BossCandidate? candidate))
         {
-            _bossActorId = actor; _bossCode = code; _bossName = name;
-            if (State == EncounterState.Active) PinBossEntityRoles();
+            candidate.Code = code; candidate.Name = name; candidate.Hp = hp; candidate.MaxHp = maxHp;
             return true;
         }
+        if (_bossCandidates.Count >= _options.MaxBossCandidates)
+        {
+            Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded, "boss candidate capacity exceeded");
+            return false;
+        }
+        _bossCandidates.Add(actor, new(actor, code, name, hp, maxHp));
+        return true;
+    }
+
+    private bool SelectBossCandidate(uint actor, long timestamp)
+    {
+        if (!_bossCandidates.TryGetValue(actor, out BossCandidate? candidate)) return false;
+        _bossActorId = candidate.Actor; _bossCode = candidate.Code; _bossName = candidate.Name;
+        _lastHp = candidate.Hp; _maxHp = candidate.MaxHp;
+        Start(timestamp);
+        _bossCandidates.Clear();
+        return true;
+    }
+
+    private bool AcceptActiveBoss(uint actor, uint code, string name)
+    {
         if (_bossActorId == actor && _bossCode == code) return true;
         Report(IncompleteReasonCode.BossIdentityConflict, EncounterDiagnosticCode.BossIdentityConflict,
             "conflicting authoritative boss identity");
@@ -203,19 +245,15 @@ public sealed class EncounterReducer
 
     private void ApplyCombatState(CombatStateEvent combat, long timestamp)
     {
-        if (combat.State != 0 && State == EncounterState.Idle && (_bossActorId == 0 || combat.ActorId == _bossActorId))
-        {
-            _combatActorHint = combat.ActorId; Start(timestamp); return;
-        }
-        if (combat.State == 0 && State == EncounterState.Active &&
-            (combat.ActorId == _bossActorId || (_bossActorId == 0 && combat.ActorId == _combatActorHint)))
+        if (combat.State != 0 && State == EncounterState.Idle) { SelectBossCandidate(combat.ActorId, timestamp); return; }
+        if (combat.State == 0 && State == EncounterState.Active && combat.ActorId == _bossActorId)
             Finalize(timestamp, EncounterCompletionReason.CombatEnded);
     }
 
     private void ApplyDamage(DamageEvent damage, long timestamp)
     {
-        bool bossTarget = _bossActorId != 0 && damage.TargetId == _bossActorId;
-        if (bossTarget && State == EncounterState.Idle) Start(timestamp);
+        if (State == EncounterState.Idle) SelectBossCandidate(damage.TargetId, timestamp);
+        bool bossTarget = State == EncounterState.Active && damage.TargetId == _bossActorId;
         if (State != EncounterState.Active) return;
         if (_events.Count >= _options.MaxEvents)
         {
@@ -413,11 +451,11 @@ public sealed class EncounterReducer
     {
         if (_options.RecordId != Guid.Empty) return _options.RecordId;
         string material = string.Create(CultureInfo.InvariantCulture,
-            $"namter-encounter-v1\n{_options.CaptureId}\n{_startMs}\n{_bossActorId}\n{_bossCode}");
+            $"org.namter.encounter/uuidv8-sha256/v1\n{_options.CaptureId}\n{_startMs}\n{_bossActorId}\n{_bossCode}");
         Span<byte> digest = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(material), digest);
         Span<byte> id = digest[..16];
-        id[6] = (byte)((id[6] & 0x0f) | 0x50);
+        id[6] = (byte)((id[6] & 0x0f) | 0x80);
         id[8] = (byte)((id[8] & 0x3f) | 0x80);
         return new Guid(id, bigEndian: true);
     }

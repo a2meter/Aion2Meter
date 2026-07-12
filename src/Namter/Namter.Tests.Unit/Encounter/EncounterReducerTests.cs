@@ -162,7 +162,8 @@ public sealed class EncounterReducerTests
         Assert.NotEqual(Guid.Empty, first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id);
         Assert.Equal(first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id, second.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id);
         string text = first.Apply(Damage(4, 1, 900, 1)).FinalRecord!.Id.ToString();
-        Assert.Equal('5', text[14]);
+        Assert.Equal("0f4185de-f47c-865e-a04e-22576898556b", text);
+        Assert.Equal('8', text[14]);
         Assert.Contains(text[19], "89ab");
     }
 
@@ -217,8 +218,8 @@ public sealed class EncounterReducerTests
             [42] = new(42, "First"), [43] = new(43, "Second")
         }.ToFrozenDictionary() };
         EncounterReducer reducer = CreateReducer(snapshot: snapshot);
-        reducer.Apply(new CombatStateEvent(P(1), 777, 1));
-        reducer.Apply(Mob(2, 900, 0, 42, 42));
+        reducer.Apply(Mob(1, 900, 0, 42, 42));
+        reducer.Apply(new CombatStateEvent(P(2), 900, 1));
         EncounterUpdate collision = reducer.Apply(Mob(3, 901, 0, 43, 43));
         reducer.Apply(new BossHpEvent(P(4), 901, 43, 999, 1000));
 
@@ -254,6 +255,50 @@ public sealed class EncounterReducerTests
         reducer.Apply(Damage(3, 1, 900, 1));
         Assert.Equal(EntityKind.Add, reducer.Current!.Entities.Single(e => e.ActorId == 901).Kind);
         Assert.Equal(EntityKind.Boss, reducer.Current.Entities.Single(e => e.ActorId == 900).Kind);
+    }
+
+    [Fact]
+    public void IdleCandidatesAreSelectedByAuthoritativeDamageTargetInsteadOfObservationOrder()
+    {
+        EncounterReducer reducer = CreateReducer(snapshot: TwoBossSnapshot());
+        reducer.Apply(Mob(1, 900, 0, 42, 42));
+        reducer.Apply(Mob(2, 901, 0, 43, 43));
+        reducer.Apply(Damage(3, 1, 900, 1));
+        Assert.Equal((900U, 42U, "First"),
+            (reducer.Current!.Encounter.BossActorId, reducer.Current.Encounter.BossCode, reducer.Current.Encounter.Name));
+    }
+
+    [Fact]
+    public void IdleCandidatesAreSelectedByMatchingCombatStateActor()
+    {
+        EncounterReducer reducer = CreateReducer(snapshot: TwoBossSnapshot());
+        reducer.Apply(new BossHpEvent(P(1), 900, 42, 100, 100));
+        reducer.Apply(Mob(2, 901, 0, 43, 43));
+        reducer.Apply(new CombatStateEvent(P(3), 901, 1));
+        Assert.Equal((901U, 43U, "Second"),
+            (reducer.Current!.Encounter.BossActorId, reducer.Current.Encounter.BossCode, reducer.Current.Encounter.Name));
+    }
+
+    [Fact]
+    public void UnknownCombatActorNeverCreatesBosslessEncounter()
+    {
+        EncounterReducer reducer = CreateReducer();
+        EncounterUpdate ignored = reducer.Apply(new CombatStateEvent(P(1), 777, 1));
+        Assert.Equal(EncounterState.Idle, ignored.State);
+        Assert.Null(reducer.CompleteInput(2).FinalRecord);
+    }
+
+    [Fact]
+    public void IdleBossCandidateMapIsBoundedAndDiagnosesOverflow()
+    {
+        EncounterReducer reducer = new(TwoBossSnapshot(), new EncounterReducerOptions(100, Guid.Empty, "1", 1, "pcap", "c",
+            MaxBossCandidates: 1));
+        reducer.Apply(Mob(1, 900, 0, 42, 42));
+        EncounterUpdate overflow = reducer.Apply(Mob(2, 901, 0, 43, 43));
+        Assert.Contains(overflow.Diagnostics, d => d.Code == EncounterDiagnosticCode.CapacityExceeded);
+        reducer.Apply(Damage(3, 1, 900, 1));
+        Assert.Equal(900U, reducer.Current!.Encounter.BossActorId);
+        Assert.Contains(reducer.Current.Provenance.IncompleteReasons, r => r.Code == IncompleteReasonCode.CapacityExceeded);
     }
 
     [Fact]
@@ -318,6 +363,11 @@ public sealed class EncounterReducerTests
         new Dictionary<uint, Dungeon> { [7] = new(7, "Known Dungeon") }.ToFrozenDictionary(),
         new Dictionary<uint, Skill>().ToFrozenDictionary(),
         new Dictionary<uint, Buff> { [8] = new(8, "Known Buff") }.ToFrozenDictionary());
+
+    private static GameDataSnapshot TwoBossSnapshot() => Snapshot() with { Bosses = new Dictionary<uint, Boss>
+    {
+        [42] = new(42, "First"), [43] = new(43, "Second")
+    }.ToFrozenDictionary() };
 
     internal static EventProvenance P(long ms) => new(checked((ulong)ms * 1_000_000), checked((ulong)ms * 1_000_000), 1, 0, 0, 0, 0, 0, 0);
     internal static MobSpawnedEvent Mob(long ms, uint actor, uint owner, uint mob, uint boss = 0, ulong hp = 0, ulong max = 0, string name = "") => new(P(ms), actor, owner, mob, boss, hp, max, name, boss != 0);
