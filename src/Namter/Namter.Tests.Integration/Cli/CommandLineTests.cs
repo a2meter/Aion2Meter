@@ -106,6 +106,47 @@ public sealed class CommandLineTests
     }
 
     [Fact]
+    public async Task Capture_stop_drains_and_flushes_consumer_when_source_is_cancelled()
+    {
+        using var sourceCts = new CancellationTokenSource();
+        Channel<CombatEvent> channel = Channel.CreateBounded<CombatEvent>(1);
+        // A live capture source only ends when the operator stops it (Ctrl+C cancels the linked source token).
+        Task source = Task.Delay(Timeout.InfiniteTimeSpan, sourceCts.Token);
+        Task<int> consumer = DrainCountAsync(channel.Reader);
+
+        sourceCts.Cancel();
+
+        int drained = await PipelineRunner
+            .SuperviseSourceAndConsumerAsync(source, consumer, channel.Writer, sourceCts, flushOnSourceCancel: true)
+            .WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(0, drained);
+        await channel.Reader.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task Replay_source_cancellation_aborts_without_flushing()
+    {
+        using var sourceCts = new CancellationTokenSource();
+        Channel<CombatEvent> channel = Channel.CreateBounded<CombatEvent>(1);
+        Task source = Task.Delay(Timeout.InfiniteTimeSpan, sourceCts.Token);
+        Task<int> consumer = DrainCountAsync(channel.Reader);
+
+        sourceCts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            PipelineRunner.SuperviseSourceAndConsumerAsync(source, consumer, channel.Writer, sourceCts)
+                .WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
+    private static async Task<int> DrainCountAsync(ChannelReader<CombatEvent> reader)
+    {
+        int count = 0;
+        await foreach (CombatEvent _ in reader.ReadAllAsync(CancellationToken.None)) count++;
+        return count;
+    }
+
+    [Fact]
     public async Task Absent_npcap_guidance_is_dedicated_manual_and_non_automatic()
     {
         using var error = new StringWriter();

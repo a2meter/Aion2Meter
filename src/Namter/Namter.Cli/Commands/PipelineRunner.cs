@@ -42,7 +42,7 @@ internal static class PipelineRunner
 
     internal static async Task<int> CaptureAsync(NativeSourceKind kind,string database,string output,TextWriter log,CancellationToken cancellationToken)
     {
-        GameDataSnapshot snapshot=await Load(database,cancellationToken);byte[] nativeSnapshot=ProtocolSnapshotCompiler.Compile(snapshot);PipelineResult result=await RunOneAsync(kind,ReadOnlyMemory<byte>.Empty,snapshot,nativeSnapshot,kind.ToString().ToLowerInvariant(),0,cancellationToken);
+        GameDataSnapshot snapshot=await Load(database,cancellationToken);byte[] nativeSnapshot=ProtocolSnapshotCompiler.Compile(snapshot);await log.WriteLineAsync("Capturing live traffic. Press Ctrl+C to stop and write artifacts.");PipelineResult result=await RunOneAsync(kind,ReadOnlyMemory<byte>.Empty,snapshot,nativeSnapshot,kind.ToString().ToLowerInvariant(),0,cancellationToken);
         WriteArtifacts(output,result.Events,result.Records,result.Diagnostics,result.IncompleteReasons,kind.ToString().ToLowerInvariant(),0,[],snapshot,result.TcpOverlaps,result.TcpDuplicateBytesRemoved,result.TcpUnresolvedByteGaps);await log.WriteLineAsync($"Capture complete: {result.Events.Length} event(s), {result.Records.Length} encounter(s).");return 0;
     }
 
@@ -56,14 +56,15 @@ internal static class PipelineRunner
         void OnDiagnostic(NativeDiagnostic value){lock(diagnosticGate){if(diagnostics.Count<MaxDiagnostics)diagnostics.Add(value);}}
         var nativeConfig=new NativeCoreConfig(config.NativeQueueCapacity,config.MaxLiveFlows,config.MaxOutOfOrderBytesPerFlow,config.MaxFrameBytes,config.MaxDecompressedBytes);
         await using var core=new NativeCore(OnEvent,OnDiagnostic,nativeConfig);core.SetProtocolSnapshot(nativeSnapshot);
-        using var sourceCts=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);Task sourceTask=kind==NativeSourceKind.Pcap?core.ReplayAsync(source,sourceCts.Token):core.CaptureAsync(kind,source,sourceCts.Token);
-        var consumeTask=ConsumeAsync(channel.Reader,snapshot,captureId,cancellationToken);
-        ConsumeResult consumed=await SuperviseSourceAndConsumerAsync(sourceTask,consumeTask,channel.Writer,sourceCts);
+        bool live=kind!=NativeSourceKind.Pcap;
+        using var sourceCts=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);Task sourceTask=live?core.CaptureAsync(kind,source,sourceCts.Token):core.ReplayAsync(source,sourceCts.Token);
+        var consumeTask=ConsumeAsync(channel.Reader,snapshot,captureId,live?CancellationToken.None:cancellationToken);
+        ConsumeResult consumed=await SuperviseSourceAndConsumerAsync(sourceTask,consumeTask,channel.Writer,sourceCts,live);
         NativeDiagnostics finalDiagnostics=core.GetDiagnostics();
         lock(diagnosticGate){ImmutableArray<NativeDiagnostic> raw=finalDiagnostics.ManagedDiagnostics;ImmutableArray<NativeDiagnostic> retained=raw.Take(MaxDiagnostics).ToImmutableArray();bool callbackIncomplete=diagnostics.Any(x=>x.Incomplete||x.Code is NativeDiagnosticCode.IncompleteStream or NativeDiagnosticCode.CaptureQueueOverflow or NativeDiagnosticCode.CaptureBackendFailed);var reasons=BuildReasons(raw,finalDiagnostics,Volatile.Read(ref overflow)!=0,callbackIncomplete);return new(consumed.Events,consumed.Records.Select(x=>ApplyReasons(x,reasons)).ToImmutableArray(),retained,reasons,finalDiagnostics.TcpOverlaps,finalDiagnostics.TcpDuplicateBytesRemoved,finalDiagnostics.TcpUnresolvedByteGaps);}
     }
 
-    internal static async Task<T> SuperviseSourceAndConsumerAsync<T>(Task sourceTask,Task<T> consumeTask,ChannelWriter<CombatEvent> writer,CancellationTokenSource sourceCts)
+    internal static async Task<T> SuperviseSourceAndConsumerAsync<T>(Task sourceTask,Task<T> consumeTask,ChannelWriter<CombatEvent> writer,CancellationTokenSource sourceCts,bool flushOnSourceCancel=false)
     {
         try
         {
@@ -74,7 +75,7 @@ internal static class PipelineRunner
                 try{await sourceTask;}catch(OperationCanceledException)when(sourceCts.IsCancellationRequested){}
                 return await consumeTask;
             }
-            try{await sourceTask;}finally{writer.TryComplete();}
+            try{await sourceTask;}catch(OperationCanceledException)when(flushOnSourceCancel&&sourceCts.IsCancellationRequested){}finally{writer.TryComplete();}
             return await consumeTask;
         }
         finally
