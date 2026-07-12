@@ -60,11 +60,18 @@ struct CapturePipeline::Impl {
                 const auto found = std::find_if(framers.begin(), framers.end(), [&](const auto& value) {
                     return value.flow == reset->flow && value.epoch == reset->epoch;
                 });
+                bool retained_partial_frame = false;
                 if (found != framers.end()) {
+                    retained_partial_frame = found->framer.buffered_bytes() != 0;
                     frame_outputs(found->framer.process(*reset));
                     framers.erase(found);
                 }
-                diagnostics(NM_DIAGNOSTIC_INCOMPLETE_STREAM, "capture stream reset");
+                const bool lossy_reset = reset->reason == StreamResetReason::gap_expiry ||
+                    reset->reason == StreamResetReason::buffer_limit ||
+                    reset->reason == StreamResetReason::flow_limit ||
+                    reset->reason == StreamResetReason::ambiguous_sequence;
+                if (retained_partial_frame || lossy_reset)
+                    diagnostics(NM_DIAGNOSTIC_INCOMPLETE_STREAM, "capture stream reset");
             } else {
                 diagnostics(NM_DIAGNOSTIC_INCOMPLETE_STREAM, "capture stream gap observed");
             }
@@ -99,5 +106,6 @@ CapturePipeline::~CapturePipeline() = default;
 CaptureError CapturePipeline::ingest(const CaptureRecord& record) { return impl_->ingest(record); }
 void CapturePipeline::flush(uint64_t timestamp_ns) { impl_->flush(timestamp_ns); }
 size_t CapturePipeline::active_framer_count() const noexcept { return impl_->framers.size(); }
+const FlowDiagnostics& CapturePipeline::flow_diagnostics() const noexcept { return impl_->tracker.diagnostics(); }
 
 } // namespace namter

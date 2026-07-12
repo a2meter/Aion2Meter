@@ -27,6 +27,7 @@ public:
     [[nodiscard]] CaptureError ingest(const CaptureRecord& record);
     void flush(uint64_t timestamp_ns);
     [[nodiscard]] size_t active_framer_count() const noexcept;
+    [[nodiscard]] const FlowDiagnostics& flow_diagnostics() const noexcept;
 
 private:
     struct Impl;

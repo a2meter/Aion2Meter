@@ -140,6 +140,8 @@ std::vector<Field> fields_for(uint16_t opcode_kind) {
             case 103: case 201: return kind == static_cast<uint16_t>(content_id) || kind == static_cast<uint16_t>(dungeon_id) ||
                 kind == static_cast<uint16_t>(state) || kind == static_cast<uint16_t>(name);
             case 202: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(state);
+            case 203: return kind == static_cast<uint16_t>(actor_id) || kind == static_cast<uint16_t>(target_id) ||
+                kind == static_cast<uint16_t>(skill_id) || kind == static_cast<uint16_t>(action);
             default: return false;
         }
     };
@@ -149,7 +151,8 @@ std::vector<Field> fields_for(uint16_t opcode_kind) {
 
 std::vector<uint8_t> snapshot_with_layouts(
     std::vector<Opcode> opcodes,
-    const std::vector<std::vector<Field>>& layouts) {
+    const std::vector<std::vector<Field>>& layouts,
+    uint16_t parser_strategy = 0) {
     std::vector<uint8_t> bytes{'N', 'M', 'P', 'S'};
     append_u16(bytes, 1); append_u16(bytes, 28); append_u32(bytes, 0); append_u32(bytes, 0);
     append_u64(bytes, 7); append_u32(bytes, 3);
@@ -163,7 +166,7 @@ std::vector<uint8_t> snapshot_with_layouts(
     append_u32(bytes, static_cast<uint32_t>(layouts.size()));
     for (size_t index = 0; index < layouts.size(); ++index) {
         append_u32(bytes, static_cast<uint32_t>(index + 1u)); append_u32(bytes, 128);
-        append_u16(bytes, static_cast<uint16_t>(layouts[index].size())); append_u16(bytes, 0);
+        append_u16(bytes, static_cast<uint16_t>(layouts[index].size())); append_u16(bytes, parser_strategy);
         for (const auto& field : layouts[index]) {
             append_u16(bytes, field.kind); append_u16(bytes, field.flags); append_u32(bytes, field.offset);
             append_u32(bytes, field.size); append_u32(bytes, field.max_count);
@@ -186,6 +189,16 @@ std::vector<uint8_t> snapshot(std::vector<Opcode> opcodes) {
 
 std::vector<uint8_t> snapshot(std::vector<Opcode> opcodes, std::vector<Field> fields) {
     return snapshot_with_layouts(std::move(opcodes), {std::move(fields)});
+}
+
+std::vector<uint8_t> snapshot_with_strategy(std::vector<Opcode> opcodes, uint16_t parser_strategy) {
+    std::vector<std::vector<Field>> layouts;
+    layouts.reserve(opcodes.size());
+    for (size_t index = 0; index < opcodes.size(); ++index) {
+        opcodes[index].layout = static_cast<uint32_t>(index + 1u);
+        layouts.push_back(fields_for(opcodes[index].kind));
+    }
+    return snapshot_with_layouts(std::move(opcodes), layouts, parser_strategy);
 }
 
 std::vector<uint8_t> payload() {
@@ -237,7 +250,7 @@ DecodedEvent decode_real_fixture(
     const std::vector<Field>& fields,
     const std::vector<uint8_t>& frame,
     uint64_t file_offset) {
-    ProtocolDecoder decoder(snapshot({{kind, std::move(tag), 1}}, fields));
+    ProtocolDecoder decoder(snapshot_with_layouts({{kind, std::move(tag), 1}}, {fields}, 1));
     auto value = message(0x11, file_offset);
     value.bytes = frame;
     return only_event(decoder.decode(value));
@@ -251,7 +264,7 @@ void expect_real_fixture_boundaries(
     auto complete = message(0x11);
     complete.bytes = frame;
     for (size_t size = 0; size < frame.size(); ++size) {
-        ProtocolDecoder decoder(snapshot({{kind, tag, 1}}, fields));
+        ProtocolDecoder decoder(snapshot_with_layouts({{kind, tag, 1}}, {fields}, 1));
         auto truncated = complete;
         truncated.bytes.resize(size);
         const auto outputs = decoder.decode(truncated);
@@ -260,7 +273,7 @@ void expect_real_fixture_boundaries(
     }
     for (const uint8_t mutated : {uint8_t{0}, static_cast<uint8_t>(frame.front() - 1u),
                                   static_cast<uint8_t>(frame.front() + 1u), uint8_t{0x80}}) {
-        ProtocolDecoder decoder(snapshot({{kind, tag, 1}}, fields));
+        ProtocolDecoder decoder(snapshot_with_layouts({{kind, tag, 1}}, {fields}, 1));
         auto value = complete;
         value.bytes[0] = mutated;
         const auto outputs = decoder.decode(value);
@@ -366,6 +379,24 @@ TEST(ProtocolDecoder, UnknownTagsBecomeBoundedUnknownEvents) {
     EXPECT_EQ(std::vector<uint8_t>(event.payload, event.payload + event.payload_size), unknown.bytes);
 }
 
+TEST(ProtocolDecoder, ProductionProfilePreservesUnsupportedKnownTagVariantsAsUnknown) {
+    auto bytes = snapshot_with_strategy({{1, {0x11}, 1}}, 1);
+    write_u32(bytes, 24, 20260710u);
+    write_u32(bytes, 12, 0u);
+    write_u32(bytes, 12, crc32(bytes));
+    ProtocolDecoder decoder(bytes);
+    auto value = message(0x11);
+    value.bytes = encode_var(6u);
+    value.bytes.push_back(0x11);
+    value.bytes.push_back(0x01);
+
+    auto outputs = decoder.decode(value);
+    ASSERT_EQ(outputs.size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<DecodedEvent>(outputs.front()));
+    EXPECT_EQ(std::get<DecodedEvent>(outputs.front()).view().kind,
+              static_cast<uint32_t>(NM_EVENT_UNKNOWN_PROTOCOL));
+}
+
 TEST(ProtocolDecoder, OversizedUnknownRetainsExactly512BytesAndAllProvenance) {
     ProtocolDecoder decoder(snapshot({{1, {0x11}, 1}}));
     auto unknown = message(0x7f);
@@ -434,6 +465,184 @@ TEST(ProtocolDecoder, CertifiedRealEntityRemovalUsesOnlyTheCompleteVarintAndProv
     EXPECT_EQ(removed.source_port, 13328u);
     EXPECT_EQ(removed.destination_port, 50000u);
     expect_real_fixture_boundaries(10, {0x21, 0x8d}, fields, frame);
+}
+
+TEST(ProtocolDecoder, EntityRemovalClearsCloneEchoSuppressionBeforeActorIdReuse) {
+    ProtocolDecoder decoder(snapshot_with_strategy({
+        {7, {0x17}, 1}, {10, {0x1a}, 1}, {203, {0x33}, 1}, {1, {0x11}, 1},
+    }, 1));
+
+    auto named_clone = message(0x17);
+    std::vector<uint8_t> clone_body{0x17, 0x65, 0x00, 0x00, 0x01, 0x01, 'A', 0x00, 0x00, 0x00, 0x00, 0x00};
+    named_clone.bytes = encode_var(static_cast<uint32_t>(clone_body.size() + 4u));
+    named_clone.bytes.insert(named_clone.bytes.end(), clone_body.begin(), clone_body.end());
+    ASSERT_EQ(only_event(decoder.decode(named_clone)).view().kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN));
+
+    const auto removed = only_event(decoder.decode(message(0x1a)));
+    ASSERT_EQ(removed.view().actor_id, 101u);
+
+    auto action = message(0x33);
+    std::vector<uint8_t> action_body{0x33, 0x65, 0x00, 0x94, 0x01, 0x00, 0x00, 0x03, 0x00, 0xca, 0x01};
+    action.bytes = encode_var(static_cast<uint32_t>(action_body.size() + 4u));
+    action.bytes.insert(action.bytes.end(), action_body.begin(), action_body.end());
+    EXPECT_TRUE(decoder.decode(action).empty());
+
+    const auto damage = decoder.decode(message(0x11));
+    ASSERT_EQ(damage.size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<DecodedEvent>(damage.front()));
+    EXPECT_EQ(std::get<DecodedEvent>(damage.front()).view().kind, static_cast<uint32_t>(NM_EVENT_DAMAGE));
+}
+
+TEST(ProtocolDecoder, CertifiedProductionDamageFrameUsesCurrentConditionalWireShape) {
+    const std::vector<uint8_t> frame{
+        0x26,0x04,0x38,0xf4,0x92,0x01,0x06,0x00,0xc9,0x3f,0xda,0x77,0xbc,0x00,0x0a,0x03,
+        0x0c,0x00,0x02,0x34,0xd1,0x9e,0x49,0x01,0x00,0x00,0x00,0xe4,0x95,0x01,0xfc,0xeb,
+        0x05,0x01,0x00};
+    const auto event = decode_real_fixture(1, {0x04,0x38}, fields_for(1), frame, 347151).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_DAMAGE));
+    EXPECT_EQ(event.actor_id, 8137u); EXPECT_EQ(event.target_id, 18804u);
+    EXPECT_EQ(event.skill_id, 12351450u); EXPECT_EQ(event.damage, 95740u);
+    EXPECT_EQ(event.multi_damage, 0u); EXPECT_EQ(event.healing, 0u);
+    EXPECT_EQ(event.special_mask, 76u); EXPECT_EQ(event.damage_type, 3u);
+    EXPECT_EQ(event.is_dot, 0u); expect_provenance(event, 347151);
+}
+
+TEST(ProtocolDecoder, CertifiedCategoryFourDamageConsumesMultiHitMarker) {
+    const std::vector<uint8_t> frame{
+        0x2d,0x04,0x38,0xf4,0x92,0x01,0x34,0x00,0xe8,0x6f,0x16,0x71,0x13,0x01,0x89,0x03,
+        0x06,0xa6,0x96,0x6b,0x01,0x00,0x00,0x00,0xf0,0xa3,0x01,0xe9,0x8c,0x04,0x01,0x04,
+        0xbd,0x34,0xbd,0x34,0xbd,0x34,0xbd,0x34,0x01,0x00};
+    const auto event = decode_real_fixture(1, {0x04,0x38}, fields_for(1), frame, 428674).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_DAMAGE));
+    EXPECT_EQ(event.actor_id, 14312u); EXPECT_EQ(event.target_id, 18804u);
+    EXPECT_EQ(event.skill_id, 18051350u); EXPECT_EQ(event.damage, 67177u);
+    EXPECT_EQ(event.multi_damage, 26868u); EXPECT_EQ(event.special_mask, 64u);
+    EXPECT_EQ(event.damage_type, 3u); expect_provenance(event, 428674);
+}
+
+TEST(ProtocolDecoder, CategoryFourDamageSupportsImplicitOneHitTail) {
+    const std::vector<uint8_t> frame{
+        0x26,0x04,0x38,0xf4,0x92,0x01,0x24,0x00,0xc9,0x3f,0xfa,0xd1,0xba,0x00,0x33,0x03,
+        0xdb,0x46,0xf5,0x48,0x01,0x00,0x00,0x00,0xb4,0xa5,0x01,0x82,0xac,0x04,0x01,0xcd,
+        0x37,0x01,0x00};
+    const auto event = decode_real_fixture(1, {0x04,0x38}, fields_for(1), frame, 410856).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_DAMAGE));
+    EXPECT_EQ(event.multi_damage, 7117u); expect_provenance(event, 410856);
+}
+
+TEST(ProtocolDecoder, CategoryFourNoMultiTailRetainsHealingAfterPrefix) {
+    const std::vector<uint8_t> frame{
+        0x26,0x04,0x38,0xf4,0x92,0x01,0x14,0x04,0xf6,0x06,0x02,0xdc,0xc6,0x00,0xa2,0x03,
+        0x7d,0x95,0xaa,0x4d,0x02,0x00,0x00,0x00,0xee,0xbd,0x01,0x9c,0x9a,0x01,0x01,0x02,
+        0x00,0xa2,0x04};
+    const auto event = decode_real_fixture(1, {0x04,0x38}, fields_for(1), frame, 586316).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_DAMAGE));
+    EXPECT_EQ(event.damage, 19740u); EXPECT_EQ(event.multi_damage, 0u);
+    EXPECT_EQ(event.healing, 546u); expect_provenance(event, 586316);
+}
+
+TEST(ProtocolDecoder, CertifiedProductionBossHpFrameUsesMarkerAndExactCurrentHp) {
+    const std::vector<uint8_t> frame{
+        0x14,0x00,0x8d,0xf4,0x92,0x01,0x02,0x01,0x00,0xc9,0x4b,0xae,0x0d,0x00,0x00,0x00,0x00};
+    const auto event = decode_real_fixture(8, {0x00,0x8d}, fields_for(8), frame, 347151).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_BOSS_HP));
+    EXPECT_EQ(event.actor_id, 18804u); EXPECT_EQ(event.current_hp, 229526473u);
+    EXPECT_EQ(event.boss_id, 0u); EXPECT_EQ(event.max_hp, 0u);
+    expect_provenance(event, 347151);
+}
+
+TEST(ProtocolDecoder, CertifiedProductionCombatStartFrameCarriesBossActor) {
+    const std::vector<uint8_t> frame{0x0d,0x01,0x8d,0xf4,0x92,0x01,0x02,0x00,0x00,0x00};
+    const auto event = decode_real_fixture(202, {0x01,0x8d}, fields_for(202), frame, 347151).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_COMBAT_STATE));
+    EXPECT_EQ(event.actor_id, 18804u); EXPECT_EQ(event.state, 1u);
+    expect_provenance(event, 347151);
+}
+
+TEST(ProtocolDecoder, ProductionMobHeaderCarriesRuntimeActorAndDatabaseMobCode) {
+    std::vector<uint8_t> body{0x41,0x36,0xf4,0x92,0x01,0x0c,0x22,0x00,0x19,0x1f,0x23,0x00,0x00,0x02,0xaa};
+    auto frame = encode_var(static_cast<uint32_t>(body.size() + 4u));
+    frame.insert(frame.end(), body.begin(), body.end());
+    const auto event = decode_real_fixture(7, {0x41,0x36}, fields_for(7), frame, 217201).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN));
+    EXPECT_EQ(event.actor_id, 18804u); EXPECT_EQ(event.mob_id, 2301721u);
+    EXPECT_EQ(event.boss_id, 2301721u); EXPECT_EQ(event.is_boss, 1u);
+    expect_provenance(event, 217201);
+}
+
+TEST(ProtocolDecoder, ProductionNamedSummonHeaderCarriesOwnerNameForAttribution) {
+    std::vector<uint8_t> body{
+        0x41,0x36,0x8b,0xb5,0x01,0x5f,0x00,0x01,0x06,
+        0xeb,0x82,0xa8,0xed,0x9e,0x90,0xca,0x90,0x2c,0x00,0x40,0x02,0x00};
+    auto frame = encode_var(static_cast<uint32_t>(body.size() + 4u));
+    frame.insert(frame.end(), body.begin(), body.end());
+    const auto decoded = decode_real_fixture(7, {0x41,0x36}, fields_for(7), frame, 384173);
+    const auto event = decoded.view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN));
+    EXPECT_EQ(event.actor_id, 23179u); EXPECT_EQ(event.owner_id, 0u);
+    EXPECT_EQ(event.mob_id, 0u); EXPECT_EQ(event.is_boss, 0u);
+    EXPECT_EQ(event.state, 0x40u);
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(event.name), event.name_size),
+              std::string("\xeb\x82\xa8\xed\x9e\x90", 6));
+    expect_provenance(event, 384173);
+}
+
+TEST(ProtocolDecoder, CertifiedProductionSelfActorFrameCarriesRawIdentity) {
+    const std::vector<uint8_t> frame{
+        0x1a,0x33,0x36,0x97,0x70,0x00,0x00,0x00,0x00,0x00,0x06,
+        0xeb,0x82,0xa8,0xed,0x9e,0x90,0xea,0x03,0x1e,0x00,0x00,0x00};
+    const auto decoded = decode_real_fixture(5, {0x33,0x36}, fields_for(5), frame, 100000);
+    const auto event = decoded.view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_SELF_ACTOR));
+    EXPECT_EQ(event.actor_id, 14359u); EXPECT_EQ(event.server_id, 490u);
+    EXPECT_EQ(event.job_id, 30u); EXPECT_EQ(event.is_self, 1u);
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(event.name), event.name_size),
+              std::string("\xeb\x82\xa8\xed\x9e\x90", 6));
+    expect_provenance(event, 100000);
+}
+
+TEST(ProtocolDecoder, CertifiedProductionDotFrameUsesExtraDamageAndCanonicalSkill) {
+    const std::vector<uint8_t> frame{
+        0x17,0x05,0x38,0xf4,0x92,0x01,0x0a,0xe8,0x6f,0x31,0xfb,
+        0x56,0xe3,0x11,0xd9,0x05,0x1c,0xcb,0x2d,0x00};
+    const auto event = decode_real_fixture(2, {0x05,0x38}, fields_for(2), frame, 428246).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_DOT));
+    EXPECT_EQ(event.actor_id, 14312u); EXPECT_EQ(event.target_id, 18804u);
+    EXPECT_EQ(event.skill_id, 3001116u); EXPECT_EQ(event.damage, 729u);
+    EXPECT_EQ(event.multi_damage, 0u); EXPECT_EQ(event.healing, 0u);
+    EXPECT_EQ(event.is_dot, 1u); expect_provenance(event, 428246);
+}
+
+TEST(ProtocolDecoder, CertifiedProductionBuffFramesUseObservedApplyAndStateLayouts) {
+    const std::vector<uint8_t> applied{
+        0x34,0x2a,0x38,0xc9,0x3f,0x01,0x13,0x99,0x01,0x71,0x77,0x5c,0x07,0x98,0x3a,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x9d,0xc6,0x26,0x4c,0x9f,0x01,0x00,0x00,0xc9,
+        0x3f,0x01,0xda,0x77,0xbc,0x00,0x00,0xe1,0x10,0x07,0xc7,0x6a,0x05,0xaf,0x45,
+        0x00,0x00,0xd4,0x45};
+    const std::vector<uint8_t> state{
+        0x33,0x2b,0x38,0xc9,0x3f,0x13,0x99,0x01,0x71,0x77,0x5c,0x07,0x98,0x3a,0x00,
+        0x00,0x00,0x00,0x00,0x00,0xd0,0xc6,0x26,0x4c,0x9f,0x01,0x00,0x00,0xc9,0x3f,
+        0x01,0xc2,0x72,0xbc,0x00,0x02,0xe1,0x10,0x07,0xc7,0x6a,0x05,0xaf,0x45,0x00,
+        0x00,0xd4,0x45};
+    const auto apply_event = decode_real_fixture(3, {0x2a,0x38}, fields_for(3), applied, 347514).view();
+    const auto state_event = decode_real_fixture(4, {0x2b,0x38}, fields_for(4), state, 347934).view();
+    for (const auto event : {apply_event, state_event}) {
+        EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_BUFF));
+        EXPECT_EQ(event.owner_id, 8137u); EXPECT_EQ(event.target_id, 8137u);
+        EXPECT_EQ(event.buff_id, 123500401u); EXPECT_EQ(event.duration_ms, 15000u);
+    }
+    EXPECT_EQ(apply_event.buff_operation, static_cast<uint8_t>(NM_BUFF_OPERATION_APPLY));
+    EXPECT_EQ(state_event.buff_operation, static_cast<uint8_t>(NM_BUFF_OPERATION_REFRESH));
+}
+
+TEST(ProtocolDecoder, CertifiedProductionContentFrameCarriesObservedScope) {
+    const std::vector<uint8_t> frame{
+        0x1e,0x01,0x40,0x52,0x28,0x09,0x00,0x01,0xff,0x9f,0x27,0x4c,
+        0x9f,0x01,0x00,0x00,0x03,0x01,0x02,0xf5,0xca,0x4e,0xfe,0x3e,0xba,0xf4,0x24};
+    const auto event = decode_real_fixture(103, {0x01,0x40}, fields_for(103), frame, 2186284).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_CONTENT));
+    EXPECT_EQ(event.content_id, 600146u); EXPECT_EQ(event.dungeon_id, 600146u);
+    EXPECT_EQ(event.state, 3u); expect_provenance(event, 2186284);
 }
 
 TEST(ProtocolDecoder, SequentialDescriptorsMoveFollowingFieldsWithVarintWidth) {

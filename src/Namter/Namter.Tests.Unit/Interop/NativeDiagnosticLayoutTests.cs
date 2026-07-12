@@ -28,7 +28,7 @@ public sealed class NativeDiagnosticLayoutTests
     [Fact]
     public void Diagnostics_layout_matches_frozen_x64_native_abi()
     {
-        Assert.Equal(96, Unsafe.SizeOf<NativeDiagnosticsV1>());
+        Assert.Equal(120, Unsafe.SizeOf<NativeDiagnosticsV1>());
         AssertOffsets<NativeDiagnosticsV1>(
             (nameof(NativeDiagnosticsV1.AbiVersion), 0), (nameof(NativeDiagnosticsV1.StructSize), 4),
             (nameof(NativeDiagnosticsV1.StartCount), 8), (nameof(NativeDiagnosticsV1.StopCount), 16),
@@ -36,7 +36,8 @@ public sealed class NativeDiagnosticLayoutTests
             (nameof(NativeDiagnosticsV1.DroppedCaptureCount), 40), (nameof(NativeDiagnosticsV1.InvalidPacketCount), 48),
             (nameof(NativeDiagnosticsV1.BackendReceived), 56), (nameof(NativeDiagnosticsV1.BackendDropped), 64),
             (nameof(NativeDiagnosticsV1.BackendInterfaceDropped), 72), (nameof(NativeDiagnosticsV1.QueueHighWater), 80),
-            (nameof(NativeDiagnosticsV1.Incomplete), 88));
+            (nameof(NativeDiagnosticsV1.TcpOverlaps), 88), (nameof(NativeDiagnosticsV1.TcpDuplicateBytesRemoved), 96),
+            (nameof(NativeDiagnosticsV1.TcpUnresolvedByteGaps), 104), (nameof(NativeDiagnosticsV1.Incomplete), 112));
     }
 
     private static void AssertOffsets<T>(params (string Field, int Offset)[] expected)

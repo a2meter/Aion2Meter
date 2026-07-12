@@ -6,7 +6,7 @@
 
 **Architecture:** A single native DLL owns WinDivert, Npcap, PCAP, IPv4/TCP, reassembly, framing, LZ4, and protocol decoding. A narrow versioned C ABI sends immutable records to a safe C# wrapper; managed projects own signed SQLite data updates, selective caches, deterministic encounter reduction, CLI composition, and golden comparison. Native code never opens SQLite, and no A2Meter project or binary is referenced.
 
-**Tech Stack:** Windows x64; Visual Studio 2026 MSBuild/v145; C++20; vcpkg manifest with LZ4 and GoogleTest; .NET 8; C# 12; Microsoft.Data.Sqlite; xUnit; `System.Text.Json`; `System.IO.Compression.BrotliStream`; ECDSA P-256/SHA-256; WinDivert 2.2 dynamic API; Npcap/libpcap dynamic API.
+**Tech Stack:** Windows x64; Visual Studio 2026 MSBuild/v145; C++20; vcpkg manifest with LZ4 1.10.0 and GoogleTest 1.17.0#2; .NET 8; C# 12; Microsoft.Data.Sqlite 8.0.11; xUnit; `System.Text.Json`; `System.IO.Compression.BrotliStream`; ECDSA P-256/SHA-256; external validated WinDivert 2.2.2-A x64 release input using the WinDivert 2.2 dynamic API; Npcap/libpcap dynamic API.
 
 ## Global Constraints
 
@@ -426,7 +426,7 @@ Require tables `metadata`, `protocol_profiles`, `opcodes`, `message_layouts`, `b
 
 - [ ] **Step 2: Write the initial SQL schema and golden seed**
 
-Seed profile `aion2-2026-07-10` with packet magic `06 00 36`, server port `13328`, current observed tags (`04 38`, `05 38`, `2A 38`, `2B 38`, `33 36`, `45 36`, `41 36`, `01 8D`, `03 36`, `21 8D`, `4F 36`), party marker `97`, and party operations `01,02,04,07,0B,13,1D,2A`. Seed content `600153`, Turgen mob code `2301721`, Griosa mob code `2301722`, and Basilus mob code `2301723` from readable metadata. Actor IDs `18804`, `36737`, and `28353` are encounter-scoped observations and belong in golden assertions, not persistent boss identity rows. Treat every seeded value as versioned data, not a C++ constant.
+Seed profile `aion2-2026-07-10` with packet magic `06 00 36`, server port `13328`, current observed tags (`04 38`, `05 38`, `2A 38`, `2B 38`, `33 36`, `45 36`, `41 36`, `01 8D`, `03 36`, `21 8D`, `4F 36`), party marker `97`, and party operations `01,02,04,07,0B,13,1D,2A`. Seed content `600153`, Turgen mob code `2301721`, Griosa mob code `2301722`, and Basilus mob code `2301723` from readable metadata. Actor IDs `18804`, `36737`, and the real separate-run PCAP Basilus `17968`, plus independent readable-fixture Basilus `28353`, are encounter-scoped observations and belong in golden assertions, not persistent boss identity rows. Treat every seeded value as versioned data, not a C++ constant.
 
 - [ ] **Step 3: Run managed repository tests and verify RED**
 
@@ -603,7 +603,7 @@ Expected: missing adapters and source selection.
 
 - [ ] **Step 3: Implement WinDivert dynamic loading**
 
-Load only matching x64 `WinDivert.dll`, resolve required 2.2 exports, precompile/validate the selective TCP filter, open sniff/read-only, configure queue length/size/time within documented bounds, and use batched overlapped `WinDivertRecvEx`. Map documented Windows errors to stable Namter diagnostics. Ship WinDivert license notices and official signed x64 driver/DLL only in release packaging, never in source control.
+Load only matching x64 `WinDivert.dll`, resolve required 2.2 exports, precompile/validate the selective TCP filter, open sniff/read-only, configure queue length/size/time within documented bounds, and use batched overlapped `WinDivertRecvEx`. Map documented Windows errors to stable Namter diagnostics. Lock release input to the official `WinDivert-2.2.2-A` x64 distribution and fail closed on version, architecture, approved SHA-256, pair consistency, or Authenticode validation failure. Ship WinDivert license notices and the validated signed x64 driver/DLL only in release packaging; never download or commit them.
 
 - [ ] **Step 4: Implement Npcap external-runtime loading**
 
@@ -745,7 +745,7 @@ Commit with intent `Expose capture correctness through reproducible CLI artifact
 
 - [ ] **Step 1: Write the final RED golden assertions**
 
-Assert `aion2_part001.pcap` yields exactly two matching encounters in chronological order: Turgen (`actorId=18804`, `mobCode=2301721`, `contentCode=600153`, `totalDamage=230291779`) and Griosa (`actorId=36737`, `mobCode=2301722`, `contentCode=600153`, `totalDamage=229795893`). Assert five participants each, zero TCP gaps, six overlaps, 66 duplicate bytes, zero unexplained invalid frames, and a comparison report for every non-identical field. Add Basilus (`actorId=28353`, `mobCode=2301723`, `contentCode=600153`, `totalDamage=354172044`) reducer-semantic assertions without claiming it came from the PCAP.
+Assert `aion2_part001.pcap` yields first-run Turgen (`actorId=18804`, `mobCode=2301721`, `contentCode=600153`, `totalDamage=230291779`) and Griosa (`actorId=36737`, `mobCode=2301722`, `contentCode=600153`, `totalDamage=229795893`) in chronological order, followed by the real separate-run Basilus (`actorId=17968`, `mobCode=2301723`). Assert five participants for each first-run readable match, zero TCP gaps, six overlaps, 66 duplicate bytes, zero unexplained invalid frames, and a comparison report for every non-identical field. A first-run expected set must report actor 17968 as an unmatched extra rather than suppressing it. Add independent readable Basilus (`actorId=28353`, `mobCode=2301723`, `contentCode=600153`, `totalDamage=354172044`) reducer-semantic assertions without claiming it is the PCAP actor-17968 encounter.
 
 - [ ] **Step 2: Add replay-determinism and hostile-input tests**
 
@@ -785,7 +785,9 @@ Do not claim phase 1 complete until all of the following are freshly verified:
 
 - `Namter.slnx` builds Debug and Release x64 from a clean dependency restore.
 - Every native and managed unit/integration test passes.
-- The supplied PCAP yields exactly Turgen and Griosa, with every field compared to readable fixtures.
+- The supplied PCAP yields first-run Turgen and Griosa for readable comparison
+  and preserves the later real separate-run Basilus actor 17968 as an unmatched
+  extra; the independent readable Basilus actor 28353 remains reducer-only.
 - Six overlaps and 66 duplicate bytes are reported; no gap is fabricated.
 - Replay speed and stream chunking do not change event or encounter results.
 - Npcap is absent from the product artifact and absent-Npcap guidance never launches an installer or browser automatically.

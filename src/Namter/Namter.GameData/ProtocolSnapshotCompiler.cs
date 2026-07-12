@@ -58,7 +58,7 @@ public static class ProtocolSnapshotCompiler
             writer.Write(layout.MaxPayloadBytes);
             ProtocolFieldDescriptor[] fields = layout.Fields.ToArray();
             writer.Write(checked((ushort)fields.Length));
-            writer.Write((ushort)0);
+            writer.Write(layout.ParserStrategy);
             foreach (ProtocolFieldDescriptor field in fields)
             {
                 writer.Write(field.Kind);
@@ -180,7 +180,7 @@ public static class ProtocolSnapshotCompiler
 
         foreach (ProtocolMessageLayout layout in snapshot.MessageLayouts.Values)
         {
-            if (layout.Id == 0 || layout.MaxPayloadBytes is 0 or > MaxPayloadBytes ||
+            if (layout.Id == 0 || layout.MaxPayloadBytes is 0 or > MaxPayloadBytes || layout.ParserStrategy > 1 ||
                 layout.Fields.Length > MaxFieldsPerLayout)
             {
                 throw new InvalidDataException($"Message layout {layout.Id} is out of bounds.");
@@ -299,6 +299,7 @@ internal static class ProtocolFieldContract
             101 or 102 or 104 or 105 or 106 or 107 or 108 => Mask(1, 8, 9, 10, 21, 26),
             103 or 201 => Mask(8, 9, 20, 26),
             202 => Mask(1, 20),
+            203 => Mask(1, 2, 4, 21),
             _ => 0,
         };
         return mask != 0;

@@ -122,6 +122,24 @@ App_Data/*.ldf
 *.sqlite-shm
 *.sqlite-wal
 aion.db
+aion.db.br
+
+# Namter release inputs and generated evidence. These are supplied or produced
+# outside source control and must never be committed.
+WinDivert.dll
+WinDivert32.sys
+WinDivert64.sys
+WinDivert-*.zip
+wpcap.dll
+Packet.dll
+npcap*.exe
+npcap*.msi
+*.private.pem
+*.private.key
+*.pfx
+*.p12
+*.trx
+artifacts/
 
 # =========================
 # Windows detritus

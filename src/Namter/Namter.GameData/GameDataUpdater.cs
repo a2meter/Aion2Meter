@@ -86,7 +86,7 @@ public sealed class GameDataUpdater
     private static readonly string[] RequiredTables =
     [
         "metadata", "protocol_profiles", "protocol_profile_ports", "opcodes", "message_layouts", "message_fields",
-        "bosses", "dungeons", "dungeon_bosses", "mobs", "skills", "buffs",
+        "bosses", "dungeons", "dungeon_bosses", "mobs", "skills", "buffs", "job_aliases",
     ];
 
     private readonly string dataDirectory;

@@ -33,20 +33,36 @@ public sealed class EncounterReducerTests
     }
 
     [Fact]
-    public void BossHpEnrichesIdentityAndDeathFinalizesWithoutLaterMutation()
+    public void NamedSummonIsAttributedToUniqueKnownPlayerBeforeDamage()
+    {
+        EncounterReducer reducer = CreateReducer();
+        reducer.Apply(Actor(1, 14359, "남힐"));
+        reducer.Apply(Mob(2, 23179, 0, 0, name: "남힐"));
+        reducer.Apply(Mob(3, 900, 0, 42, 42));
+        reducer.Apply(Damage(4, 23179, 900, 27_426, multi: 8_226));
+
+        ParticipantRecord participant = Assert.Single(reducer.Current!.Participants);
+        Assert.Equal((uint)14359, participant.ActorId);
+        Assert.Equal((27_426UL, 8_226UL), (participant.Damage, participant.MultiDamage));
+        Assert.Equal((uint)14359, Assert.Single(reducer.Current.Events).AttributedActorId);
+    }
+
+    [Fact]
+    public void BossHpEnrichesIdentityAndDeathFinalizesWhenTimestampAdvances()
     {
         EncounterReducer reducer = CreateReducer();
         reducer.Apply(Mob(10, 900, 0, 42, 42, 1000, 1000, "Observed"));
         reducer.Apply(Damage(11, 1, 900, 10));
         reducer.Apply(new BossHpEvent(P(12), 900, 42, 500, 1200));
-        EncounterUpdate completed = reducer.Apply(new BossHpEvent(P(13), 900, 42, 0, 1200));
+        Assert.Null(reducer.Apply(new BossHpEvent(P(13), 900, 42, 0, 1200)).FinalRecord);
+        EncounterUpdate completed = reducer.Apply(Damage(14, 1, 900, 999));
         EncounterRecord record = Assert.IsType<EncounterRecord>(completed.FinalRecord);
 
         Assert.Equal(EncounterState.Completed, completed.State);
         Assert.Equal(EncounterCompletionReason.BossDeath, record.CompletionReason);
         Assert.Equal((0UL, 1200UL), (record.Encounter.LastHp, record.Encounter.MaxHp));
         Assert.Equal("Known Boss", record.Encounter.Name);
-        Assert.Same(record, reducer.Apply(Damage(14, 1, 900, 999)).FinalRecord);
+        Assert.Same(record, reducer.Apply(Damage(15, 1, 900, 999)).FinalRecord);
         Assert.Equal(10UL, Assert.Single(record.Participants).Damage);
     }
 
@@ -145,6 +161,24 @@ public sealed class EncounterReducerTests
         reducer.Apply(Damage(4, 5, 900, 1));
         Assert.Equal("Party Name", Assert.Single(reducer.Current!.Participants).Name);
         Assert.Equal((600153U, 7U), (reducer.Current.Encounter.ContentId, reducer.Current.Encounter.DungeonId));
+    }
+
+    [Fact]
+    public void RequiredCombatStartKeepsPrestartDamageOutOfEncounterTotals()
+    {
+        EncounterReducer reducer = new(Snapshot(), new EncounterReducerOptions(
+            30_000, Guid.NewGuid(), "test", 1, "pcap", "fixture", RequireCombatStart: true));
+        reducer.Apply(Mob(1, 900, 0, 42, 42));
+        reducer.Apply(Damage(2, 10, 900, 107_287));
+        Assert.Equal(EncounterState.Idle, reducer.State);
+
+        reducer.Apply(Damage(3, 10, 900, 10));
+        reducer.Apply(new CombatStateEvent(P(3), 900, 1));
+        reducer.Apply(Damage(4, 10, 900, 95_740));
+
+        Assert.Equal(3, reducer.Current!.StartTimestampMs);
+        Assert.Equal(95_750UL, Assert.Single(reducer.Current.Participants).Damage);
+        Assert.Equal(2, reducer.Current.Events.Length);
     }
 
     [Fact]
@@ -304,7 +338,9 @@ public sealed class EncounterReducerTests
     [Fact]
     public void DiagnosticsPerUpdateAreBoundedEvenWhenFinalizationDropsManyWindows()
     {
-        EncounterReducer reducer = new(Snapshot(), new EncounterReducerOptions(100_000, Guid.Empty, "1", 1, "pcap", "c",
+        GameDataSnapshot snapshot = Snapshot() with { Buffs = Enumerable.Range(0, 100)
+            .ToDictionary(x => (uint)x, x => new Buff((uint)x, $"Buff {x}")).ToFrozenDictionary() };
+        EncounterReducer reducer = new(snapshot, new EncounterReducerOptions(100_000, Guid.Empty, "1", 1, "pcap", "c",
             MaxBuffWindows: 100, MaxDiagnosticsPerUpdate: 8));
         reducer.Apply(Mob(1, 900, 0, 42, 42)); reducer.Apply(Damage(2, 1, 900, 1));
         for (uint i = 0; i < 100; i++)
@@ -362,7 +398,8 @@ public sealed class EncounterReducerTests
         new Dictionary<uint, Boss> { [42] = new(42, "Known Boss") }.ToFrozenDictionary(),
         new Dictionary<uint, Dungeon> { [7] = new(7, "Known Dungeon") }.ToFrozenDictionary(),
         new Dictionary<uint, Skill>().ToFrozenDictionary(),
-        new Dictionary<uint, Buff> { [8] = new(8, "Known Buff") }.ToFrozenDictionary());
+        new Dictionary<uint, Buff> { [8] = new(8, "Known Buff") }.ToFrozenDictionary(),
+        FrozenDictionary<ushort, ushort>.Empty);
 
     private static GameDataSnapshot TwoBossSnapshot() => Snapshot() with { Bosses = new Dictionary<uint, Boss>
     {

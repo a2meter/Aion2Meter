@@ -15,11 +15,12 @@ public sealed record GameDataSnapshot(
     FrozenDictionary<uint, Boss> Bosses,
     FrozenDictionary<uint, Dungeon> Dungeons,
     FrozenDictionary<uint, Skill> Skills,
-    FrozenDictionary<uint, Buff> Buffs)
+    FrozenDictionary<uint, Buff> Buffs,
+    FrozenDictionary<ushort, ushort> JobAliases)
 {
     public int TotalHotCacheEntries => checked(
         Opcodes.Count + MessageLayouts.Count + MessageLayouts.Values.Sum(static layout => layout.Fields.Length) +
-        Bosses.Count + Dungeons.Count + Skills.Count + Buffs.Count);
+        Bosses.Count + Dungeons.Count + Skills.Count + Buffs.Count + JobAliases.Count);
 }
 
 public sealed record ProtocolOpcode(
@@ -33,7 +34,8 @@ public sealed record ProtocolMessageLayout(
     uint Id,
     string Name,
     uint MaxPayloadBytes,
-    ImmutableArray<ProtocolFieldDescriptor> Fields);
+    ImmutableArray<ProtocolFieldDescriptor> Fields,
+    ushort ParserStrategy = 0);
 
 // Flags 0..2 are absolute fixed/varuint/UTF-8 fields. Flags 3..5 use the same
 // encodings as ordered sequential commands, with Offset interpreted as a skip
@@ -45,10 +47,11 @@ public readonly record struct ProtocolFieldDescriptor(
     uint Size,
     uint MaxCount);
 
-public sealed record Boss(uint Code, string Name);
+public sealed record Boss(uint Code, string Name, ulong MaxHp = 0, uint ContentCode = 0, uint DungeonCode = 0);
 public sealed record Dungeon(uint Code, string Name);
 public sealed record Skill(uint Code, string Name);
-public sealed record Buff(uint Code, string Name);
+public sealed record Buff(uint Code, string Name, bool TrackUptime = true,
+    bool UseTargetUptime = false, bool IncludeOwner = false);
 
 public sealed record GameDataCacheLimits(
     int MaxOpcodes,

@@ -22,16 +22,22 @@ The overlay, encounter detail UI, history UI, and settings UI are phase 2. Phase
 
 `captures/aion2_part001.pcap` is a classic little-endian PCAP with RAW IPv4 link type. It contains 20,849 TCP packets over 503.320 seconds and two inbound-only flows from server port 13328. The flows contain no missing TCP byte ranges, but contain six partial or complete overlaps totaling 66 duplicate bytes. A valid implementation must accept midstream inbound-only flows, isolate concurrent connections, and remove those duplicate bytes without changing decoded results.
 
-The PCAP contains the encounters represented by these readable fixtures:
+The PCAP's first run contains the encounters represented by these readable fixtures:
 
 - `20260710_221020_의지의 투르겐_readable`;
 - `20260710_221214_금기의 마수 그리오사_readable`.
 
-The independent `20260710_213603_위악의 바실루스_readable` fixture is used to validate reducer semantics without claiming that it came from the PCAP.
+The full PCAP then contains a real separate-run Basilus encounter with
+`actorId=17968`. It has no matching readable fixture in the supplied first-run
+set and must remain visible as an unmatched extra encounter. The independent
+`20260710_213603_위악의 바실루스_readable` fixture has `actorId=28353` and is
+used to validate reducer semantics without claiming that it represents the
+actor-17968 PCAP encounter.
 
 Phase 1 succeeds when:
 
-- the PCAP deterministically yields exactly the Turgen and Griosa encounters;
+- the PCAP deterministically yields first-run Turgen and Griosa plus the real
+  separate-run Basilus actor 17968, without hiding the third encounter;
 - boss identity, dungeon identity, participants, boss-target damage, skill aggregates, healing, DoT markers, flags, and buff windows are compared with the readable fixtures;
 - boss total damage and participant identities match the goldens;
 - every remaining field-level difference is emitted in a machine-readable comparison report rather than hidden;
@@ -102,7 +108,16 @@ Both backends normalize packets into the same native `CaptureRecord` contract be
 
 WinDivert uses `WINDIVERT_LAYER_NETWORK` with `WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY`. Namter only observes packets; it does not divert-and-reinject, modify, drop, or inject game traffic. The filter is prevalidated and kept as selective and simple as possible, initially limiting capture to TCP and the configured game server port/profile. The backend uses `WinDivertRecvEx` batched overlapped I/O, begins receiving immediately after open, and exposes configured queue length, size, time, high-water, and loss diagnostics.
 
-The official signed WinDivert DLL and matching x64 driver are packaged for the supported x64 build. Startup distinguishes missing files, missing administrator privileges, invalid driver signature, blocked driver, disabled Base Filtering Engine, incompatible loaded driver, and receive-buffer errors. WinDivert timestamps are converted once from the QueryPerformanceCounter clock into the core's monotonic capture-time representation.
+The official `WinDivert-2.2.2-A` signed x64 DLL and matching driver are external
+release inputs packaged for the supported x64 build; they are never downloaded
+or committed by Namter. Packaging fails closed unless the exact version,
+archive identity, x64 PE machine type, matching file versions, approved SHA-256
+record, and trusted Authenticode driver signature pass validation. Startup
+distinguishes missing files, missing administrator privileges, invalid driver
+signature, blocked driver, disabled Base Filtering Engine, incompatible loaded
+driver, and receive-buffer errors. WinDivert timestamps are converted once from
+the QueryPerformanceCounter clock into the core's monotonic capture-time
+representation.
 
 ### 5.2 Npcap
 
@@ -233,10 +248,13 @@ Unit tests cover:
 
 Integration tests cover:
 
-- intact `aion2_part001.pcap` to the two matching readable encounters;
+- intact `aion2_part001.pcap` to first-run Turgen and Griosa readable matches,
+  while preserving the later separate-run Basilus actor 17968 as an unmatched
+  extra encounter;
 - multiple replay speeds producing byte-for-byte equivalent event ledgers and encounter records;
 - re-segmented and reordered versions of equivalent streams producing the same result;
-- the Basilus readable fixture as a reducer semantic fixture;
+- the independent Basilus actor-28353 readable fixture as a reducer semantic
+  fixture, distinct from the actor-17968 PCAP encounter;
 - field-level golden comparison reports;
 - resource high-water marks and zero fabricated continuity.
 
@@ -244,7 +262,7 @@ Integration tests cover:
 
 The capture implementation follows the currently selected upstream APIs and rechecks them before dependency upgrades:
 
-- WinDivert 2.2 documentation: <https://reqrypt.org/windivert-doc.html>. It establishes sniff mode for non-modifying capture, administrator and signed-driver requirements, network-layer behavior, batched overlapped receive, queue-loss risk, timestamps, filtering, and documented errors.
+- WinDivert 2.2.2 binary distribution and 2.2 documentation: <https://reqrypt.org/windivert.html> and <https://reqrypt.org/windivert-doc.html>. They establish the locked release input, sniff mode for non-modifying capture, administrator and signed-driver requirements, network-layer behavior, batched overlapped receive, queue-loss risk, timestamps, filtering, documented errors, and the dual LGPL-v3/GPL-v2 license.
 - Npcap reference guide: <https://npcap.com/guide/npcap-api.html> and <https://npcap.com/guide/npcap-devguide.html>. It establishes the libpcap API, Windows buffer/event extensions, immediate delivery, adapter/runtime detection, and capture statistics.
 - Npcap download page: <https://npcap.com/#download>. It is the only download destination Namter presents to users.
 - Npcap OEM licensing: <https://npcap.com/oem/>. It establishes why Namter must not redistribute Npcap or automate silent installation under the free license; the approved product policy is stricter and forbids bundling even if licensing changes later.

@@ -54,6 +54,7 @@ enum class DecodeDiagnosticCode : uint8_t {
     invalid_frame,
     invalid_layout,
     payload_too_large,
+    resource_limit,
 };
 
 struct ProtocolDecodeDiagnostic {

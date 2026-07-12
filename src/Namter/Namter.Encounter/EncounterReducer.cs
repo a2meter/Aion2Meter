@@ -30,7 +30,7 @@ public sealed class EncounterReducer
         public long Expiry { get; set; } = expiry;
     }
 
-    private sealed class UptimeState { public ulong Duration; public uint Windows; }
+    private sealed class UptimeState { public List<(long Start, long End)> Intervals { get; } = []; public uint Windows; }
     private sealed class BossCandidate(uint actor, uint code, string name, ulong? hp, ulong? maxHp)
     {
         public uint Actor { get; } = actor;
@@ -45,7 +45,15 @@ public sealed class EncounterReducer
     private readonly Dictionary<uint, uint> _summonOwners = [];
     private readonly Dictionary<uint, EntityRecord> _entities = [];
     private readonly Dictionary<(uint Owner, uint Target, uint Buff), OpenBuff> _openBuffs = [];
-    private readonly Dictionary<(uint Owner, uint Target, uint Buff), UptimeState> _uptimes = [];
+    private readonly List<OpenBuff> _observedBuffs = [];
+    private readonly List<(DamageEvent Event, long Timestamp)> _pendingDamage = [];
+    private readonly List<(BuffEvent Event, long Timestamp)> _pendingBuff = [];
+    private readonly Dictionary<(uint Owner, uint Target, uint Buff), (BuffEvent Event, long Timestamp)> _initialBuffState = [];
+    private uint _pendingCombatBossActor;
+    private long _pendingTimestamp = -1;
+    private long? _pendingCompletionTimestamp;
+    private EncounterCompletionReason _pendingCompletionReason;
+    private readonly Dictionary<(uint Owner, uint Buff), UptimeState> _uptimes = [];
     private readonly Dictionary<uint, BossCandidate> _bossCandidates = [];
     private readonly List<DamageRecord> _events = [];
     private readonly List<BuffWindowRecord> _buffWindows = [];
@@ -112,6 +120,8 @@ public sealed class EncounterReducer
         if (captureTimestampMs < 0) throw new ArgumentOutOfRangeException(nameof(captureTimestampMs));
         if (_final is not null) return Update(_final);
         if (!AdvanceClock(captureTimestampMs)) captureTimestampMs = _captureClockMs;
+        if (_final is null && _pendingCompletionTimestamp is long completion)
+            Finalize(completion, _pendingCompletionReason);
         if (_final is null && State == EncounterState.Active)
             Finalize(captureTimestampMs, EncounterCompletionReason.EndOfInput);
         return Update(_final);
@@ -134,6 +144,8 @@ public sealed class EncounterReducer
             return false;
         }
         _captureClockMs = timestamp;
+        if (_pendingCompletionTimestamp is long completion && timestamp > completion)
+            Finalize(completion, _pendingCompletionReason);
         if (timestamp > MaxUnixTimestampMs)
             Report(IncompleteReasonCode.TimestampOutOfRange, EncounterDiagnosticCode.TimestampOutOfRange, "capture timestamp outside UTC range", timestamp);
         CloseDueBuffs(timestamp);
@@ -145,7 +157,11 @@ public sealed class EncounterReducer
     private void ApplyContent(ContentEvent content, long timestamp)
     {
         if (State == EncounterState.Active && content.State == 0) { Finalize(timestamp, EncounterCompletionReason.ContentExited); return; }
-        if (content.State != 0) { _contentId = content.ContentId; _dungeonId = content.DungeonId; }
+        if (content.State != 0)
+        {
+            _contentId = content.ContentId;
+            _dungeonId = content.DungeonId;
+        }
     }
 
     private void ApplyActor(ActorObservedEvent actor)
@@ -167,18 +183,34 @@ public sealed class EncounterReducer
 
     private void ApplyMob(MobSpawnedEvent mob)
     {
+        if (mob.OwnerId == 0 && mob.MobId == 0 && !string.IsNullOrEmpty(mob.Name))
+        {
+            ParticipantState[] owners = _participants.Values
+                .Where(participant => participant.Name == mob.Name &&
+                    _entities.GetValueOrDefault(participant.Id)?.Kind == EntityKind.Player)
+                .Take(2).ToArray();
+            if (owners.Length == 1)
+            {
+                _summonOwners[mob.ActorId] = owners[0].Id;
+                MergeEntity(new(mob.ActorId, owners[0].Id, 0, EntityKind.Summon, mob.Name));
+                return;
+            }
+        }
         uint code = mob.BossId != 0 ? mob.BossId : mob.MobId;
         if (PinnedGameData.Bosses.TryGetValue(code, out Boss? boss))
         {
+            if (boss.ContentCode != 0) _contentId = boss.ContentCode;
+            if (boss.DungeonCode != 0) _dungeonId = boss.DungeonCode;
+            ulong maxHp = mob.MaxHp != 0 ? mob.MaxHp : boss.MaxHp;
             if (State == EncounterState.Idle)
             {
-                if (AddBossCandidate(mob.ActorId, code, boss.Name, mob.CurrentHp, mob.MaxHp))
+                if (AddBossCandidate(mob.ActorId, code, boss.Name, mob.CurrentHp, maxHp))
                     MergeEntity(new(mob.ActorId, 0, code, EntityKind.Boss, boss.Name));
                 else MergeEntity(new(mob.ActorId, 0, code, EntityKind.Add, mob.Name));
             }
             else if (AcceptActiveBoss(mob.ActorId, code, boss.Name))
             {
-                _lastHp = mob.CurrentHp; _maxHp = mob.MaxHp;
+                _lastHp = mob.CurrentHp; _maxHp = maxHp;
                 MergeEntity(new(mob.ActorId, 0, code, EntityKind.Boss, boss.Name));
             }
             else MergeEntity(new(mob.ActorId, 0, code, EntityKind.Add, mob.Name));
@@ -191,9 +223,12 @@ public sealed class EncounterReducer
     {
         uint code = hp.BossId != 0 ? hp.BossId : _bossCode;
         if (!PinnedGameData.Bosses.TryGetValue(code, out Boss? boss)) return;
+        if (boss.ContentCode != 0) _contentId = boss.ContentCode;
+        if (boss.DungeonCode != 0) _dungeonId = boss.DungeonCode;
+        ulong maxHp = hp.MaxHp != 0 ? hp.MaxHp : boss.MaxHp;
         if (State == EncounterState.Idle)
         {
-            if (AddBossCandidate(hp.ActorId, code, boss.Name, hp.CurrentHp, hp.MaxHp))
+            if (AddBossCandidate(hp.ActorId, code, boss.Name, hp.CurrentHp, maxHp))
                 MergeEntity(new(hp.ActorId, 0, code, EntityKind.Boss, boss.Name));
             else MergeEntity(new(hp.ActorId, 0, code, EntityKind.Add, boss.Name));
             return;
@@ -204,9 +239,13 @@ public sealed class EncounterReducer
             return;
         }
         MergeEntity(new(hp.ActorId, 0, code, EntityKind.Boss, boss.Name));
-        _lastHp = hp.CurrentHp; _maxHp = hp.MaxHp;
+        _lastHp = hp.CurrentHp; _maxHp = maxHp;
         if (State == EncounterState.Active) _lastCombatMs = timestamp;
-        if (State == EncounterState.Active && hp.CurrentHp == 0) Finalize(timestamp, EncounterCompletionReason.BossDeath);
+        if (State == EncounterState.Active && hp.CurrentHp == 0)
+        {
+            _pendingCompletionTimestamp = timestamp;
+            _pendingCompletionReason = EncounterCompletionReason.BossDeath;
+        }
     }
 
     private bool AddBossCandidate(uint actor, uint code, string name, ulong? hp, ulong? maxHp)
@@ -245,14 +284,26 @@ public sealed class EncounterReducer
 
     private void ApplyCombatState(CombatStateEvent combat, long timestamp)
     {
-        if (combat.State != 0 && State == EncounterState.Idle) { SelectBossCandidate(combat.ActorId, timestamp); return; }
+        if (combat.State != 0 && State == EncounterState.Idle)
+        {
+            if (SelectBossCandidate(combat.ActorId, timestamp)) ReplayPending(timestamp);
+            return;
+        }
         if (combat.State == 0 && State == EncounterState.Active && combat.ActorId == _bossActorId)
             Finalize(timestamp, EncounterCompletionReason.CombatEnded);
     }
 
     private void ApplyDamage(DamageEvent damage, long timestamp)
     {
-        if (State == EncounterState.Idle) SelectBossCandidate(damage.TargetId, timestamp);
+        uint attributed = _summonOwners.GetValueOrDefault(damage.ActorId, damage.ActorId);
+        if (State == EncounterState.Idle && _options.RequireCombatStart)
+        {
+            StagePending(damage, timestamp);
+            return;
+        }
+        if (State == EncounterState.Idle && !_options.RequireCombatStart &&
+            (!_options.RequireKnownParticipants || _participants.ContainsKey(attributed)))
+            SelectBossCandidate(damage.TargetId, timestamp);
         bool bossTarget = State == EncounterState.Active && damage.TargetId == _bossActorId;
         if (State != EncounterState.Active) return;
         if (_events.Count >= _options.MaxEvents)
@@ -260,13 +311,17 @@ public sealed class EncounterReducer
             Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded, "event capacity exceeded");
             return;
         }
-        uint attributed = _summonOwners.GetValueOrDefault(damage.ActorId, damage.ActorId);
         string actorName = _participants.GetValueOrDefault(attributed)?.Name ?? "";
         string skillName = PinnedGameData.Skills.GetValueOrDefault(damage.SkillId)?.Name ?? "";
         _events.Add(new(timestamp, damage.ActorId, attributed, actorName, damage.TargetId, bossTarget,
             damage.SkillId, skillName, damage.Damage, damage.MultiDamage, damage.Healing,
             damage.SpecialMask, damage.DamageType, damage.IsDot ? DamageCategory.Dot : DamageCategory.Damage));
-        if (!TryParticipant(attributed, out ParticipantState? participant)) return;
+        ParticipantState participant;
+        if (_options.RequireKnownParticipants)
+        {
+            if (!_participants.TryGetValue(attributed, out participant!)) return;
+        }
+        else if (!TryParticipant(attributed, out participant)) return;
         if (bossTarget)
         {
             if (damage.IsDot) SaturatingAdd(ref participant.Dot, damage.Damage); else SaturatingAdd(ref participant.Damage, damage.Damage);
@@ -278,7 +333,14 @@ public sealed class EncounterReducer
 
     private void ApplyBuff(BuffEvent buff, long timestamp)
     {
-        if (State != EncounterState.Active) return;
+        if (State != EncounterState.Active)
+        {
+            if (State == EncounterState.Idle && _options.RequireCombatStart) StagePending(buff, timestamp);
+            return;
+        }
+        Buff? policy = PinnedGameData.Buffs.GetValueOrDefault(buff.BuffId);
+        if (policy is { TrackUptime: false, UseTargetUptime: true })
+            buff = buff with { OwnerId = buff.TargetId };
         var key = (buff.OwnerId, buff.TargetId, buff.BuffId);
         if (buff.Operation == BuffOperation.Remove)
         {
@@ -287,12 +349,91 @@ public sealed class EncounterReducer
         }
         if (buff.Operation is not (BuffOperation.Apply or BuffOperation.Refresh)) return;
         long expiry = AddDuration(timestamp, buff.DurationMs);
+        if (_options.PreserveBuffObservations)
+        {
+            if (_observedBuffs.Count < _options.MaxBuffWindows)
+                _observedBuffs.Add(new(buff.OwnerId, buff.TargetId, buff.BuffId, timestamp, expiry));
+            else
+                Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded,
+                    "preserved buff observation capacity exceeded");
+            return;
+        }
         if (_openBuffs.TryGetValue(key, out OpenBuff? open))
         {
             open.Refresh = timestamp; open.Expiry = expiry;
         }
         else TryOpenBuff(key, buff, timestamp, expiry);
         CloseDueBuffs(timestamp);
+    }
+
+    private void StagePending(DamageEvent damage, long timestamp)
+    {
+        uint attributed = _summonOwners.GetValueOrDefault(damage.ActorId, damage.ActorId);
+        if (_options.CarryInitialBuffState && _pendingCombatBossActor == 0 &&
+            _bossCandidates.ContainsKey(damage.TargetId) && _participants.ContainsKey(attributed))
+        {
+            _pendingCombatBossActor = damage.TargetId;
+            _initialBuffState.Clear();
+        }
+        ResetPendingTimestamp(timestamp);
+        if (_pendingDamage.Count < _options.MaxEvents) _pendingDamage.Add((damage, timestamp));
+        else Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded,
+            "pending damage capacity exceeded");
+    }
+
+    private void StagePending(BuffEvent buff, long timestamp)
+    {
+        if (_options.CarryInitialBuffState && _pendingCombatBossActor != 0 &&
+            _participants.TryGetValue(buff.TargetId, out ParticipantState? participant) &&
+            (!string.IsNullOrEmpty(participant.Name) || participant.JobId != 0 || participant.IsSelf) &&
+            _entities.GetValueOrDefault(buff.TargetId)?.Kind == EntityKind.Player)
+        {
+            var key = (buff.OwnerId, buff.TargetId, buff.BuffId);
+            if (buff.Operation == BuffOperation.Remove) _initialBuffState.Remove(key);
+            else if (buff.Operation is BuffOperation.Apply or BuffOperation.Refresh)
+            {
+                if (_initialBuffState.ContainsKey(key) || _initialBuffState.Count < _options.MaxBuffWindows)
+                    _initialBuffState[key] = (buff, timestamp);
+                else Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded,
+                    "initial buff state capacity exceeded");
+            }
+        }
+        ResetPendingTimestamp(timestamp);
+        if (_pendingBuff.Count < _options.MaxBuffWindows) _pendingBuff.Add((buff, timestamp));
+        else Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded,
+            "pending buff capacity exceeded");
+    }
+
+    private void ResetPendingTimestamp(long timestamp)
+    {
+        if (_pendingTimestamp == timestamp) return;
+        _pendingTimestamp = timestamp;
+        _pendingDamage.Clear();
+        _pendingBuff.Clear();
+    }
+
+    private void ReplayPending(long timestamp)
+    {
+        if (_pendingCombatBossActor == _bossActorId)
+        {
+            foreach (var item in _initialBuffState.Values)
+            {
+                long expiry = AddDuration(item.Timestamp, item.Event.DurationMs);
+                if (expiry <= timestamp) continue;
+                uint remaining = (uint)Math.Min(uint.MaxValue, expiry - timestamp);
+                ApplyBuff(item.Event with { DurationMs = remaining }, timestamp);
+            }
+        }
+        if (_pendingTimestamp == timestamp)
+        {
+            foreach (var item in _pendingDamage) ApplyDamage(item.Event, item.Timestamp);
+            foreach (var item in _pendingBuff) ApplyBuff(item.Event, item.Timestamp);
+        }
+        _pendingDamage.Clear();
+        _pendingBuff.Clear();
+        _initialBuffState.Clear();
+        _pendingCombatBossActor = 0;
+        _pendingTimestamp = -1;
     }
 
     private void CloseDueBuffs(long timestamp)
@@ -324,6 +465,12 @@ public sealed class EncounterReducer
         foreach (OpenBuff open in _openBuffs.Values.OrderBy(x => x.Start).ThenBy(x => x.Owner).ThenBy(x => x.Target).ThenBy(x => x.Buff))
             CloseBuff(open, timestamp, BuffWindowEnd.EncounterEnd);
         _openBuffs.Clear();
+        foreach (OpenBuff open in _observedBuffs.OrderBy(x => x.Start).ThenBy(x => x.Owner).ThenBy(x => x.Target).ThenBy(x => x.Buff))
+        {
+            long end = Math.Min(timestamp, open.Expiry);
+            CloseBuff(open, end, end < timestamp ? BuffWindowEnd.Expired : BuffWindowEnd.EncounterEnd);
+        }
+        _observedBuffs.Clear();
         DataProvenance provenance = Provenance();
         _final = new(RecordId(), Identity(), _startMs, timestamp, provenance.IsComplete, reason,
             Participants(), Entities(), [.. _events], [.. _buffWindows], BuffUptimes(), provenance);
@@ -377,12 +524,23 @@ public sealed class EncounterReducer
             Report(IncompleteReasonCode.CapacityExceeded, EncounterDiagnosticCode.CapacityExceeded, "buff window capacity exceeded");
             return;
         }
-        var key = (open.Owner, open.Target, open.Buff);
-        if (!_uptimes.TryGetValue(key, out UptimeState? uptime)) _uptimes.Add(key, uptime = new());
-        SaturatingAdd(ref uptime.Duration, (ulong)(safeEnd - open.Start));
-        if (uptime.Windows != uint.MaxValue) uptime.Windows++; else Report(IncompleteReasonCode.ArithmeticOverflow, EncounterDiagnosticCode.ArithmeticOverflow, "buff window count overflow");
+        Buff? buff = PinnedGameData.Buffs.GetValueOrDefault(open.Buff);
+        bool targetUptime = buff?.UseTargetUptime == true;
+        if (!(targetUptime && open.Owner == open.Target && open.Start == _startMs))
+            AddUptime(targetUptime ? open.Target : open.Owner, open.Buff, open.Start, safeEnd);
+        if (buff?.IncludeOwner == true && open.Owner != open.Target)
+            AddUptime(open.Owner, open.Buff, open.Start, safeEnd);
         _buffWindows.Add(new(open.Owner, open.Target, open.Buff,
             PinnedGameData.Buffs.GetValueOrDefault(open.Buff)?.Name ?? "", open.Start, open.Refresh, safeEnd, end));
+    }
+
+    private void AddUptime(uint owner, uint buff, long start, long end)
+    {
+        var key = (owner, buff);
+        if (!_uptimes.TryGetValue(key, out UptimeState? uptime)) _uptimes.Add(key, uptime = new());
+        uptime.Intervals.Add((start, end));
+        if (uptime.Windows != uint.MaxValue) uptime.Windows++;
+        else Report(IncompleteReasonCode.ArithmeticOverflow, EncounterDiagnosticCode.ArithmeticOverflow, "buff window count overflow");
     }
 
     private void TryOpenBuff((uint OwnerId, uint TargetId, uint BuffId) key, BuffEvent buff, long timestamp, long expiry)
@@ -433,9 +591,29 @@ public sealed class EncounterReducer
         .Where(p => p.Damage != 0 || p.Multi != 0 || p.Dot != 0 || p.Healing != 0)
         .OrderBy(p => p.Id).Select(p => new ParticipantRecord(p.Id, p.Name, p.JobId, p.IsSelf, p.Damage, p.Multi, p.Dot, p.Healing))];
     private ImmutableArray<EntityRecord> Entities() => [.. _entities.Values.OrderBy(e => e.ActorId)];
-    private ImmutableArray<BuffUptimeRecord> BuffUptimes() => [.. _uptimes.OrderBy(x => x.Key.Owner).ThenBy(x => x.Key.Target).ThenBy(x => x.Key.Buff)
-        .Select(x => new BuffUptimeRecord(x.Key.Owner, x.Key.Target, x.Key.Buff,
-            PinnedGameData.Buffs.GetValueOrDefault(x.Key.Buff)?.Name ?? "", x.Value.Duration, x.Value.Windows))];
+    private ImmutableArray<BuffUptimeRecord> BuffUptimes() => [.. _uptimes
+        .Where(x => _participants.TryGetValue(x.Key.Owner, out ParticipantState? participant) &&
+            (participant.Damage != 0 || participant.Multi != 0 || participant.Dot != 0 || participant.Healing != 0) &&
+            PinnedGameData.Buffs.GetValueOrDefault(x.Key.Buff)?.TrackUptime == true)
+        .OrderBy(x => x.Key.Owner).ThenBy(x => x.Key.Buff)
+        .Select(x => new BuffUptimeRecord(x.Key.Owner, x.Key.Owner, x.Key.Buff,
+            PinnedGameData.Buffs.GetValueOrDefault(x.Key.Buff)?.Name ?? "", UnionDuration(x.Value.Intervals), x.Value.Windows))];
+
+    private static ulong UnionDuration(List<(long Start, long End)> intervals)
+    {
+        if (intervals.Count == 0) return 0;
+        var ordered = intervals.OrderBy(x => x.Start).ThenBy(x => x.End).ToArray();
+        long start = ordered[0].Start;
+        long end = ordered[0].End;
+        ulong total = 0;
+        foreach (var interval in ordered.Skip(1))
+        {
+            if (interval.Start <= end) { end = Math.Max(end, interval.End); continue; }
+            total += (ulong)(end - start);
+            start = interval.Start; end = interval.End;
+        }
+        return total + (ulong)(end - start);
+    }
     private DataProvenance Provenance()
     {
         var reasons = _reasons.OrderBy(x => x.Key.Code).ThenBy(x => x.Key.Message, StringComparer.Ordinal)

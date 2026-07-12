@@ -88,7 +88,7 @@ static_assert(offsetof(nm_diagnostic_v1, interface_identity) == 112);
 static_assert(offsetof(nm_diagnostic_v1, interface_identity_size) == 120);
 static_assert(offsetof(nm_diagnostic_v1, help_url) == 128);
 static_assert(offsetof(nm_diagnostic_v1, help_url_size) == 136);
-static_assert(sizeof(nm_diagnostics_v1) == 96);
+static_assert(sizeof(nm_diagnostics_v1) == 120);
 static_assert(offsetof(nm_diagnostics_v1, abi_version) == 0);
 static_assert(offsetof(nm_diagnostics_v1, struct_size) == 4);
 static_assert(offsetof(nm_diagnostics_v1, start_count) == 8);
@@ -101,7 +101,10 @@ static_assert(offsetof(nm_diagnostics_v1, backend_received) == 56);
 static_assert(offsetof(nm_diagnostics_v1, backend_dropped) == 64);
 static_assert(offsetof(nm_diagnostics_v1, backend_interface_dropped) == 72);
 static_assert(offsetof(nm_diagnostics_v1, queue_high_water) == 80);
-static_assert(offsetof(nm_diagnostics_v1, incomplete) == 88);
+static_assert(offsetof(nm_diagnostics_v1, tcp_overlaps) == 88);
+static_assert(offsetof(nm_diagnostics_v1, tcp_duplicate_bytes_removed) == 96);
+static_assert(offsetof(nm_diagnostics_v1, tcp_unresolved_byte_gaps) == 104);
+static_assert(offsetof(nm_diagnostics_v1, incomplete) == 112);
 
 void NM_CALL ignore_event(void *, const nm_event_v1 *) {}
 void NM_CALL ignore_diagnostic(void *, const nm_diagnostic_v1 *) {}

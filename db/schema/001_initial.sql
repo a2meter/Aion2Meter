@@ -26,6 +26,7 @@ CREATE TABLE message_layouts (
     profile_id INTEGER NOT NULL REFERENCES protocol_profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     max_payload_bytes INTEGER NOT NULL CHECK (max_payload_bytes BETWEEN 1 AND 16777216),
+    parser_strategy INTEGER NOT NULL DEFAULT 0 CHECK (parser_strategy BETWEEN 0 AND 1),
     UNIQUE (profile_id, name),
     UNIQUE (profile_id, id)
 );
@@ -60,7 +61,10 @@ CREATE TABLE opcodes (
 CREATE TABLE bosses (
     id INTEGER PRIMARY KEY,
     code INTEGER NOT NULL UNIQUE CHECK (code > 0),
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    max_hp INTEGER NOT NULL DEFAULT 0 CHECK (max_hp >= 0),
+    content_code INTEGER NOT NULL DEFAULT 0 CHECK (content_code >= 0),
+    dungeon_code INTEGER NOT NULL DEFAULT 0 CHECK (dungeon_code >= 0)
 );
 
 CREATE TABLE dungeons (
@@ -93,7 +97,15 @@ CREATE TABLE skills (
 CREATE TABLE buffs (
     id INTEGER PRIMARY KEY,
     code INTEGER NOT NULL UNIQUE CHECK (code > 0),
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    track_uptime INTEGER NOT NULL DEFAULT 1 CHECK (track_uptime IN (0, 1)),
+    use_target_uptime INTEGER NOT NULL DEFAULT 0 CHECK (use_target_uptime IN (0, 1)),
+    include_owner INTEGER NOT NULL DEFAULT 0 CHECK (include_owner IN (0, 1))
+);
+
+CREATE TABLE job_aliases (
+    raw_code INTEGER PRIMARY KEY CHECK (raw_code BETWEEN 1 AND 65535),
+    canonical_code INTEGER NOT NULL CHECK (canonical_code BETWEEN 1 AND 65535)
 );
 
 CREATE UNIQUE INDEX idx_protocol_profiles_active ON protocol_profiles(is_active) WHERE is_active = 1;

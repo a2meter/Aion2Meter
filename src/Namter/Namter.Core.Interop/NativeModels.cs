@@ -146,6 +146,9 @@ public sealed record NativeDiagnostics(
     ulong BackendDropped,
     ulong BackendInterfaceDropped,
     ulong QueueHighWater,
+    ulong TcpOverlaps,
+    ulong TcpDuplicateBytesRemoved,
+    ulong TcpUnresolvedByteGaps,
     bool Incomplete,
     ImmutableArray<NativeDiagnostic> ManagedDiagnostics,
     ulong SuppressedManagedDiagnosticCount = 0);
@@ -286,5 +289,8 @@ internal struct NativeDiagnosticsV1
     internal ulong BackendDropped;
     internal ulong BackendInterfaceDropped;
     internal ulong QueueHighWater;
+    internal ulong TcpOverlaps;
+    internal ulong TcpDuplicateBytesRemoved;
+    internal ulong TcpUnresolvedByteGaps;
     internal byte Incomplete;
 }

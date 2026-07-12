@@ -198,6 +198,41 @@ public sealed class ProtocolSnapshotCompilerTests
     }
 
     [Fact]
+    public void CompileCarriesOnlySupportedDatabaseSelectedParserStrategies()
+    {
+        GameDataSnapshot snapshot = CreateSnapshot(reverseInsertionOrder: false);
+        ProtocolMessageLayout selected = snapshot.MessageLayouts[1] with { ParserStrategy = 1 };
+        snapshot = snapshot with
+        {
+            MessageLayouts = snapshot.MessageLayouts.ToDictionary().ToFrozenDictionary(
+                pair => pair.Key, pair => pair.Key == 1 ? selected : pair.Value),
+        };
+
+        byte[] bytes = ProtocolSnapshotCompiler.Compile(snapshot);
+        var reader = new SnapshotReader(bytes);
+        reader.Skip(ProtocolSnapshotCompiler.HeaderSize);
+        reader.Skip(reader.ReadUInt16());
+        reader.Skip(reader.ReadUInt16() * 2);
+        int opcodeCount = checked((int)reader.ReadUInt32());
+        for (int index = 0; index < opcodeCount; index++)
+        {
+            reader.Skip(2);
+            reader.Skip(reader.ReadUInt16());
+            reader.Skip(4);
+        }
+        reader.Skip(4 + 4 + 4);
+        reader.Skip(2);
+        Assert.Equal(1, reader.ReadUInt16());
+
+        snapshot = snapshot with
+        {
+            MessageLayouts = snapshot.MessageLayouts.ToDictionary().ToFrozenDictionary(
+                pair => pair.Key, pair => pair.Key == 1 ? pair.Value with { ParserStrategy = 2 } : pair.Value),
+        };
+        Assert.Throws<InvalidDataException>(() => ProtocolSnapshotCompiler.Compile(snapshot));
+    }
+
+    [Fact]
     public void CompileUsesNumericOrderingForPortsOpcodesLayoutsAndFields()
     {
         byte[] bytes = ProtocolSnapshotCompiler.Compile(CreateSnapshot(reverseInsertionOrder: true));
@@ -284,7 +319,8 @@ public sealed class ProtocolSnapshotCompilerTests
             FrozenDictionary<uint, Boss>.Empty,
             FrozenDictionary<uint, Dungeon>.Empty,
             FrozenDictionary<uint, Skill>.Empty,
-            FrozenDictionary<uint, Buff>.Empty);
+            FrozenDictionary<uint, Buff>.Empty,
+            FrozenDictionary<ushort, ushort>.Empty);
     }
 
     private static ImmutableArray<ProtocolFieldDescriptor> DamageFields() =>
@@ -325,7 +361,8 @@ public sealed class ProtocolSnapshotCompilerTests
             new Dictionary<ushort, ProtocolOpcode> { [opcodeKind] = opcode }.ToFrozenDictionary(),
             new Dictionary<uint, ProtocolMessageLayout> { [1] = layout }.ToFrozenDictionary(),
             FrozenDictionary<uint, Boss>.Empty, FrozenDictionary<uint, Dungeon>.Empty,
-            FrozenDictionary<uint, Skill>.Empty, FrozenDictionary<uint, Buff>.Empty);
+            FrozenDictionary<uint, Skill>.Empty, FrozenDictionary<uint, Buff>.Empty,
+            FrozenDictionary<ushort, ushort>.Empty);
     }
 
     private ref struct SnapshotReader(ReadOnlySpan<byte> bytes)

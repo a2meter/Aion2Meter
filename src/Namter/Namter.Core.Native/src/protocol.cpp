@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -19,6 +20,7 @@ namespace {
 
 constexpr uint32_t abi_version = 1;
 constexpr size_t diagnostic_byte_limit = 256;
+constexpr uint32_t production_profile_floor = 20260710u;
 constexpr size_t unknown_payload_limit = 512;
 constexpr size_t deduplication_limit = 65'536;
 
@@ -128,6 +130,7 @@ struct FieldDescriptor {
 struct Layout {
     uint32_t id = 0;
     uint32_t max_payload_bytes = 0;
+    uint16_t parser_strategy = 0;
     std::vector<FieldDescriptor> fields;
 };
 
@@ -312,6 +315,275 @@ bool parse_damage(DecodedEvent& event, const FieldReader& fields) {
            fields.read_u8(is_dot, record.is_dot);
 }
 
+bool parse_current_damage(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint32_t flags = 0;
+    uint32_t ignored = 0;
+    uint8_t skill_discriminator = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.target_id) || !reader.read_var_u32(flags) ||
+        !reader.read_var_u32(ignored) || !reader.read_var_u32(record.actor_id) ||
+        !reader.read_le32(record.skill_id) || !reader.read_u8(skill_discriminator) ||
+        !reader.read_var_u32(ignored)) {
+        return false;
+    }
+    (void)skill_discriminator;
+    record.damage_type = static_cast<uint8_t>(ignored);
+    const uint32_t category = flags & 0x0fu;
+    uint8_t raw_flags = 0;
+    uint8_t modifier = 0;
+    if (category == 4u) {
+        if (!reader.skip(8u)) return false;
+    } else if (category == 6u) {
+        uint8_t zero = 0;
+        if (!reader.read_u8(raw_flags) || !reader.read_u8(zero) || zero != 0u ||
+            !reader.read_u8(modifier) || !reader.skip(8u)) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    if (!reader.read_var_u32(ignored)) return false;
+    uint32_t damage = 0;
+    if (!reader.read_var_u32(damage)) return false;
+    record.damage = damage;
+
+    const auto try_multi = [damage](SpanReader candidate, bool consume_marker,
+                                    SpanReader& accepted, uint64_t& total) {
+        uint32_t marker = 0;
+        uint32_t count = 0;
+        total = 0;
+        if ((consume_marker && (!candidate.read_var_u32(marker) || marker != 1u)) ||
+            !candidate.read_var_u32(count) || count == 0u || count >= 100u) return false;
+        for (uint32_t index = 0; index < count; ++index) {
+            uint32_t hit = 0;
+            if (!candidate.read_var_u32(hit) || hit == 0u ||
+                total > std::numeric_limits<uint64_t>::max() - hit) return false;
+            total += hit;
+        }
+        if (total == 0u || (damage != 0u && total * 200u < damage)) return false;
+        accepted = candidate;
+        return true;
+    };
+    SpanReader accepted = reader;
+    uint64_t multi = 0;
+    bool valid_multi = try_multi(reader, false, accepted, multi);
+    if (!valid_multi && category == 4u) valid_multi = try_multi(reader, true, accepted, multi);
+    if (valid_multi) {
+        record.multi_damage = multi;
+        reader = accepted;
+    } else if (category == 4u && reader.remaining() > 2u) {
+        auto prefix_reader = reader;
+        uint32_t prefix = 0;
+        if (prefix_reader.read_var_u32(prefix) && prefix == 1u) reader = prefix_reader;
+    }
+
+    if (reader.remaining() < 2u || !reader.skip(2u)) return false;
+    if (reader.remaining() != 0u) {
+        uint32_t healing = 0;
+        if (!reader.read_var_u32(healing)) return false;
+        record.healing = healing;
+    }
+    if (reader.remaining() != 0u) return false;
+
+    record.kind = NM_EVENT_DAMAGE;
+    record.is_dot = 0u;
+    record.special_mask = category == 6u ? static_cast<uint32_t>(raw_flags & 0x7fu) : 0u;
+    if (category == 6u && (raw_flags & 0x80u) != 0u) record.special_mask |= 0x20u;
+    if (category == 6u && modifier == 1u) record.special_mask |= 0x01u;
+    if (record.damage_type == 3u) record.special_mask |= 0x40u;
+    return true;
+}
+
+bool parse_current_dot(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint32_t flags = 0;
+    uint32_t primary_amount = 0;
+    uint32_t raw_skill = 0;
+    uint32_t damage = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.target_id) || !reader.read_var_u32(flags) ||
+        !reader.read_var_u32(record.actor_id) || !reader.read_var_u32(primary_amount) ||
+        !reader.read_le32(raw_skill) || (flags & 0x02u) == 0u ||
+        !reader.read_var_u32(damage) || record.target_id == 0u || record.actor_id == 0u ||
+        raw_skill < 100u || damage == 0u || reader.remaining() > 64u) {
+        return false;
+    }
+    (void)primary_amount;
+    record.kind = NM_EVENT_DOT;
+    record.skill_id = raw_skill / 100u;
+    record.damage = damage;
+    record.is_dot = 1u;
+    return record.skill_id != 0u;
+}
+
+bool parse_current_buff(DecodedEvent& event, std::span<const uint8_t> payload, bool applied) {
+    SpanReader reader(payload);
+    uint8_t ignored = 0;
+    uint8_t slot = 0;
+    uint32_t sequence = 0;
+    uint32_t reserved = 0;
+    uint64_t expiry = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.target_id) || record.target_id == 0u ||
+        (applied && !reader.read_u8(ignored)) || !reader.read_u8(slot) ||
+        !reader.read_var_u32(sequence) || !reader.read_le32(record.buff_id) ||
+        !reader.read_le32(record.duration_ms) || !reader.read_le32(reserved) ||
+        (reserved != 0u && !(reserved == std::numeric_limits<uint32_t>::max() &&
+                            record.duration_ms == std::numeric_limits<uint32_t>::max())) ||
+        !reader.read_le64(expiry) || !reader.read_var_u32(record.owner_id) ||
+        record.owner_id == 0u || record.buff_id == 0u || record.duration_ms == 0u ||
+        reader.remaining() > 64u) return false;
+    (void)ignored; (void)slot; (void)sequence; (void)expiry;
+    record.kind = NM_EVENT_BUFF;
+    record.buff_operation = static_cast<uint8_t>(applied ? NM_BUFF_OPERATION_APPLY : NM_BUFF_OPERATION_REFRESH);
+    return true;
+}
+
+bool parse_current_boss_hp(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint8_t marker0 = 0;
+    uint8_t marker1 = 0;
+    uint8_t marker2 = 0;
+    uint32_t current_hp = 0;
+    uint32_t reserved = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.actor_id) || !reader.read_u8(marker0) ||
+        !reader.read_u8(marker1) || !reader.read_u8(marker2) || marker0 != 2u ||
+        marker1 != 1u || marker2 != 0u || !reader.read_le32(current_hp) ||
+        !reader.read_le32(reserved) || reserved != 0u || reader.remaining() != 0u) {
+        return false;
+    }
+    record.kind = NM_EVENT_BOSS_HP;
+    record.current_hp = current_hp;
+    return true;
+}
+
+bool parse_current_mob(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint8_t code0 = 0;
+    uint8_t code1 = 0;
+    uint8_t code2 = 0;
+    uint8_t marker0 = 0;
+    uint8_t marker1 = 0;
+    uint8_t marker2 = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.actor_id)) return false;
+    auto named_reader = reader;
+    uint8_t header0 = 0;
+    uint8_t header1 = 0;
+    uint8_t header2 = 0;
+    uint32_t name_size = 0;
+    std::string owner_name;
+    if (named_reader.read_u8(header0) && named_reader.read_u8(header1) && named_reader.read_u8(header2) &&
+        header1 == 0u && header2 == 1u && named_reader.read_var_u32(name_size) &&
+        name_size > 0u && name_size <= 72u && named_reader.read_utf8(name_size, owner_name) &&
+        named_reader.skip(4u) && named_reader.read_u8(record.state)) {
+        (void)header0;
+        event.mutable_name() = std::move(owner_name);
+        record.kind = NM_EVENT_MOB_SPAWN;
+        return true;
+    }
+    if (!reader.skip(3u) || !reader.read_u8(code0) || !reader.read_u8(code1) ||
+        !reader.read_u8(code2) || !reader.read_u8(marker0) || !reader.read_u8(marker1) ||
+        !reader.read_u8(marker2) || marker0 != 0u || marker1 != 0u || marker2 != 2u) return false;
+    record.mob_id = static_cast<uint32_t>(code0) |
+                    (static_cast<uint32_t>(code1) << 8u) |
+                    (static_cast<uint32_t>(code2) << 16u);
+    if (record.mob_id == 0u) return false;
+    record.boss_id = record.mob_id;
+    record.is_boss = 1u;
+    record.kind = NM_EVENT_MOB_SPAWN;
+    return true;
+}
+
+bool parse_current_actor(DecodedEvent& event, std::span<const uint8_t> payload, bool is_self) {
+    SpanReader root(payload);
+    auto& record = event.mutable_record();
+    if (!root.read_var_u32(record.actor_id) || record.actor_id == 0u) return false;
+    if (is_self) {
+        uint32_t name_size = 0;
+        uint32_t server = 0;
+        uint32_t raw_job = 0;
+        std::string name;
+        if (root.skip(5u) && root.read_var_u32(name_size) && name_size > 0u && name_size <= 72u &&
+            root.read_utf8(name_size, name) && root.read_var_u32(server) &&
+            root.read_le32(raw_job) && raw_job > 0u && raw_job <= std::numeric_limits<uint16_t>::max()) {
+            event.mutable_name() = std::move(name);
+            record.server_id = server <= std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(server) : 0u;
+            record.job_id = static_cast<uint16_t>(raw_job);
+            record.is_self = 1u;
+            record.kind = NM_EVENT_SELF_ACTOR;
+            return true;
+        }
+        return false;
+    }
+    const size_t scan_limit = std::min<size_t>(payload.size(), 96u);
+    for (size_t offset = root.offset(); offset + 2u < scan_limit; ++offset) {
+        if (payload[offset] != 0x07u) continue;
+        SpanReader candidate(payload.subspan(offset + 1u));
+        uint32_t name_size = 0;
+        std::string name;
+        uint32_t raw_job = 0;
+        if (!candidate.read_var_u32(name_size) || name_size == 0u || name_size > 72u ||
+            !candidate.read_utf8(name_size, name) || !candidate.read_le32(raw_job) ||
+            raw_job == 0u || raw_job > std::numeric_limits<uint16_t>::max()) {
+            continue;
+        }
+        event.mutable_name() = std::move(name);
+        record.job_id = static_cast<uint16_t>(raw_job);
+        record.is_self = is_self ? 1u : 0u;
+        record.kind = is_self ? NM_EVENT_SELF_ACTOR : NM_EVENT_OTHER_ACTOR;
+        return true;
+    }
+    return false;
+}
+
+bool parse_current_content(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint8_t reserved = 0;
+    uint8_t state = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_le32(record.content_id) || record.content_id == 0u ||
+        !reader.skip(8u) || !reader.read_u8(reserved) || !reader.read_u8(state) ||
+        state == 0u || reader.remaining() > 64u) {
+        return false;
+    }
+    (void)reserved;
+    record.kind = NM_EVENT_CONTENT;
+    record.dungeon_id = record.content_id;
+    record.state = state;
+    return true;
+}
+
+bool parse_current_combat_state(DecodedEvent& event, std::span<const uint8_t> payload) {
+    SpanReader reader(payload);
+    uint8_t marker = 0;
+    auto& record = event.mutable_record();
+    if (!reader.read_var_u32(record.actor_id) || record.actor_id == 0u ||
+        !reader.read_u8(marker) || marker != 2u || !reader.skip(3u) ||
+        reader.remaining() != 0u) return false;
+    record.kind = NM_EVENT_COMBAT_STATE;
+    record.state = 1u;
+    return true;
+}
+
+bool parse_current_action(std::span<const uint8_t> payload, std::array<uint32_t, 3>& echo) {
+    SpanReader reader(payload);
+    uint8_t ignored = 0;
+    uint8_t action = 0;
+    uint8_t trailing = 0;
+    uint32_t actor = 0;
+    uint32_t skill = 0;
+    uint32_t target = 0;
+    if (!reader.read_var_u32(actor) || !reader.read_u8(ignored) || !reader.read_le32(skill) ||
+        !reader.read_u8(action) || !reader.read_u8(trailing) || !reader.read_var_u32(target) ||
+        actor == 0u || skill == 0u || target == 0u || reader.remaining() > 64u) return false;
+    (void)ignored; (void)trailing;
+    echo = {actor, target, action == 3u ? skill : 0u};
+    return true;
+}
+
 bool parse_dot(DecodedEvent& event, const FieldReader& fields) {
     if (!parse_damage(event, fields)) return false;
     event.mutable_record().kind = NM_EVENT_DOT;
@@ -392,6 +664,7 @@ bool parse_combat_state(DecodedEvent& event, const FieldReader& fields) {
 }
 
 struct ParserEntry { uint16_t protocol_kind; EventParser parser; };
+struct EchoAction { uint32_t actor; uint32_t target; uint32_t skill; uint64_t timestamp_ns; };
 
 constexpr std::array parser_table{
     ParserEntry{1, &parse_damage}, ParserEntry{2, &parse_dot},
@@ -408,15 +681,23 @@ constexpr std::array parser_table{
 }  // namespace
 
 struct ProtocolDecoder::Impl {
+    uint32_t profile_version = 0;
     std::vector<uint8_t> packet_magic;
     std::vector<OpcodeDescriptor> opcodes;
     std::vector<Layout> layouts;
     std::unordered_set<Identity, IdentityHash> seen;
     std::deque<Identity> seen_order;
+    std::unordered_map<uint32_t, uint32_t> mob_codes;
+    std::vector<EchoAction> echo_actions;
+    std::unordered_set<uint32_t> echo_clone_actors;
 
     explicit Impl(std::span<const uint8_t> snapshot) { parse_snapshot(snapshot); }
 
     void parse_snapshot(std::span<const uint8_t> snapshot) {
+        profile_version = static_cast<uint32_t>(snapshot[24]) |
+                          (static_cast<uint32_t>(snapshot[25]) << 8u) |
+                          (static_cast<uint32_t>(snapshot[26]) << 16u) |
+                          (static_cast<uint32_t>(snapshot[27]) << 24u);
         SpanReader reader(snapshot);
         if (!reader.skip(28u)) throw std::invalid_argument("invalid protocol snapshot");
         uint16_t magic_size = 0;
@@ -444,6 +725,7 @@ struct ProtocolDecoder::Impl {
             uint16_t field_count = 0; uint16_t reserved = 0;
             if (!reader.read_le32(layout.id) || !reader.read_le32(layout.max_payload_bytes) ||
                 !reader.read_le16(field_count) || !reader.read_le16(reserved)) throw std::invalid_argument("invalid protocol snapshot");
+            layout.parser_strategy = reserved;
             layout.fields.reserve(field_count);
             for (uint16_t field_index = 0; field_index < field_count; ++field_index) {
                 uint16_t kind = 0; uint16_t flags = 0; FieldDescriptor field;
@@ -473,6 +755,9 @@ struct ProtocolDecoder::Impl {
     void reset() noexcept {
         seen.clear();
         seen_order.clear();
+        mob_codes.clear();
+        echo_actions.clear();
+        echo_clone_actors.clear();
     }
 
     bool populate(DecodedEvent& event, uint16_t protocol_kind, const FieldReader& fields) const {
@@ -505,12 +790,71 @@ struct ProtocolDecoder::Impl {
         if (active_layout == nullptr) return {diagnostic(message, DecodeDiagnosticCode::invalid_layout)};
         const auto payload = body.subspan(opcode->tag.size());
         if (payload.size() > active_layout->max_payload_bytes) return {diagnostic(message, DecodeDiagnosticCode::payload_too_large)};
+        if (opcode->kind == 203u && active_layout->parser_strategy == 1u) {
+            std::array<uint32_t, 3> echo{};
+            if (!parse_current_action(payload, echo)) {
+                if (profile_version >= production_profile_floor) return {unknown_event(message)};
+                return {diagnostic(message, DecodeDiagnosticCode::invalid_layout)};
+            }
+            if (echo[2] != 0u && echo_clone_actors.contains(echo[0])) {
+                constexpr uint64_t echo_window_ns = 1'000'000'000u;
+                std::erase_if(echo_actions, [&](const EchoAction& action) {
+                    return message.first_timestamp_ns > action.timestamp_ns + echo_window_ns;
+                });
+                if (echo_actions.size() >= 4096u)
+                    return {diagnostic(message, DecodeDiagnosticCode::resource_limit)};
+                echo_actions.push_back({echo[0], echo[1], echo[2], message.first_timestamp_ns});
+            }
+            return {};
+        }
         DecodedEvent event(base_event(message, NM_EVENT_UNKNOWN_PROTOCOL));
+        const bool focused = active_layout->parser_strategy == 1u &&
+                            ((opcode->kind == 1u && parse_current_damage(event, payload)) ||
+                             (opcode->kind == 2u && parse_current_dot(event, payload)) ||
+                             (opcode->kind == 3u && parse_current_buff(event, payload, true)) ||
+                             (opcode->kind == 4u && parse_current_buff(event, payload, false)) ||
+                             (opcode->kind == 5u && parse_current_actor(event, payload, true)) ||
+                             ((opcode->kind == 6u || opcode->kind == 11u) && parse_current_actor(event, payload, false)) ||
+                             (opcode->kind == 7u && parse_current_mob(event, payload)) ||
+                             (opcode->kind == 8u && parse_current_boss_hp(event, payload)) ||
+                             ((opcode->kind == 103u || opcode->kind == 201u) && parse_current_content(event, payload)) ||
+                             (opcode->kind == 202u && parse_current_combat_state(event, payload)));
+        if (focused) {
+            auto& record = event.mutable_record();
+            if (opcode->kind == 1u) {
+                constexpr uint64_t echo_window_ns = 1'000'000'000u;
+                std::erase_if(echo_actions, [&](const EchoAction& action) {
+                    return message.first_timestamp_ns > action.timestamp_ns + echo_window_ns;
+                });
+                const auto found = std::find_if(echo_actions.begin(), echo_actions.end(), [&](const EchoAction& action) {
+                    return action.actor == record.actor_id && action.target == record.target_id &&
+                           action.skill == record.skill_id && message.first_timestamp_ns >= action.timestamp_ns;
+                });
+                if (found != echo_actions.end()) { echo_actions.erase(found); return {}; }
+            }
+            if (opcode->kind == 7u) {
+                const bool known_actor = mob_codes.contains(record.actor_id);
+                if (!known_actor && mob_codes.size() >= 4096u) {
+                    std::vector<ProtocolDecodeOutput> outputs;
+                    outputs.emplace_back(std::move(event));
+                    outputs.emplace_back(diagnostic(message, DecodeDiagnosticCode::resource_limit));
+                    return outputs;
+                }
+                mob_codes.insert_or_assign(record.actor_id, record.mob_id);
+                if (record.mob_id == 0u && record.state == 0u) echo_clone_actors.insert(record.actor_id);
+            } else if (opcode->kind == 8u) {
+                const auto found = mob_codes.find(record.actor_id);
+                if (found != mob_codes.end()) record.boss_id = found->second;
+            }
+            return {std::move(event)};
+        }
         if (!populate(event, opcode->kind, FieldReader(payload, *active_layout))) {
+            if (profile_version >= production_profile_floor) return {unknown_event(message)};
             return {diagnostic(message, DecodeDiagnosticCode::invalid_layout)};
         }
         if (opcode->kind == 3u) event.mutable_record().buff_operation = NM_BUFF_OPERATION_APPLY;
         else if (opcode->kind == 4u) event.mutable_record().buff_operation = NM_BUFF_OPERATION_REMOVE;
+        else if (opcode->kind == 10u) echo_clone_actors.erase(event.view().actor_id);
         return {std::move(event)};
     }
 };

@@ -794,7 +794,7 @@ public sealed class GameDataUpdaterTests
 
         public GameDataManifest CreateManifestFromArchive(byte[] archive, long uncompressedSize, ulong version)
             => Sign(new GameDataManifest(
-                version, 1, 1, new Version(1, 0), new Uri($"https://updates.example/{version}/aion.db.br"),
+                version, 1, 20260710, new Version(1, 0), new Uri($"https://updates.example/{version}/aion.db.br"),
                 archive.LongLength, uncompressedSize, Convert.ToHexString(SHA256.HashData(archive)).ToLowerInvariant(),
                 "br", DateTimeOffset.Parse("2026-07-11T00:00:00Z"), string.Empty));
 

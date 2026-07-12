@@ -49,8 +49,8 @@ public sealed class GameDataRepository
             connection, transaction, activeProfileId, counts.Opcodes, cancellationToken).ConfigureAwait(false);
         FrozenDictionary<uint, ProtocolMessageLayout> layouts = await ReadLayoutsAsync(
             connection, transaction, activeProfileId, counts.Layouts, counts.LayoutFields, cancellationToken).ConfigureAwait(false);
-        FrozenDictionary<uint, Boss> bosses = await ReadNamedCodeMapAsync(
-            connection, transaction, "bosses", counts.Bosses, static (code, name) => new Boss(code, name), cancellationToken)
+        FrozenDictionary<uint, Boss> bosses = await ReadBossesAsync(
+            connection, transaction, counts.Bosses, cancellationToken)
             .ConfigureAwait(false);
         FrozenDictionary<uint, Dungeon> dungeons = await ReadNamedCodeMapAsync(
             connection, transaction, "dungeons", counts.Dungeons, static (code, name) => new Dungeon(code, name), cancellationToken)
@@ -58,8 +58,10 @@ public sealed class GameDataRepository
         FrozenDictionary<uint, Skill> skills = await ReadNamedCodeMapAsync(
             connection, transaction, "skills", counts.Skills, static (code, name) => new Skill(code, name), cancellationToken)
             .ConfigureAwait(false);
-        FrozenDictionary<uint, Buff> buffs = await ReadNamedCodeMapAsync(
-            connection, transaction, "buffs", counts.Buffs, static (code, name) => new Buff(code, name), cancellationToken)
+        FrozenDictionary<uint, Buff> buffs = await ReadBuffsAsync(
+            connection, transaction, counts.Buffs, cancellationToken)
+            .ConfigureAwait(false);
+        FrozenDictionary<ushort, ushort> jobAliases = await ReadJobAliasesAsync(connection, transaction, cancellationToken)
             .ConfigureAwait(false);
 
         var snapshot = new GameDataSnapshot(
@@ -74,7 +76,8 @@ public sealed class GameDataRepository
             bosses,
             dungeons,
             skills,
-            buffs);
+            buffs,
+            jobAliases);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return snapshot;
     }
@@ -272,7 +275,7 @@ public sealed class GameDataRepository
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(connection, transaction, """
-            SELECT id, name, max_payload_bytes
+            SELECT id, name, max_payload_bytes, parser_strategy
             FROM message_layouts
             WHERE profile_id = $profile
             ORDER BY id
@@ -281,21 +284,21 @@ public sealed class GameDataRepository
         command.Parameters.AddWithValue("$profile", profileId);
         command.Parameters.AddWithValue("$limit", checked(expectedLayoutCount + 1));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var layouts = new List<(uint Id, string Name, uint MaxPayloadBytes)>(expectedLayoutCount);
+        var layouts = new List<(uint Id, string Name, uint MaxPayloadBytes, ushort ParserStrategy)>(expectedLayoutCount);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            layouts.Add((checked((uint)reader.GetInt64(0)), reader.GetString(1), checked((uint)reader.GetInt64(2))));
+            layouts.Add((checked((uint)reader.GetInt64(0)), reader.GetString(1), checked((uint)reader.GetInt64(2)), checked((ushort)reader.GetInt64(3))));
         }
         EnsureExpectedCount("message layout", layouts.Count, expectedLayoutCount);
 
         var result = new Dictionary<uint, ProtocolMessageLayout>(expectedLayoutCount);
         int remainingFieldCount = expectedFieldCount;
-        foreach ((uint id, string name, uint maxPayloadBytes) in layouts)
+        foreach ((uint id, string name, uint maxPayloadBytes, ushort parserStrategy) in layouts)
         {
             ImmutableArray<ProtocolFieldDescriptor> fields = await ReadFieldsAsync(
                 connection, transaction, id, remainingFieldCount, cancellationToken).ConfigureAwait(false);
             remainingFieldCount = checked(remainingFieldCount - fields.Length);
-            result.Add(id, new ProtocolMessageLayout(id, name, maxPayloadBytes, fields));
+            result.Add(id, new ProtocolMessageLayout(id, name, maxPayloadBytes, fields, parserStrategy));
         }
         EnsureExpectedCount("message-layout field", remainingFieldCount, 0);
         return result.ToFrozenDictionary();
@@ -351,6 +354,63 @@ public sealed class GameDataRepository
             values.Add(code, factory(code, reader.GetString(1)));
         }
         EnsureExpectedCount(table, values.Count, expectedCount);
+        return values.ToFrozenDictionary();
+    }
+
+    private static async Task<FrozenDictionary<uint, Boss>> ReadBossesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        int expectedCount,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, transaction,
+            "SELECT code, name, max_hp, content_code, dungeon_code FROM bosses ORDER BY code LIMIT $limit;");
+        command.Parameters.AddWithValue("$limit", checked(expectedCount + 1));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var values = new Dictionary<uint, Boss>(expectedCount);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            uint code = checked((uint)reader.GetInt64(0));
+            values.Add(code, new Boss(code, reader.GetString(1), checked((ulong)reader.GetInt64(2)),
+                checked((uint)reader.GetInt64(3)), checked((uint)reader.GetInt64(4))));
+        }
+        EnsureExpectedCount("bosses", values.Count, expectedCount);
+        return values.ToFrozenDictionary();
+    }
+
+    private static async Task<FrozenDictionary<uint, Buff>> ReadBuffsAsync(
+        SqliteConnection connection, SqliteTransaction transaction, int expectedCount,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, transaction,
+            "SELECT code, name, track_uptime, use_target_uptime, include_owner FROM buffs ORDER BY code LIMIT $limit;");
+        command.Parameters.AddWithValue("$limit", checked(expectedCount + 1));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var values = new Dictionary<uint, Buff>(expectedCount);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            uint code = checked((uint)reader.GetInt64(0));
+            values.Add(code, new(code, reader.GetString(1), reader.GetInt64(2) != 0,
+                reader.GetInt64(3) != 0, reader.GetInt64(4) != 0));
+        }
+        EnsureExpectedCount("buffs", values.Count, expectedCount);
+        return values.ToFrozenDictionary();
+    }
+
+    private static async Task<FrozenDictionary<ushort, ushort>> ReadJobAliasesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(connection, transaction,
+            "SELECT raw_code, canonical_code FROM job_aliases ORDER BY raw_code LIMIT 65;");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var values = new Dictionary<ushort, ushort>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (values.Count >= 64) throw new InvalidDataException("The job-alias cache exceeds 64 entries.");
+            values.Add(checked((ushort)reader.GetInt64(0)), checked((ushort)reader.GetInt64(1)));
+        }
         return values.ToFrozenDictionary();
     }
 

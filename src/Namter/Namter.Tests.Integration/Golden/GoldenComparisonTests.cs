@@ -45,6 +45,56 @@ public sealed class GoldenComparisonTests
     }
 
     [Fact]
+    public void Comparator_treats_multi_damage_as_separate_from_golden_total_damage()
+    {
+        string root = CreateFixture();
+        string actual = Path.Combine(root, "actual-total.json");
+        try
+        {
+            File.WriteAllText(actual, """
+              {"startTimestampMs":1000,"endTimestampMs":2000,"encounter":{"contentId":600153,"dungeonId":600153,"bossActorId":18804,"bossCode":2301721,"name":"Tiny","maxHp":100},"participants":[{"actorId":886,"name":"A","jobId":13,"damage":10,"multiDamage":999,"dotDamage":20,"healing":0}],"events":[{"timestampMs":1000,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":10,"damage":10,"multiDamage":999,"healing":0,"specialMask":1,"damageType":0,"category":"Damage"},{"timestampMs":1001,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":11,"damage":20,"multiDamage":0,"healing":0,"specialMask":0,"damageType":0,"category":"Dot"}],"buffWindows":[],"buffUptimes":[],"provenance":{"captureId":"tiny"}}
+              """);
+            ComparisonReport report = GoldenComparator.Compare(actual, ReadableFixtureLoader.Load(root));
+            Assert.DoesNotContain(report.Discrepancies, value => value.Field == "totalBossDamage");
+            Assert.DoesNotContain(report.Discrepancies, value => value.Field == "participant[886].damage");
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Comparator_projects_boss_damage_and_applies_evidence_bounded_time_tolerances()
+    {
+        string root = CreateFixture();
+        string actual = Path.Combine(root, "actual-tolerance.json");
+        try
+        {
+            File.WriteAllText(actual, """
+              {"startTimestampMs":1000,"endTimestampMs":2000,"encounter":{"contentId":600153,"dungeonId":7,"bossActorId":18804,"bossCode":2301721,"name":"Tiny","maxHp":100},"participants":[{"actorId":886,"name":"A","jobId":13,"damage":10,"multiDamage":999,"dotDamage":20,"healing":0}],"events":[{"timestampMs":1010,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":10,"damage":10,"multiDamage":0,"healing":0,"specialMask":1,"damageType":0,"category":"Damage"},{"timestampMs":1001,"sourceActorId":886,"attributedActorId":886,"targetActorId":18804,"isBossTarget":true,"skillId":11,"damage":20,"multiDamage":0,"healing":0,"specialMask":0,"damageType":0,"category":"Dot"},{"timestampMs":1012,"sourceActorId":18804,"attributedActorId":18804,"targetActorId":886,"isBossTarget":false,"skillId":99,"damage":999,"multiDamage":0,"healing":0,"specialMask":0,"damageType":0,"category":"Damage"}],"buffWindows":[],"buffUptimes":[],"provenance":{"captureId":"tiny"}}
+              """);
+            ComparisonReport report = GoldenComparator.Compare(actual, ReadableFixtureLoader.Load(root));
+            Assert.True(report.IsMatch);
+            Assert.Contains(report.Tolerances, value => value.Contains("10 ms", StringComparison.Ordinal));
+            Assert.Contains(report.Tolerances, value => value.Contains("25 ms", StringComparison.Ordinal));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Comparator_rejects_actual_record_above_the_bounded_read_limit()
+    {
+        string root = CreateFixture();
+        string actual = Path.Combine(root, "oversized.json");
+        try
+        {
+            using (FileStream stream = File.Create(actual))
+                stream.SetLength(GoldenComparator.MaxActualRecordBytes + 1L);
+            Assert.Throws<InvalidDataException>(() =>
+                GoldenComparator.Compare(actual, ReadableFixtureLoader.Load(root)));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task Malformed_actual_json_is_invalid_data_exit_not_internal_error()
     {
         string root=CreateFixture();try{string actual=Path.Combine(root,"bad.json"),report=Path.Combine(root,"report.json");await File.WriteAllTextAsync(actual,"{\"encounter\":42}");int exit=await Namter.Cli.CliApplication.RunAsync(["compare","--actual",actual,"--expected",root,"--report",report],TextWriter.Null,TextWriter.Null);Assert.Equal((int)Namter.Cli.CliExitCode.InvalidData,exit);Assert.False(File.Exists(report));}finally{Directory.Delete(root,true);}

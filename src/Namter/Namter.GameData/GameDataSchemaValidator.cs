@@ -11,15 +11,16 @@ internal static class GameDataSchemaValidator
             ["metadata"] = [C("singleton_id", "INTEGER", false, 1), C("data_version", "INTEGER"), C("schema_version", "INTEGER")],
             ["protocol_profiles"] = [C("id", "INTEGER", false, 1), C("name", "TEXT"), C("version", "INTEGER"), C("packet_magic", "BLOB"), C("party_marker", "INTEGER"), C("is_active", "INTEGER")],
             ["protocol_profile_ports"] = [C("profile_id", "INTEGER", true, 1), C("port", "INTEGER", true, 2)],
-            ["message_layouts"] = [C("id", "INTEGER", false, 1), C("profile_id", "INTEGER"), C("name", "TEXT"), C("max_payload_bytes", "INTEGER")],
+            ["message_layouts"] = [C("id", "INTEGER", false, 1), C("profile_id", "INTEGER"), C("name", "TEXT"), C("max_payload_bytes", "INTEGER"), C("parser_strategy", "INTEGER")],
             ["message_fields"] = [C("id", "INTEGER", false, 1), C("layout_id", "INTEGER"), C("field_order", "INTEGER"), C("kind", "INTEGER"), C("flags", "INTEGER"), C("byte_offset", "INTEGER"), C("byte_size", "INTEGER"), C("max_count", "INTEGER")],
             ["opcodes"] = [C("id", "INTEGER", false, 1), C("profile_id", "INTEGER"), C("family", "INTEGER"), C("kind", "INTEGER"), C("name", "TEXT"), C("tag", "BLOB"), C("layout_id", "INTEGER", false)],
-            ["bosses"] = NamedCodeColumns(),
+            ["bosses"] = [C("id", "INTEGER", false, 1), C("code", "INTEGER"), C("name", "TEXT"), C("max_hp", "INTEGER"), C("content_code", "INTEGER"), C("dungeon_code", "INTEGER")],
             ["dungeons"] = NamedCodeColumns(),
             ["dungeon_bosses"] = [C("dungeon_id", "INTEGER", true, 1), C("boss_id", "INTEGER", true, 2), C("encounter_order", "INTEGER")],
             ["mobs"] = [C("id", "INTEGER", false, 1), C("code", "INTEGER"), C("name", "TEXT"), C("boss_id", "INTEGER", false)],
             ["skills"] = NamedCodeColumns(),
-            ["buffs"] = NamedCodeColumns(),
+            ["buffs"] = [C("id", "INTEGER", false, 1), C("code", "INTEGER"), C("name", "TEXT"), C("track_uptime", "INTEGER"), C("use_target_uptime", "INTEGER"), C("include_owner", "INTEGER")],
+            ["job_aliases"] = [C("raw_code", "INTEGER", false, 1), C("canonical_code", "INTEGER")],
         };
 
     private static readonly ForeignKeySpec[] ForeignKeys =

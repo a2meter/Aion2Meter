@@ -26,7 +26,7 @@ public sealed class GameDataRepositoryTests
         var requiredTables = new[]
         {
             "metadata", "protocol_profiles", "opcodes", "message_layouts", "bosses",
-            "dungeons", "dungeon_bosses", "mobs", "skills", "buffs",
+            "dungeons", "dungeon_bosses", "mobs", "skills", "buffs", "job_aliases",
         };
         Assert.All(requiredTables, table => Assert.Contains(table, tables));
 
@@ -56,7 +56,7 @@ public sealed class GameDataRepositoryTests
             $"Data Source={fixture.DatabasePath};Mode=ReadOnly;Pooling=False");
         await connection.OpenAsync();
 
-        Assert.Equal("bootstrap-test-aion2-2026-07-10", await ScalarAsync<string>(connection,
+        Assert.Equal("aion2-production-2026-07-10", await ScalarAsync<string>(connection,
             "SELECT name FROM protocol_profiles WHERE is_active = 1;"));
         Assert.Equal("060036", await ScalarAsync<string>(connection,
             "SELECT hex(packet_magic) FROM protocol_profiles WHERE is_active = 1;"));
@@ -65,15 +65,15 @@ public sealed class GameDataRepositoryTests
         Assert.Equal(new[] { 13328L }, await ReadInt64sAsync(connection,
             "SELECT port FROM protocol_profile_ports ORDER BY port;"));
         Assert.Equal(
-            new[] { "0438", "0538", "2A38", "2B38", "3336", "4536", "4136", "018D", "0336", "218D", "4F36" },
+            new[] { "0438", "0538", "2A38", "2B38", "3336", "4536", "4136", "008D", "0336", "218D", "4F36", "018D", "0238" },
             await ReadStringsAsync(connection,
                 "SELECT hex(tag) FROM opcodes WHERE family = 1 ORDER BY id;"));
-        Assert.Equal(new[] { "0197", "0297", "0497", "0797", "0B97", "1397", "1D97", "2A97" },
+        Assert.Equal(new[] { "0197", "0297", "0140", "0797", "0B97", "1397", "1D97", "2A97" },
             await ReadStringsAsync(connection,
                 "SELECT hex(tag) FROM opcodes WHERE family = 2 ORDER BY kind;"));
         Assert.Equal(new[] { 2301721L, 2301722L, 2301723L }, await ReadInt64sAsync(connection,
             "SELECT code FROM bosses ORDER BY code;"));
-        Assert.Equal(new[] { "Turgen", "Griosa", "Basilus" }, await ReadStringsAsync(connection,
+        Assert.Equal(new[] { "의지의 투르겐", "금기의 마수 그리오사", "위악의 바실루스" }, await ReadStringsAsync(connection,
             "SELECT name FROM bosses ORDER BY code;"));
         Assert.Equal(600153L, await ScalarAsync<long>(connection,
             "SELECT code FROM dungeons;"));
@@ -162,12 +162,13 @@ public sealed class GameDataRepositoryTests
 
         Assert.Equal(1UL, snapshot.DataVersion);
         Assert.Equal(1U, snapshot.SchemaVersion);
-        Assert.Equal(1U, snapshot.ProtocolProfileVersion);
-        Assert.Equal("bootstrap-test-aion2-2026-07-10", snapshot.ProtocolProfileName);
+        Assert.Equal(20260710U, snapshot.ProtocolProfileVersion);
+        Assert.Equal("aion2-production-2026-07-10", snapshot.ProtocolProfileName);
         Assert.Equal(new byte[] { 0x06, 0x00, 0x36 }, snapshot.PacketMagic);
         Assert.Equal(new ushort[] { 13328 }, snapshot.ServerPorts);
         Assert.DoesNotContain(snapshot.Opcodes.Values, opcode => opcode.Name == "inactive-opcode");
         Assert.DoesNotContain(snapshot.MessageLayouts.Values, layout => layout.Name == "inactive-layout");
+        Assert.Equal(1, snapshot.MessageLayouts[1].ParserStrategy);
         Assert.IsAssignableFrom<FrozenDictionary<ushort, ProtocolOpcode>>(snapshot.Opcodes);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Boss>>(snapshot.Bosses);
         Assert.IsAssignableFrom<FrozenDictionary<uint, Dungeon>>(snapshot.Dungeons);

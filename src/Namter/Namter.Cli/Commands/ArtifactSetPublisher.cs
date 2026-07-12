@@ -28,8 +28,8 @@ public static class ArtifactSetPublisher
 
     private static void Recover(string target,string stage,string backup)
     {
-        if(Directory.Exists(backup)){if(!Directory.Exists(target)){if(!IsOwned(backup)&&Directory.EnumerateFileSystemEntries(backup).Any())throw new InvalidDataException("Artifact backup is not Namter-owned.");Directory.Move(backup,target);}else DeleteReplaceable(backup);}
-        if(Directory.Exists(stage)){if(!IsOwned(stage))throw new InvalidDataException("Unmarked interrupted artifact staging requires manual recovery.");DeleteOwned(stage);}
+        if(Directory.Exists(backup)){EnsureDirectorySafe(backup);if(!Directory.Exists(target)){if(!IsOwned(backup)&&Directory.EnumerateFileSystemEntries(backup).Any())throw new InvalidDataException("Artifact backup is not Namter-owned.");Directory.Move(backup,target);}else DeleteReplaceable(backup);}
+        if(Directory.Exists(stage)){EnsureDirectorySafe(stage);if(!IsOwned(stage))throw new InvalidDataException("Unmarked interrupted artifact staging requires manual recovery.");DeleteOwned(stage);}
     }
     private static void ValidateReplaceable(string target){if(!Directory.Exists(target))return;EnsureDirectorySafe(target);if(!Directory.EnumerateFileSystemEntries(target).Any())return;if(!IsOwned(target))throw new InvalidDataException("Output directory is non-empty and is not a Namter artifact set.");}
     private static bool IsOwned(string path){string marker=Path.Combine(path,MarkerName);if(!File.Exists(marker)||new FileInfo(marker).Length>1024*1024||(File.GetAttributes(marker)&FileAttributes.ReparsePoint)!=0)return false;try{using JsonDocument doc=JsonDocument.Parse(File.ReadAllBytes(marker));return doc.RootElement.GetProperty("format").GetString()=="namter-artifact-set-v1"&&doc.RootElement.GetProperty("files").ValueKind==JsonValueKind.Array;}catch{return false;}}

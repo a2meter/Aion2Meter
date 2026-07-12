@@ -117,6 +117,9 @@ public sealed class NativeCore : IAsyncDisposable
             native.BackendDropped,
             native.BackendInterfaceDropped,
             native.QueueHighWater,
+            native.TcpOverlaps,
+            native.TcpDuplicateBytesRemoved,
+            native.TcpUnresolvedByteGaps,
             native.Incomplete != 0,
             CurrentCallbackState.ManagedDiagnostics,
             CurrentCallbackState.SuppressedDiagnosticCount);

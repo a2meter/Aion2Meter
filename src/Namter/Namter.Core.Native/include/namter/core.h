@@ -192,6 +192,9 @@ typedef struct nm_diagnostics_v1 {
     uint64_t backend_dropped;
     uint64_t backend_interface_dropped;
     uint64_t queue_high_water;
+    uint64_t tcp_overlaps;
+    uint64_t tcp_duplicate_bytes_removed;
+    uint64_t tcp_unresolved_byte_gaps;
     uint8_t incomplete;
 } nm_diagnostics_v1;
 

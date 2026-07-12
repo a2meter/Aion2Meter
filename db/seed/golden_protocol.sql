@@ -1,26 +1,27 @@
 INSERT INTO protocol_profiles(id, name, version, packet_magic, party_marker, is_active)
--- Bootstrap/test profile. Field encodings below satisfy the authoritative decoder
--- contract but are not a claim of full-PCAP semantic certification. Task 8 certified
--- only entity removal; Task 12 owns production golden descriptor closure.
-VALUES (1, 'bootstrap-test-aion2-2026-07-10', 1, X'060036', 151, 1);
+-- Production profile. parser_strategy=1 explicitly selects the bounded current-wire
+-- C++ strategy; opcode identity, activation, bounds, and strategy remain database-driven.
+VALUES (1, 'aion2-production-2026-07-10', 20260710, X'060036', 151, 1);
 
 INSERT INTO metadata(singleton_id, data_version, schema_version) VALUES (1, 1, 1);
 INSERT INTO protocol_profile_ports(profile_id, port) VALUES (1, 13328);
 
-INSERT INTO message_layouts(id, profile_id, name, max_payload_bytes) VALUES
-    (1, 1, 'damage', 1048576),
-    (2, 1, 'dot_or_heal', 1048576),
-    (3, 1, 'battle_stats', 1048576),
-    (4, 1, 'battle_stats_alt', 1048576),
-    (5, 1, 'self_info', 1048576),
-    (6, 1, 'other_info', 1048576),
-    (7, 1, 'mob_spawn', 1048576),
-    (8, 1, 'boss_hp', 1048576),
-    (9, 1, 'guard', 1048576),
-    (10, 1, 'entity_removed', 1048576),
-    (11, 1, 'character_lookup', 1048576),
-    (12, 1, 'party_common_bootstrap', 1048576),
-    (13, 1, 'content_exit_bootstrap', 1048576);
+INSERT INTO message_layouts(id, profile_id, name, max_payload_bytes, parser_strategy) VALUES
+    (1, 1, 'damage', 1048576, 1),
+    (2, 1, 'dot_or_heal', 1048576, 1),
+    (3, 1, 'battle_stats', 1048576, 1),
+    (4, 1, 'battle_stats_alt', 1048576, 1),
+    (5, 1, 'self_info', 1048576, 1),
+    (6, 1, 'other_info', 1048576, 1),
+    (7, 1, 'mob_spawn', 1048576, 1),
+    (8, 1, 'boss_hp', 1048576, 1),
+    (9, 1, 'guard', 1048576, 0),
+    (10, 1, 'entity_removed', 1048576, 0),
+    (11, 1, 'character_lookup', 1048576, 1),
+    (12, 1, 'party_common_bootstrap', 1048576, 0),
+    (13, 1, 'content_exit_bootstrap', 1048576, 1),
+    (14, 1, 'combat_start', 64, 1),
+    (15, 1, 'combat_action', 256, 1);
 
 INSERT INTO opcodes(id, profile_id, family, kind, name, tag, layout_id) VALUES
     (1, 1, 1, 1, 'damage', X'0438', 1),
@@ -30,13 +31,15 @@ INSERT INTO opcodes(id, profile_id, family, kind, name, tag, layout_id) VALUES
     (5, 1, 1, 5, 'self_info', X'3336', 5),
     (6, 1, 1, 6, 'other_info', X'4536', 6),
     (7, 1, 1, 7, 'mob_spawn', X'4136', 7),
-    (8, 1, 1, 8, 'boss_hp', X'018D', 8),
+    (8, 1, 1, 8, 'boss_hp', X'008D', 8),
     (9, 1, 1, 9, 'guard', X'0336', NULL),
     (10, 1, 1, 10, 'entity_removed', X'218D', 10),
     (11, 1, 1, 11, 'character_lookup', X'4F36', 11),
+    (202, 1, 1, 202, 'combat_start', X'018D', 14),
+    (203, 1, 1, 203, 'combat_action', X'0238', 15),
     (101, 1, 2, 101, 'party_list', X'0197', 12),
     (102, 1, 2, 102, 'party_update', X'0297', 12),
-    (103, 1, 2, 103, 'party_dungeon_exit', X'0497', 13),
+    (103, 1, 2, 103, 'content_scope', X'0140', 13),
     (104, 1, 2, 104, 'party_request', X'0797', 12),
     (105, 1, 2, 105, 'party_accept', X'0B97', 12),
     (106, 1, 2, 106, 'party_board_control', X'1397', 12),
@@ -56,13 +59,15 @@ INSERT INTO message_fields(id, layout_id, field_order, kind, flags, byte_offset,
     (10001,10,0,1,0,0,4,1),
     (11001,11,0,1,0,0,4,1),(11002,11,1,3,0,8,4,1),(11003,11,2,11,0,40,2,1),(11004,11,3,12,0,42,2,1),(11005,11,4,24,0,96,1,1),(11006,11,5,26,2,98,1,20),
     (12001,12,0,1,0,0,4,1),(12002,12,1,8,0,28,4,1),(12003,12,2,9,0,32,4,1),(12004,12,3,10,0,36,4,1),(12005,12,4,21,0,93,1,1),(12006,12,5,26,2,98,1,20),
-    (13001,13,0,8,0,28,4,1),(13002,13,1,9,0,32,4,1),(13003,13,2,20,0,92,1,1),(13004,13,3,26,2,98,1,20);
+    (13001,13,0,8,0,28,4,1),(13002,13,1,9,0,32,4,1),(13003,13,2,20,0,92,1,1),(13004,13,3,26,2,98,1,20),
+    (14001,14,0,1,0,0,4,1),(14002,14,1,20,0,4,1,1),
+    (15001,15,0,1,0,0,4,1),(15002,15,1,2,0,4,4,1),(15003,15,2,4,0,8,4,1),(15004,15,3,21,0,12,1,1);
 
 INSERT INTO dungeons(id, code, name) VALUES (1, 600153, 'Golden protocol content 600153');
-INSERT INTO bosses(id, code, name) VALUES
-    (1, 2301721, 'Turgen'),
-    (2, 2301722, 'Griosa'),
-    (3, 2301723, 'Basilus');
+INSERT INTO bosses(id, code, name, max_hp, content_code, dungeon_code) VALUES
+    (1, 2301721, '의지의 투르겐', 229729500, 600153, 600153),
+    (2, 2301722, '금기의 마수 그리오사', 229729500, 600153, 600153),
+    (3, 2301723, '위악의 바실루스', 354172044, 600153, 600153);
 INSERT INTO dungeon_bosses(dungeon_id, boss_id, encounter_order) VALUES
     (1, 1, 1),
     (1, 2, 2),
@@ -71,3 +76,33 @@ INSERT INTO mobs(id, code, name, boss_id) VALUES
     (1, 2301721, 'Turgen', 1),
     (2, 2301722, 'Griosa', 2),
     (3, 2301723, 'Basilus', 3);
+
+INSERT INTO job_aliases(raw_code, canonical_code) VALUES
+    (10, 12), (16, 14), (18, 13), (30, 17), (34, 18);
+
+INSERT INTO buffs(code, name) VALUES
+    (20111011,'생명의 물약'),(22101031,'질주의 주문서'),(22101041,'상급 질주의 주문서'),
+    (22101051,'용기의 주문서'),(22101211,'최상급 용기의 주문서'),(22104011,'전투 강화 주문서'),
+    (22104021,'가호의 주문서'),(22120011,'충격 완화 주문서'),(100200001,'강인함'),
+    (120700071,'파멸의 방패'),(120700271,'파멸의 방패'),(120900001,'집행자'),
+    (121100401,'보호의 방패'),(123500401,'비호'),(123500501,'비호'),
+    (127300021,'단죄의 가호'),(127800011,'격앙'),(127900011,'생존 의지'),
+    (127900021,'생존 의지'),(128000012,'고통 차단'),(130700271,'암습'),
+    (130800401,'회피 자세'),(132700371,'맹수의 송곳니'),(137200101,'빈틈 노리기'),
+    (137700071,'기습 자세'),(140900171,'정밀'),(141100461,'광풍'),
+    (141100471,'광풍'),(142200401,'축복의 활'),(143800401,'지원 사격'),
+    (147300071,'바람의 활력'),(170904501,'재생의 빛'),(171600401,'생명의 권능'),
+    (173900431,'소환 부활'),(174300401,'증폭의 기도'),(181400401,'집중 방어'),
+    (182500401,'질풍의 권능'),(187300011,'보호진'),(187300021,'신성한 보호막'),
+    (187900011,'생존 의지'),(187900021,'생존 의지');
+
+UPDATE buffs SET include_owner=1 WHERE code=123500501;
+UPDATE buffs SET use_target_uptime=1 WHERE code IN
+    (22101031,22101051,22104021,123500501,127800011,170904501,187300021);
+
+-- For non-uptime effects, use_target_uptime marks target-owned window identity.
+INSERT INTO buffs(code,name,track_uptime,use_target_uptime) VALUES
+    (171500011,'target-owned effect',0,1),
+    (16089702,'target-owned effect',0,1),
+    (18063602,'target-owned effect',0,1),
+    (18063501,'target-owned effect',0,1);

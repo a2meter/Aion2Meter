@@ -40,6 +40,9 @@ struct nm_core_handle {
     uint64_t backend_dropped = 0;
     uint64_t backend_interface_dropped = 0;
     uint64_t queue_high_water = 0;
+    uint64_t tcp_overlaps = 0;
+    uint64_t tcp_duplicate_bytes_removed = 0;
+    uint64_t tcp_unresolved_byte_gaps = 0;
     bool incomplete = false;
     std::atomic_uint32_t lifetime_refs{1};
     std::atomic_bool destroy_requested{false};
@@ -419,6 +422,13 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                     pipeline.flush(last_timestamp == 0
                                        ? std::numeric_limits<uint64_t>::max()
                                        : last_timestamp + 120'000'000'001ull);
+                    {
+                        const auto& flow = pipeline.flow_diagnostics();
+                        std::scoped_lock lock(handle->mutex);
+                        handle->tcp_overlaps += flow.overlaps;
+                        handle->tcp_duplicate_bytes_removed += flow.duplicate_bytes_removed;
+                        handle->tcp_unresolved_byte_gaps += flow.unresolved_byte_gaps;
+                    }
                     emit_source_completed(handle);
                     return;
                 }
@@ -445,6 +455,13 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                     }
                 }
                 pipeline.flush(std::numeric_limits<uint64_t>::max());
+                {
+                    const auto& flow = pipeline.flow_diagnostics();
+                    std::scoped_lock lock(handle->mutex);
+                    handle->tcp_overlaps += flow.overlaps;
+                    handle->tcp_duplicate_bytes_removed += flow.duplicate_bytes_removed;
+                    handle->tcp_unresolved_byte_gaps += flow.unresolved_byte_gaps;
+                }
                 emit_source_completed(handle);
             } catch (const std::exception&) {
                 emit_diagnostic(handle, NM_DIAGNOSTIC_CAPTURE_BACKEND_FAILED,
@@ -600,6 +617,9 @@ nm_status NM_CALL nm_core_get_diagnostics(nm_core_handle *handle,
         diagnostics->backend_interface_dropped = handle->backend_interface_dropped;
         diagnostics->queue_high_water = handle->capture_queue
             ? handle->capture_queue->high_water() : handle->queue_high_water;
+        diagnostics->tcp_overlaps = handle->tcp_overlaps;
+        diagnostics->tcp_duplicate_bytes_removed = handle->tcp_duplicate_bytes_removed;
+        diagnostics->tcp_unresolved_byte_gaps = handle->tcp_unresolved_byte_gaps;
         diagnostics->incomplete = handle->incomplete ? 1 : 0;
         return NM_STATUS_OK;
     } catch (...) {

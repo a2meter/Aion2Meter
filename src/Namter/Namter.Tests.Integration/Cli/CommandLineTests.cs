@@ -3,6 +3,8 @@ using Namter.GameData.Builder;
 using Namter.Cli.Commands;
 using Namter.Encounter;
 using System.Collections.Immutable;
+using System.Text.Json;
+using System.Threading.Channels;
 
 namespace Namter.Tests.Integration.Cli;
 
@@ -87,6 +89,23 @@ public sealed class CommandLineTests
     }
 
     [Fact]
+    public async Task Consumer_failure_cancels_a_blocked_source_without_hanging()
+    {
+        using var sourceCts = new CancellationTokenSource();
+        Channel<CombatEvent> channel = Channel.CreateBounded<CombatEvent>(1);
+        Task source = Task.Delay(Timeout.InfiniteTimeSpan, sourceCts.Token);
+        Task<int> consumer = Task.FromException<int>(new InvalidDataException("injected consumer failure"));
+
+        InvalidDataException error = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            PipelineRunner.SuperviseSourceAndConsumerAsync(source, consumer, channel.Writer, sourceCts)
+                .WaitAsync(TimeSpan.FromSeconds(2)));
+
+        Assert.Equal("injected consumer failure", error.Message);
+        Assert.True(sourceCts.IsCancellationRequested);
+        await channel.Reader.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
     public async Task Absent_npcap_guidance_is_dedicated_manual_and_non_automatic()
     {
         using var error = new StringWriter();
@@ -111,6 +130,52 @@ public sealed class CommandLineTests
     {
         string root=Path.Combine(Path.GetTempPath(),"namter-artifacts-"+Guid.NewGuid().ToString("N"));
         try{Directory.CreateDirectory(root);ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[1]},{"encounters/encounter-0001.json",[2]}});ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[3]}});Assert.False(File.Exists(Path.Combine(root,"encounters","encounter-0001.json")));byte[] before=File.ReadAllBytes(Path.Combine(root,"metadata.json"));Assert.Throws<IOException>(()=>ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[4]}},()=>throw new IOException("injected")));Assert.Equal(before,File.ReadAllBytes(Path.Combine(root,"metadata.json")));Directory.Delete(root,true);Directory.CreateDirectory(root);File.WriteAllText(Path.Combine(root,"user.txt"),"keep");Assert.Throws<InvalidDataException>(()=>ArtifactSetPublisher.Publish(root,new Dictionary<string,byte[]>{{"metadata.json",[5]}}));Assert.Equal("keep",File.ReadAllText(Path.Combine(root,"user.txt")));}finally{if(Directory.Exists(root))Directory.Delete(root,true);}
+    }
+
+    [Fact]
+    public async Task Recursive_replay_preserves_distinct_root_relative_names_for_identical_basenames()
+    {
+        string root=Path.Combine(Path.GetTempPath(),"namter-recursive-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
+        try
+        {
+            string repository=FindRepositoryRoot(),database=Path.Combine(root,"aion.db"),input=Path.Combine(root,"input"),output=Path.Combine(root,"out");
+            await GameDataDatabaseBuilder.BuildAsync(database,Path.Combine(repository,"db","schema","001_initial.sql"),Path.Combine(repository,"db","seed","golden_protocol.sql"));
+            byte[] empty=[0xd4,0xc3,0xb2,0xa1,2,0,4,0,0,0,0,0,0,0,0,0,0xff,0xff,0,0,0x65,0,0,0];
+            Directory.CreateDirectory(Path.Combine(input,"a"));Directory.CreateDirectory(Path.Combine(input,"b"));
+            await File.WriteAllBytesAsync(Path.Combine(input,"a","same.pcap"),empty);await File.WriteAllBytesAsync(Path.Combine(input,"b","same.pcap"),empty);
+            Assert.Equal(0,await CliApplication.RunAsync(["replay","--input",input,"--data",database,"--output",output],TextWriter.Null,TextWriter.Null));
+            using JsonDocument metadata=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(output,"metadata.json")));
+            string[] names=metadata.RootElement.GetProperty("inputs").EnumerateArray().Select(x=>x.GetProperty("file").GetString()!).ToArray();
+            Assert.Equal(new[]{"a/same.pcap","b/same.pcap"},names);
+        }
+        finally{Directory.Delete(root,true);}
+    }
+
+    [Fact]
+    public void Artifact_recovery_handles_owned_stage_and_backup_and_rejects_reparse_backup()
+    {
+        string parent=Path.Combine(Path.GetTempPath(),"namter-artifact-recovery-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(parent);
+        string target=Path.Combine(parent,"out"),stage=Path.Combine(parent,".out.namter-stage"),backup=Path.Combine(parent,".out.namter-backup"),seed=Path.Combine(parent,"seed"),external=Path.Combine(parent,"external");
+        try
+        {
+            ArtifactSetPublisher.Publish(seed,new Dictionary<string,byte[]>{{"old.json",[1]}});Directory.Move(seed,backup);
+            bool restored=false;ArtifactSetPublisher.Publish(target,new Dictionary<string,byte[]>{{"new.json",[2]}},()=>restored=File.Exists(Path.Combine(target,"old.json")));
+            Assert.True(restored);Assert.False(Directory.Exists(backup));
+            ArtifactSetPublisher.Publish(seed,new Dictionary<string,byte[]>{{"stale.json",[3]}});Directory.Move(seed,stage);
+            ArtifactSetPublisher.Publish(target,new Dictionary<string,byte[]>{{"newer.json",[4]}});Assert.False(File.Exists(Path.Combine(target,"stale.json")));Assert.False(Directory.Exists(stage));
+            ArtifactSetPublisher.Publish(external,new Dictionary<string,byte[]>{{"outside.json",[5]}});
+            Directory.Delete(target,true);
+            try{Directory.CreateSymbolicLink(backup,external);}catch(Exception exception)when(exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException){return;}
+            Assert.Throws<InvalidDataException>(()=>ArtifactSetPublisher.Publish(target,new Dictionary<string,byte[]>{{"blocked.json",[6]}}));
+            Assert.True(Directory.Exists(backup));Assert.False(Directory.Exists(target));
+            Assert.True(File.Exists(Path.Combine(external,"outside.json")));
+        }
+        finally
+        {
+            if(Directory.Exists(backup)&&(new DirectoryInfo(backup).Attributes&FileAttributes.ReparsePoint)!=0)Directory.Delete(backup);
+            if(Directory.Exists(target)&&(new DirectoryInfo(target).Attributes&FileAttributes.ReparsePoint)!=0)Directory.Delete(target);
+            if(Directory.Exists(parent))Directory.Delete(parent,true);
+        }
     }
 
     [Fact]

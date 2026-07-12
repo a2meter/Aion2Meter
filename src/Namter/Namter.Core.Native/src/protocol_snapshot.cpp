@@ -54,6 +54,8 @@ bool expected_fields(uint16_t opcode_kind, uint32_t& mask) noexcept {
             mask = field_mask<content_id, dungeon_id, state, name>(); return true;
         case 202:
             mask = field_mask<actor_id, state>(); return true;
+        case 203:
+            mask = field_mask<actor_id, target_id, skill_id, action>(); return true;
         default:
             mask = 0;
             return false;
@@ -320,7 +322,7 @@ bool validate_protocol_snapshot_v1(std::span<const uint8_t> bytes) noexcept {
         if (!input.read_u32(layout_id) || layout_id == 0 ||
             !input.read_u32(payload_bound) || payload_bound == 0 || payload_bound > max_payload_bytes ||
             !input.read_u16(field_count) || field_count > max_fields_per_layout ||
-            !input.read_u16(reserved) || reserved != 0) {
+            !input.read_u16(reserved) || reserved > 1u) {
             return false;
         }
         reader previous(bytes.subspan(layout_section_offset));
