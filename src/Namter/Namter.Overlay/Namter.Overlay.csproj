@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NamterNativeOutput>$(MSBuildThisFileDirectory)..\Namter.Core.Native\x64\$(Configuration)\Namter.Core.Native.dll</NamterNativeOutput>
+    <NamterVcpkgRoot>$(MSBuildThisFileDirectory)..\..\..\vcpkg_installed\x64-windows\x64-windows</NamterVcpkgRoot>
+    <NamterNativeLz4 Condition="'$(Configuration)' == 'Debug'">$(NamterVcpkgRoot)\debug\bin\lz4d.dll</NamterNativeLz4>
+    <NamterNativeLz4 Condition="'$(Configuration)' != 'Debug'">$(NamterVcpkgRoot)\bin\lz4.dll</NamterNativeLz4>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Namter.Core.Native\Namter.Core.Native.vcxproj" Condition="'$(MSBuildRuntimeType)' == 'Full'" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Namter.Core.Interop\Namter.Core.Interop.csproj" />
+    <ProjectReference Include="..\Namter.GameData\Namter.GameData.csproj" />
+    <ProjectReference Include="..\Namter.Encounter\Namter.Encounter.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Vortice.Direct2D1" />
+    <PackageReference Include="Vortice.Direct3D11" />
+    <PackageReference Include="Vortice.DXGI" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Namter.Cli\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CopyNamterNative" BeforeTargets="Build">
+    <Error Condition="!Exists('$(NamterNativeOutput)')" Text="Build Namter.Core.Native $(Configuration)|x64 before building Namter.Overlay." />
+    <Error Condition="!Exists('$(NamterNativeLz4)')" Text="Build Namter.Core.Native $(Configuration)|x64 with its LZ4 runtime before building Namter.Overlay." />
+    <Copy SourceFiles="$(NamterNativeOutput);$(NamterNativeLz4)" DestinationFolder="$(OutDir)" />
+  </Target>
+</Project>
