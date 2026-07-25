@@ -40,22 +40,22 @@ internal static class PipelineRunner
     }
     private static bool IsBelow(string root,string file){string relative=Path.GetRelativePath(root,file);return !Path.IsPathRooted(relative)&&relative!=".."&&!relative.StartsWith(".."+Path.DirectorySeparatorChar,StringComparison.Ordinal);}
 
-    internal static async Task<int> CaptureAsync(NativeSourceKind kind,string database,string output,TextWriter log,CancellationToken cancellationToken)
+    internal static async Task<int> CaptureAsync(NativeSourceKind kind,string database,string output,TextWriter log,CancellationToken cancellationToken,string? packetLogDirectory=null)
     {
-        GameDataSnapshot snapshot=await Load(database,cancellationToken);byte[] nativeSnapshot=ProtocolSnapshotCompiler.Compile(snapshot);await log.WriteLineAsync("Capturing live traffic. Press Ctrl+C to stop and write artifacts.");PipelineResult result=await RunOneAsync(kind,ReadOnlyMemory<byte>.Empty,snapshot,nativeSnapshot,kind.ToString().ToLowerInvariant(),0,cancellationToken);
+        GameDataSnapshot snapshot=await Load(database,cancellationToken);byte[] nativeSnapshot=ProtocolSnapshotCompiler.Compile(snapshot);await log.WriteLineAsync("Capturing live traffic. Press Ctrl+C to stop and write artifacts.");if(packetLogDirectory is not null)await log.WriteLineAsync($"Writing a PCAPNG per dungeon entry to {packetLogDirectory}.");PipelineResult result=await RunOneAsync(kind,ReadOnlyMemory<byte>.Empty,snapshot,nativeSnapshot,kind.ToString().ToLowerInvariant(),0,cancellationToken,packetLogDirectory);
         WriteArtifacts(output,result.Events,result.Records,result.Diagnostics,result.IncompleteReasons,kind.ToString().ToLowerInvariant(),0,[],snapshot,result.TcpOverlaps,result.TcpDuplicateBytesRemoved,result.TcpUnresolvedByteGaps);await log.WriteLineAsync($"Capture complete: {result.Events.Length} event(s), {result.Records.Length} encounter(s).");return 0;
     }
 
     private static async Task<GameDataSnapshot> Load(string database,CancellationToken ct)=>await new GameDataRepository(database,GameDataCacheLimits.Default).LoadAsync(ct);
 
-    private static async Task<PipelineResult> RunOneAsync(NativeSourceKind kind,ReadOnlyMemory<byte> source,GameDataSnapshot snapshot,byte[] nativeSnapshot,string captureId,int speed,CancellationToken cancellationToken)
+    private static async Task<PipelineResult> RunOneAsync(NativeSourceKind kind,ReadOnlyMemory<byte> source,GameDataSnapshot snapshot,byte[] nativeSnapshot,string captureId,int speed,CancellationToken cancellationToken,string? packetLogDirectory=null)
     {
         CliConfiguration config=CliConfiguration.Load();var channel=Channel.CreateBounded<CombatEvent>(new BoundedChannelOptions(config.ManagedQueueCapacity){SingleReader=true,SingleWriter=false,FullMode=BoundedChannelFullMode.Wait});var diagnostics=new List<NativeDiagnostic>();object diagnosticGate=new();int overflow=0;
         var pacer=new ReplayPacer(speed);
         void OnEvent(NativeEvent value){if(value.Kind==NativeEventKind.SourceStarted)return;if(!pacer.Wait(value.FirstTimestampNs,cancellationToken))return;CombatEvent mapped=CombatEventMapper.Map(value);if(mapped is ActorObservedEvent actor&&snapshot.JobAliases.TryGetValue(actor.JobId,out ushort canonicalJob))mapped=actor with{JobId=canonicalJob};if(channel.Writer.TryWrite(mapped))return;try{channel.Writer.WriteAsync(mapped,cancellationToken).AsTask().GetAwaiter().GetResult();}catch(OperationCanceledException){if(!cancellationToken.IsCancellationRequested)Interlocked.Exchange(ref overflow,1);}catch(ChannelClosedException){Interlocked.Exchange(ref overflow,1);}}
         void OnDiagnostic(NativeDiagnostic value){lock(diagnosticGate){if(diagnostics.Count<MaxDiagnostics)diagnostics.Add(value);}}
         var nativeConfig=new NativeCoreConfig(config.NativeQueueCapacity,config.MaxLiveFlows,config.MaxOutOfOrderBytesPerFlow,config.MaxFrameBytes,config.MaxDecompressedBytes);
-        await using var core=new NativeCore(OnEvent,OnDiagnostic,nativeConfig);core.SetProtocolSnapshot(nativeSnapshot);
+        await using var core=new NativeCore(OnEvent,OnDiagnostic,nativeConfig);core.SetProtocolSnapshot(nativeSnapshot);if(packetLogDirectory is not null)core.SetPacketLog(packetLogDirectory);
         bool live=kind!=NativeSourceKind.Pcap;
         using var sourceCts=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);Task sourceTask=live?core.CaptureAsync(kind,source,sourceCts.Token):core.ReplayAsync(source,sourceCts.Token);
         var consumeTask=ConsumeAsync(channel.Reader,snapshot,captureId,live?CancellationToken.None:cancellationToken);

@@ -23,6 +23,7 @@ struct nm_core_handle {
     std::mutex mutex;
     std::condition_variable lifecycle_cv;
     namter::ProtocolSnapshotStore protocol_snapshot;
+    std::string packet_log_directory;
     Lifecycle lifecycle = Lifecycle::idle;
     bool start_cancelled = false;
     std::thread::id starting_thread{};
@@ -226,6 +227,23 @@ nm_status NM_CALL nm_core_set_protocol_snapshot(nm_core_handle *handle, const ui
     }
 }
 
+nm_status NM_CALL nm_core_set_packet_log(nm_core_handle *handle, const char *directory,
+                                         size_t size) noexcept {
+    if (handle == nullptr || (directory == nullptr && size != 0) || size > 4096u) {
+        return NM_STATUS_INVALID_ARGUMENT;
+    }
+    try {
+        std::scoped_lock lock(handle->mutex);
+        if (handle->lifecycle != nm_core_handle::Lifecycle::idle) {
+            return NM_STATUS_INVALID_STATE;
+        }
+        handle->packet_log_directory.assign(directory, directory + size);
+        return NM_STATUS_OK;
+    } catch (...) {
+        return NM_STATUS_INTERNAL_ERROR;
+    }
+}
+
 nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                                 const nm_source_config_v1 *source) noexcept {
     if (handle == nullptr || source == nullptr) {
@@ -362,7 +380,8 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
         handle->capture_queue = queue;
         retain_handle(handle);
         try {
-        handle->capture_thread = std::thread([handle, snapshot, source_bytes, kind = source->kind] {
+        handle->capture_thread = std::thread([handle, snapshot, source_bytes, kind = source->kind,
+                                              packet_log = handle->packet_log_directory] {
             struct WorkerRelease{nm_core_handle*h;~WorkerRelease(){finish_worker_lifetime(h);}} worker_release{handle};
             try {
                 namter::CapturePipeline pipeline(
@@ -387,6 +406,7 @@ nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                         }
                         emit_diagnostic(handle, code, message);
                     });
+                if (!packet_log.empty()) pipeline.set_packet_log(packet_log);
 
                 if (kind == NM_SOURCE_PCAP) {
                     const std::string owned(reinterpret_cast<const char*>(source_bytes.data()),

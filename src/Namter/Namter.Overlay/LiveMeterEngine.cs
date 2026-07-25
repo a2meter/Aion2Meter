@@ -27,11 +27,14 @@ internal sealed class LiveMeterEngine : IAsyncDisposable
     private MeterView _latest = MeterView.Empty;
     private Task? _run;
 
-    public LiveMeterEngine(string database, NativeSourceKind kind, ReadOnlyMemory<byte> replay = default)
+    private readonly string? _packetLog;
+
+    public LiveMeterEngine(string database, NativeSourceKind kind, ReadOnlyMemory<byte> replay = default, string? packetLogDirectory = null)
     {
         _database = database;
         _kind = kind;
         _replay = replay;
+        _packetLog = packetLogDirectory;
     }
 
     /// Latest immutable view. Safe to read from any thread.
@@ -80,6 +83,11 @@ internal sealed class LiveMeterEngine : IAsyncDisposable
 
             await using var core = new NativeCore(OnEvent, OnDiagnostic, new NativeCoreConfig());
             core.SetProtocolSnapshot(nativeSnapshot);
+            if (_packetLog is not null)
+            {
+                Directory.CreateDirectory(_packetLog);
+                core.SetPacketLog(_packetLog);
+            }
 
             string backend = _replay.IsEmpty ? _kind.ToString().ToLowerInvariant() : "pcap";
             Task consume = ConsumeAsync(channel.Reader, snapshot, backend, ct);

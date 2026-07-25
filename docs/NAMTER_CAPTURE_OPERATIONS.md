@@ -80,6 +80,20 @@ Namter.Cli.exe capture --backend windivert --data C:\Namter\data\aion.db --outpu
 Namter.Cli.exe capture --backend npcap --data C:\Namter\data\aion.db --output C:\Namter\records
 ```
 
+Optionally record the raw traffic while capturing. Each time a new dungeon or
+content instance is entered, a fresh `dungeon-<id>-<timestamp>.pcapng` is opened
+in the given directory, seeded with the packets already buffered so the entry
+itself is present:
+
+```powershell
+Namter.Cli.exe capture --backend windivert --data C:\Namter\data\aion.db --output C:\Namter\records --packet-log C:\Namter\packets
+```
+
+The packet log is off unless requested. It is best-effort evidence collection:
+each file stops at 512 MiB, and a failure to open or extend one never changes
+capture behaviour, diagnostics, or completeness reporting. The files contain raw
+game traffic, so treat them as sensitive and retain them deliberately.
+
 Replay one PCAP or a directory recursively. Speed `0` means unpaced processing;
 supported paced values are `1` and `10`:
 

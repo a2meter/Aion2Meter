@@ -11,7 +11,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
 
         bool selftest = Array.IndexOf(args, "--selftest") >= 0;
-        string? data = null, backend = "windivert", replay = null;
+        string? data = null, backend = "windivert", replay = null, packetLog = null;
         for (int i = 0; i + 1 < args.Length; i++)
         {
             switch (args[i])
@@ -19,13 +19,14 @@ internal static class Program
                 case "--data": data = args[++i]; break;
                 case "--backend": backend = args[++i]; break;
                 case "--replay": replay = args[++i]; break;
+                case "--packet-log": packetLog = args[++i]; break;
             }
         }
 
         if (string.IsNullOrEmpty(data) || !File.Exists(data))
         {
             MessageBox.Show(
-                "사용법: Namter.Overlay --data <aion.db> [--backend windivert|npcap] [--replay <pcap>]",
+                "사용법: Namter.Overlay --data <aion.db> [--backend windivert|npcap] [--replay <pcap>] [--packet-log <dir>]",
                 "Namter Overlay", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 1;
         }
@@ -48,7 +49,7 @@ internal static class Program
             replayBytes = File.ReadAllBytes(replay);
         }
 
-        var engine = new LiveMeterEngine(data, kind, replayBytes);
+        var engine = new LiveMeterEngine(data, kind, replayBytes, packetLog);
         engine.Start();
 
         if (selftest)

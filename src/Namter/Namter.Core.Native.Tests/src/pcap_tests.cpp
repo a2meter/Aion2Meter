@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include "capture_record.hpp"
+#include "pcapng_writer.hpp"
 
 namespace {
 
@@ -287,4 +288,85 @@ TEST(PcapReader, RejectsOriginalLengthSmallerThanCapturedBeforeReadingData) {
     CaptureRecord record;
     EXPECT_FALSE(reader.read_next(record));
     EXPECT_EQ(reader.error(), CaptureError::original_length_smaller_than_captured);
+}
+
+namespace {
+
+std::vector<uint8_t> read_all(const std::filesystem::path& path) {
+    std::ifstream stream(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+}
+
+uint32_t le32_at(const std::vector<uint8_t>& bytes, size_t offset) {
+    return static_cast<uint32_t>(bytes[offset]) | (static_cast<uint32_t>(bytes[offset + 1]) << 8u) |
+           (static_cast<uint32_t>(bytes[offset + 2]) << 16u) | (static_cast<uint32_t>(bytes[offset + 3]) << 24u);
+}
+
+} // namespace
+
+TEST(PcapngWriter, WritesReadableSectionInterfaceAndPacketBlocksPerLinkType) {
+    const auto path = std::filesystem::temp_directory_path() / "namter-pcapng-writer.pcapng";
+    std::filesystem::remove(path);
+    const std::vector<uint8_t> first{0x45, 0x00, 0x00, 0x1c, 0xde, 0xad};
+    const std::vector<uint8_t> second{0x01, 0x02, 0x03};
+    {
+        namter::PcapngWriter writer;
+        ASSERT_TRUE(writer.open(path.string(), 1u << 20u));
+        EXPECT_TRUE(writer.write(101u, 1'234'567'890'123u, 60u, first));
+        EXPECT_TRUE(writer.write(101u, 1'234'567'890'456u, 3u, second));
+        EXPECT_TRUE(writer.write(1u, 1'234'567'890'789u, 3u, second));
+        EXPECT_FALSE(writer.truncated());
+    }
+
+    const auto bytes = read_all(path);
+    ASSERT_GE(bytes.size(), 28u);
+    EXPECT_EQ(le32_at(bytes, 0), 0x0A0D0D0Au);           // section header block
+    EXPECT_EQ(le32_at(bytes, 8), 0x1A2B3C4Du);           // little-endian byte-order magic
+
+    // Walk the block chain: every block must declare the same length twice.
+    size_t offset = 0, interfaces = 0, packets = 0;
+    std::vector<uint16_t> link_types;
+    while (offset + 12u <= bytes.size()) {
+        const uint32_t type = le32_at(bytes, offset);
+        const uint32_t length = le32_at(bytes, offset + 4u);
+        ASSERT_GE(length, 12u);
+        ASSERT_LE(offset + length, bytes.size());
+        EXPECT_EQ(length, le32_at(bytes, offset + length - 4u));
+        if (type == 0x00000001u) {
+            ++interfaces;
+            link_types.push_back(static_cast<uint16_t>(bytes[offset + 8u] | (bytes[offset + 9u] << 8u)));
+        } else if (type == 0x00000006u) {
+            ++packets;
+            const uint64_t timestamp = (static_cast<uint64_t>(le32_at(bytes, offset + 12u)) << 32u) |
+                                       le32_at(bytes, offset + 16u);
+            EXPECT_GE(timestamp, 1'234'567'890'123u);
+            if (packets == 1u) {
+                EXPECT_EQ(le32_at(bytes, offset + 8u), 0u);              // first interface
+                EXPECT_EQ(le32_at(bytes, offset + 20u), first.size());   // captured length
+                EXPECT_EQ(le32_at(bytes, offset + 24u), 60u);            // original length preserved
+            }
+            if (packets == 3u) EXPECT_EQ(le32_at(bytes, offset + 8u), 1u); // second link type
+        }
+        offset += length;
+    }
+    EXPECT_EQ(offset, bytes.size());
+    EXPECT_EQ(interfaces, 2u);
+    EXPECT_EQ(packets, 3u);
+    ASSERT_EQ(link_types.size(), 2u);
+    EXPECT_EQ(link_types[0], 101u);
+    EXPECT_EQ(link_types[1], 1u);
+    std::filesystem::remove(path);
+}
+
+TEST(PcapngWriter, StopsAtTheConfiguredBudgetInsteadOfGrowingWithoutLimit) {
+    const auto path = std::filesystem::temp_directory_path() / "namter-pcapng-budget.pcapng";
+    std::filesystem::remove(path);
+    namter::PcapngWriter writer;
+    ASSERT_TRUE(writer.open(path.string(), 64u)); // room for the section header only
+    const std::vector<uint8_t> packet(256u, 0x5Au);
+    EXPECT_FALSE(writer.write(101u, 1u, 256u, packet));
+    EXPECT_TRUE(writer.truncated());
+    EXPECT_LE(writer.written_bytes(), 64u);
+    writer.close();
+    std::filesystem::remove(path);
 }

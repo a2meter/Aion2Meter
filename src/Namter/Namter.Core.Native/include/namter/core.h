@@ -204,6 +204,11 @@ NM_API nm_status NM_CALL nm_core_create(const nm_core_config_v1 *config,
                                         nm_core_handle **out_handle) noexcept;
 NM_API nm_status NM_CALL nm_core_set_protocol_snapshot(nm_core_handle *handle, const uint8_t *data,
                                                        size_t size) noexcept;
+/* Optional raw packet log. Set while idle to have each dungeon or content entry
+   open a new PCAPNG file in this directory; pass size 0 to disable. The log is
+   best-effort evidence collection and never alters capture or completeness. */
+NM_API nm_status NM_CALL nm_core_set_packet_log(nm_core_handle *handle, const char *directory,
+                                                size_t size) noexcept;
 NM_API nm_status NM_CALL nm_core_start(nm_core_handle *handle,
                                        const nm_source_config_v1 *source) noexcept;
 NM_API nm_status NM_CALL nm_core_stop(nm_core_handle *handle) noexcept;
