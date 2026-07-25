@@ -152,7 +152,8 @@ std::vector<Field> fields_for(uint16_t opcode_kind) {
 std::vector<uint8_t> snapshot_with_layouts(
     std::vector<Opcode> opcodes,
     const std::vector<std::vector<Field>>& layouts,
-    uint16_t parser_strategy = 0) {
+    uint16_t parser_strategy = 0,
+    uint32_t max_payload_bytes = 128) {
     std::vector<uint8_t> bytes{'N', 'M', 'P', 'S'};
     append_u16(bytes, 1); append_u16(bytes, 28); append_u32(bytes, 0); append_u32(bytes, 0);
     append_u64(bytes, 7); append_u32(bytes, 3);
@@ -165,7 +166,7 @@ std::vector<uint8_t> snapshot_with_layouts(
     }
     append_u32(bytes, static_cast<uint32_t>(layouts.size()));
     for (size_t index = 0; index < layouts.size(); ++index) {
-        append_u32(bytes, static_cast<uint32_t>(index + 1u)); append_u32(bytes, 128);
+        append_u32(bytes, static_cast<uint32_t>(index + 1u)); append_u32(bytes, max_payload_bytes);
         append_u16(bytes, static_cast<uint16_t>(layouts[index].size())); append_u16(bytes, parser_strategy);
         for (const auto& field : layouts[index]) {
             append_u16(bytes, field.kind); append_u16(bytes, field.flags); append_u32(bytes, field.offset);
@@ -249,8 +250,9 @@ DecodedEvent decode_real_fixture(
     std::vector<uint8_t> tag,
     const std::vector<Field>& fields,
     const std::vector<uint8_t>& frame,
-    uint64_t file_offset) {
-    ProtocolDecoder decoder(snapshot_with_layouts({{kind, std::move(tag), 1}}, {fields}, 1));
+    uint64_t file_offset,
+    uint32_t max_payload_bytes = 128) {
+    ProtocolDecoder decoder(snapshot_with_layouts({{kind, std::move(tag), 1}}, {fields}, 1, max_payload_bytes));
     auto value = message(0x11, file_offset);
     value.bytes = frame;
     return only_event(decoder.decode(value));
@@ -568,6 +570,54 @@ TEST(ProtocolDecoder, ProductionMobHeaderCarriesRuntimeActorAndDatabaseMobCode) 
     EXPECT_EQ(event.actor_id, 18804u); EXPECT_EQ(event.mob_id, 2301721u);
     EXPECT_EQ(event.boss_id, 2301721u); EXPECT_EQ(event.is_boss, 1u);
     expect_provenance(event, 217201);
+}
+
+// Real captured spawn frame for an anonymous summon: no name and no mob code,
+// so the owner is only recoverable from the trailer after the 0xff boundary.
+std::vector<uint8_t> anonymous_summon_frame() {
+    return {
+        0xcd,0x01,0x41,0x36,0x85,0x88,0x02,0x5f,0x00,0x00,0x7b,0x91,
+        0x2c,0x00,0x40,0x02,0xb3,0xa2,0x05,0xc7,0x68,0xab,0x9e,0x45,
+        0x00,0xf0,0xd3,0x45,0x10,0xe0,0xae,0x42,0x2e,0x3e,0x01,0x92,
+        0xe3,0x02,0x92,0xe3,0x02,0x6e,0x2b,0x00,0x00,0x6e,0x2b,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0xf0,0xc6,0x02,0x00,0x64,0x00,0x00,0x00,0xf0,0x49,0x02,
+        0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xa0,0x86,0x01,
+        0x00,0x00,0x00,0x00,0x00,0x48,0x1d,0x0e,0x00,0x01,0x01,0x01,
+        0x11,0x01,0x81,0x96,0x98,0x00,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0x80,0x75,0xd5,0x2a,0xbb,0x03,0x00,0x00,0x85,0x88,
+        0x02,0x01,0x02,0xb3,0xa2,0x05,0xc7,0x68,0xab,0x9e,0x45,0x00,
+        0xf0,0xd3,0x45,0x07,0x02,0x06,0x7a,0x2c,0x00,0x00,0xcf,0x08,
+        0x00,0x00,0x00,0x00,0xec,0x03,0x0a,0x31,0xec,0x9d,0xb8,0xeb,
+        0xa0,0x88,0xea,0xb5,0x94,0x01,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,
+        0xcd,0x00,0x6e,0x21,0x00,0x00,0xd0,0x00,0x07,0x03,0x00,0x00,
+        0xd6,0x00,0x32,0x00,0x00,0x00,0x32,0x00,0x00,0x00,0x00,
+    };
+}
+
+TEST(ProtocolDecoder, ProductionAnonymousSummonSpawnCarriesOwnerForAttribution) {
+    // The bounded current-wire parser runs before any declared layout, so a
+    // recovered owner can only have come from the spawn trailer.
+    const auto event = decode_real_fixture(7, {0x41,0x36}, fields_for(7), anonymous_summon_frame(), 512001, 4096).view();
+    EXPECT_EQ(event.kind, static_cast<uint32_t>(NM_EVENT_MOB_SPAWN));
+    EXPECT_EQ(event.actor_id, 33797u);
+    EXPECT_EQ(event.owner_id, 11386u);
+    EXPECT_EQ(event.mob_id, 0u);
+    EXPECT_EQ(event.boss_id, 0u);
+    EXPECT_EQ(event.is_boss, 0u);
+    EXPECT_EQ(event.name_size, 0u);
+    expect_provenance(event, 512001);
+}
+
+TEST(ProtocolDecoder, SpawnVariantWithoutSummonTrailerNeverInventsAnOwner) {
+    auto frame = anonymous_summon_frame();
+    // Break the eight-byte boundary marker. Without it there is no evidence of a
+    // summoner, so the decoder must not hand back the owner it would otherwise
+    // have recovered from the trailer.
+    frame[102] = 0x00;
+    const auto event = decode_real_fixture(7, {0x41,0x36}, fields_for(7), frame, 512002, 4096).view();
+    EXPECT_NE(event.owner_id, 11386u);
 }
 
 TEST(ProtocolDecoder, ProductionNamedSummonHeaderCarriesOwnerNameForAttribution) {

@@ -459,6 +459,39 @@ bool parse_current_boss_hp(DecodedEvent& event, std::span<const uint8_t> payload
     return true;
 }
 
+// A summoned entity carries no name and no mob code, so its only link to the
+// player who summoned it is a trailer inside the same spawn message: an
+// eight-byte boundary marker, then a {7,2,6} header whose following two bytes
+// hold the summoner's actor id as little-endian uint16. Anything below 100 is a
+// slot/index rather than an actor, so the scan keeps looking past it.
+bool find_summon_owner(std::span<const uint8_t> payload, uint32_t& owner) noexcept {
+    constexpr size_t boundary_size = 8u;
+    constexpr size_t header_size = 5u;
+    size_t cursor = 0;
+    while (cursor + boundary_size <= payload.size()) {
+        size_t boundary = payload.size();
+        for (size_t i = cursor; i + boundary_size <= payload.size(); ++i) {
+            bool matched = true;
+            for (size_t k = 0; k < boundary_size; ++k) {
+                if (payload[i + k] != 0xffu) { matched = false; break; }
+            }
+            if (matched) { boundary = i; break; }
+        }
+        if (boundary == payload.size()) return false;
+        const size_t after = boundary + boundary_size;
+        size_t header = payload.size();
+        for (size_t j = after; j + header_size <= payload.size(); ++j) {
+            if (payload[j] == 7u && payload[j + 1u] == 2u && payload[j + 2u] == 6u) { header = j; break; }
+        }
+        if (header == payload.size()) { cursor = after; continue; }
+        const uint32_t candidate = static_cast<uint32_t>(payload[header + 3u]) |
+                                   (static_cast<uint32_t>(payload[header + 4u]) << 8u);
+        if (candidate > 99u) { owner = candidate; return true; }
+        cursor = boundary + 1u;
+    }
+    return false;
+}
+
 bool parse_current_mob(DecodedEvent& event, std::span<const uint8_t> payload) {
     SpanReader reader(payload);
     uint8_t code0 = 0;
@@ -486,7 +519,18 @@ bool parse_current_mob(DecodedEvent& event, std::span<const uint8_t> payload) {
     }
     if (!reader.skip(3u) || !reader.read_u8(code0) || !reader.read_u8(code1) ||
         !reader.read_u8(code2) || !reader.read_u8(marker0) || !reader.read_u8(marker1) ||
-        !reader.read_u8(marker2) || marker0 != 0u || marker1 != 0u || marker2 != 2u) return false;
+        !reader.read_u8(marker2) || marker0 != 0u || marker1 != 0u || marker2 != 2u) {
+        // Neither a named spawn nor a mob-code spawn: the remaining supported
+        // variant is a summon whose owner is carried in the trailer.
+        uint32_t summon_owner = 0;
+        if (record.actor_id != 0u && find_summon_owner(payload, summon_owner) &&
+            summon_owner != record.actor_id) {
+            record.owner_id = summon_owner;
+            record.kind = NM_EVENT_MOB_SPAWN;
+            return true;
+        }
+        return false;
+    }
     record.mob_id = static_cast<uint32_t>(code0) |
                     (static_cast<uint32_t>(code1) << 8u) |
                     (static_cast<uint32_t>(code2) << 16u);
