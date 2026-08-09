@@ -9,7 +9,7 @@ public static class CliApplication
     public const string HelpText = """
         Namter capture correctness CLI
         namter replay --input <file-or-dir> --data <aion.db> --output <dir> [--speed 0|1|10]
-        namter capture --backend windivert|npcap --data <aion.db> --output <dir> [--packet-log <dir>]
+        namter capture --backend windivert|npcap --data <aion.db> --output <dir>
         namter compare --actual <record.json> --expected <readable-dir> --report <report.json>
         namter data status|check|rollback --data-dir <dir>
         """;

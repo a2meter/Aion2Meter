@@ -76,20 +76,6 @@ public sealed class NativeCore : IAsyncDisposable
         }
     }
 
-    /// Writes a PCAPNG file per dungeon or content entry into <paramref name="directory"/>.
-    /// Must be called before the source starts. The log is best-effort evidence
-    /// collection: failing to write it never changes capture or completeness.
-    public unsafe void SetPacketLog(string directory)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(directory);
-        byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(directory);
-        fixed (byte* data = utf8)
-        {
-            ThrowIfFailed(NativeMethods.nm_core_set_packet_log(_handle, data, checked((nuint)utf8.Length)));
-        }
-    }
-
     public Task ReplayAsync(
         ReadOnlyMemory<byte> sourceData,
         CancellationToken cancellationToken = default) =>

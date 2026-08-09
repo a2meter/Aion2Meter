@@ -25,13 +25,6 @@ internal static unsafe partial class NativeMethods
         byte* data,
         nuint size);
 
-    [LibraryImport(LibraryName, EntryPoint = "nm_core_set_packet_log")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial NativeStatus nm_core_set_packet_log(
-        NativeCoreHandle handle,
-        byte* directory,
-        nuint size);
-
     [LibraryImport(LibraryName, EntryPoint = "nm_core_start")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial NativeStatus nm_core_start(

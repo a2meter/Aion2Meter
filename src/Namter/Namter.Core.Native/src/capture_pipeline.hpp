@@ -5,7 +5,6 @@
 #include <functional>
 #include <memory>
 #include <span>
-#include <string>
 
 namespace namter {
 
@@ -25,12 +24,6 @@ public:
     CapturePipeline(const CapturePipeline&) = delete;
     CapturePipeline& operator=(const CapturePipeline&) = delete;
 
-    // Enables the operator-requested raw packet log. While set, entering a new
-    // dungeon or content instance opens a fresh PCAPNG file in this directory,
-    // seeded with the packets already buffered so the entry itself is captured.
-    // The log is best-effort evidence collection: a failure to write it never
-    // changes capture or completeness reporting.
-    void set_packet_log(std::string directory);
     [[nodiscard]] CaptureError ingest(const CaptureRecord& record);
     void flush(uint64_t timestamp_ns);
     [[nodiscard]] size_t active_framer_count() const noexcept;

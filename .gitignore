@@ -159,7 +159,3 @@ $RECYCLE.BIN/
 .DS_Store
 
 _NCrunch*
-
-# Generated capture/replay artifacts (event ledgers, encounter records, diagnostics)
-/records/
-/records_*/

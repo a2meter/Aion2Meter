@@ -16,7 +16,6 @@
     <Project Path="src/Namter/Namter.GameData.Publisher/Namter.GameData.Publisher.csproj" />
     <Project Path="src/Namter/Namter.Encounter/Namter.Encounter.csproj" />
     <Project Path="src/Namter/Namter.Cli/Namter.Cli.csproj" />
-    <Project Path="src/Namter/Namter.Overlay/Namter.Overlay.csproj" />
     <Project Path="src/Namter/Namter.Tests.Unit/Namter.Tests.Unit.csproj" />
     <Project Path="src/Namter/Namter.Tests.Integration/Namter.Tests.Integration.csproj" />
   </Folder>

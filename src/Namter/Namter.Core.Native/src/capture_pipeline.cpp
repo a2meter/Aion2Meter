@@ -1,11 +1,8 @@
 #include "capture_pipeline.hpp"
-#include "pcapng_writer.hpp"
 
 #include <algorithm>
-#include <deque>
 #include <limits>
 #include <optional>
-#include <string>
 
 namespace namter {
 
@@ -43,10 +40,6 @@ struct CapturePipeline::Impl {
                 for (auto& decoded : decoder->decode(*message)) {
                     if (auto* event = std::get_if<DecodedEvent>(&decoded)) {
                         const auto view = event->view();
-                        if (view.kind == NM_EVENT_CONTENT && view.dungeon_id != 0u &&
-                            view.dungeon_id != logged_dungeon) {
-                            pending_dungeon = view.dungeon_id;
-                        }
                         events(view);
                     } else {
                         diagnostics(NM_DIAGNOSTIC_INCOMPLETE_STREAM,
@@ -85,42 +78,10 @@ struct CapturePipeline::Impl {
         }
     }
 
-    // Keeps the most recent packets so a log opened on dungeon entry still
-    // contains the entry itself and whatever preceded it inside the budget.
-    void remember(const CaptureRecord& record) {
-        if (log_directory.empty()) return;
-        ring.push_back({record.link_type, record.timestamp_ns, record.original_length, record.bytes});
-        ring_bytes += record.bytes.size();
-        while (ring_bytes > ring_budget && !ring.empty()) {
-            ring_bytes -= ring.front().bytes.size();
-            ring.pop_front();
-        }
-    }
-
-    void rotate_log(uint32_t dungeon_id, uint64_t timestamp_ns) {
-        writer.close();
-        logged_dungeon = dungeon_id;
-        std::string path = log_directory;
-        if (!path.empty() && path.back() != '/' && path.back() != '\\') path.push_back('\\');
-        path += "dungeon-" + std::to_string(dungeon_id) + "-" + std::to_string(timestamp_ns) + ".pcapng";
-        if (!writer.open(path, max_log_bytes)) return;
-        for (const auto& entry : ring)
-            if (!writer.write(entry.link_type, entry.timestamp_ns, entry.original_length, entry.bytes)) break;
-    }
-
     CaptureError ingest(const CaptureRecord& record) {
         const auto normalized = PacketNormalizer::normalize(record);
         if (!normalized.segment) return normalized.error;
-        remember(record);
         stream_outputs(tracker.process(*normalized.segment));
-        if (log_directory.empty()) return CaptureError::none;
-        if (pending_dungeon != 0u) {
-            const uint32_t dungeon = pending_dungeon;
-            pending_dungeon = 0u;
-            rotate_log(dungeon, record.timestamp_ns);
-        } else if (writer.is_open()) {
-            (void)writer.write(record.link_type, record.timestamp_ns, record.original_length, record.bytes);
-        }
         return CaptureError::none;
     }
 
@@ -128,28 +89,12 @@ struct CapturePipeline::Impl {
         stream_outputs(tracker.expire(timestamp_ns));
     }
 
-    struct RingEntry {
-        uint32_t link_type;
-        uint64_t timestamp_ns;
-        uint32_t original_length;
-        std::vector<uint8_t> bytes;
-    };
-
-    static constexpr size_t ring_budget = 4u * 1024u * 1024u;
-    static constexpr uint64_t max_log_bytes = 512ull * 1024ull * 1024ull;
-
     FrameConfig frame_config;
     FlowTracker tracker;
     std::optional<ProtocolDecoder> decoder;
     std::vector<FramerEntry> framers;
     EventSink events;
     DiagnosticSink diagnostics;
-    std::string log_directory;
-    PcapngWriter writer;
-    std::deque<RingEntry> ring;
-    size_t ring_bytes = 0;
-    uint32_t logged_dungeon = 0;
-    uint32_t pending_dungeon = 0;
 };
 
 CapturePipeline::CapturePipeline(CapturePipelineConfig config,
@@ -158,7 +103,6 @@ CapturePipeline::CapturePipeline(CapturePipelineConfig config,
     : impl_(std::make_unique<Impl>(config, snapshot, std::move(events),
                                   std::move(diagnostics))) {}
 CapturePipeline::~CapturePipeline() = default;
-void CapturePipeline::set_packet_log(std::string directory) { impl_->log_directory = std::move(directory); }
 CaptureError CapturePipeline::ingest(const CaptureRecord& record) { return impl_->ingest(record); }
 void CapturePipeline::flush(uint64_t timestamp_ns) { impl_->flush(timestamp_ns); }
 size_t CapturePipeline::active_framer_count() const noexcept { return impl_->framers.size(); }
